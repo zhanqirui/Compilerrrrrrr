@@ -149,6 +149,18 @@ string getNodeName(ast_node * astnode)
         case ast_operator_type::AST_OP_CONST_EXP:
             nodeName = "const-exp";
             break;
+        case ast_operator_type::AST_OP_ARRAY_CONST_DEF:
+            nodeName = "const-array";
+            break;
+		case ast_operator_type::AST_OP_ARRAY_VAR_DEF:
+			nodeName = "var-array";
+			break;
+		case ast_operator_type::AST_OP_ARRAY_INDEX:
+			nodeName = "array-index";
+			break;
+		case ast_operator_type::AST_OP_ARRAY_ACCESS:
+			nodeName = "array-access";
+			break;
         default:
             nodeName = "unknown";
             break;

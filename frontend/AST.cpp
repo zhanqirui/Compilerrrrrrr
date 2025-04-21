@@ -1,5 +1,4 @@
-﻿///
-/// @file AST.cpp
+﻿/// @file AST.cpp
 /// @brief 抽象语法树AST管理的实现
 /// @author zenglj (zenglj@live.com)
 /// @version 1.0
@@ -535,6 +534,57 @@ ast_node * create_array_init_val_node(std::vector<ast_node *> &elements)
     return node;
 }
 
+ast_node * create_array_const_def_node(ast_node * id_node, std::vector<ast_node *> &dimensions, ast_node * init_node) {
+    // 创建一个数组常量定义节点
+    ast_node * node = new ast_node(ast_operator_type::AST_OP_ARRAY_CONST_DEF);
+    
+    // 添加标识符节点作为第一个子节点
+    node->insert_son_node(id_node);
+    
+    // 创建一个数组类型节点来存储维度信息
+    ast_node * dims_node = new ast_node(ast_operator_type::AST_OP_ARRAY_INDEX);
+    
+    // 将所有维度信息添加到维度节点
+    for (auto dim : dimensions) {
+        dims_node->insert_son_node(dim);
+    }
+    
+    // 将维度节点作为第二个子节点
+    node->insert_son_node(dims_node);
+    
+    // 如果有初始化节点，则作为第三个子节点
+    if (init_node) {
+        node->insert_son_node(init_node);
+    }
+    
+    return node;
+}
+
+ast_node * create_array_var_def_node(ast_node * id_node, std::vector<ast_node *> &dimensions, ast_node * init_node) {
+    // 创建一个数组变量定义节点
+    ast_node * node = new ast_node(ast_operator_type::AST_OP_ARRAY_VAR_DEF);
+    
+    // 添加标识符节点作为第一个子节点
+    node->insert_son_node(id_node);
+    
+    // 创建一个数组类型节点来存储维度信息
+    ast_node * dims_node = new ast_node(ast_operator_type::AST_OP_ARRAY_INDEX);
+    
+    // 将所有维度信息添加到维度节点
+    for (auto dim : dimensions) {
+        dims_node->insert_son_node(dim);
+    }
+    
+    // 将维度节点作为第二个子节点
+    node->insert_son_node(dims_node);
+    
+    // 如果有初始化节点，则作为第三个子节点
+    if (init_node) {
+        node->insert_son_node(init_node);
+    }
+    
+    return node;
+}
 
 ast_node * create_expr_stmt_node(ast_node * expr)
 {
@@ -668,5 +718,14 @@ ast_node * create_const_exp_node(ast_node * expr)
 {
     ast_node * node = new ast_node(ast_operator_type::AST_OP_CONST_EXP);
     node->insert_son_node(expr);
+    return node;
+}
+
+ast_node * create_array_access_node(ast_node * id_node, std::vector<ast_node *> &indices) {
+    ast_node * node = new ast_node(ast_operator_type::AST_OP_ARRAY_ACCESS);
+    node->insert_son_node(id_node);
+    for (auto idx : indices) {
+        node->insert_son_node(idx);
+    }
     return node;
 }

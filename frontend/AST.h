@@ -195,6 +195,15 @@ enum class ast_operator_type : int {
     /// @brief 常量表达式
     AST_OP_CONST_EXP,
 
+	/// @brief 数组constant定义
+	AST_OP_ARRAY_CONST_DEF,
+
+	/// @brief 数组变量定义
+	AST_OP_ARRAY_VAR_DEF,
+
+    /// @brief 数组访问操作
+    AST_OP_ARRAY_ACCESS,
+
     /// @brief 最大标识符，表示非法运算符
     AST_OP_MAX,
 };
@@ -627,6 +636,12 @@ ast_node * create_cond_node(ast_node * expr);
 /// @return ast_node* 左值节点
 ast_node * create_lval_node(ast_node * id_node, std::vector<ast_node *> &indices);
 
+/// @brief 创建数组访问节点
+/// @param id_node 数组标识符节点
+/// @param indices 索引列表
+/// @return ast_node* 数组访问节点
+ast_node * create_array_access_node(ast_node * id_node, std::vector<ast_node *> &indices);
+
 /// @brief 创建主表达式节点
 /// @param value 值节点
 /// @return ast_node* 主表达式节点
@@ -693,7 +708,18 @@ ast_node * create_land_exp_node(ast_node * left, ast_node * right);
 /// @return ast_node* 逻辑或表达式节点
 ast_node * create_lor_exp_node(ast_node * left, ast_node * right);
 
-/// @brief 创建常量表达式节点
-/// @param expr 表达式节点
-/// @return ast_node* 常量表达式节点
-ast_node * create_const_exp_node(ast_node * expr);
+
+ast_node * create_const_exp_node(ast_node * expr);/// @return ast_node* 常量表达式节点/// @param expr 表达式节点/// @brief 创建常量表达式节点ast_node * create_lor_exp_node(ast_node * left, ast_node * right);
+/// @brief 创建数组常量定义节点
+/// @param id_node 标识符节点
+/// @param dimensions 数组维度列表
+/// @param init_node 初始化节点
+/// @return ast_node* 数组常量定义节点
+ast_node * create_array_const_def_node(ast_node * id_node, std::vector<ast_node *> &dimensions, ast_node * init_node);
+
+/// @brief 创建数组变量定义节点
+/// @param id_node 标识符节点
+/// @param dimensions 数组维度列表
+/// @param init_node 初始化节点
+/// @return ast_node* 数组变量定义节点
+ast_node * create_array_var_def_node(ast_node * id_node, std::vector<ast_node *> &dimensions, ast_node * init_node);

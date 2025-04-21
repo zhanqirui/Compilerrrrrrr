@@ -1,4 +1,4 @@
-	///
+///
 	/// @file Antlr4CSTVisitor.cpp
 	/// @brief Antlr4的具体语法树的遍历产生AST
 	/// @author zenglj (zenglj@live.com)
@@ -65,21 +65,26 @@
 		return visit(ctx->varDecl());
 	}
 	std::any MiniCCSTVisitor::visitConstDecl(MiniCParser::ConstDeclContext *ctx) {
-		// constDecl : bType constDef (',' constDef)* ';'
+		// constDecl : 'const' bType constDef (',' constDef)* ';'
 		auto type_node = std::any_cast<ast_node *>(visit(ctx->bType()));
-		ast_node *def_list = nullptr;
+		
+		// 创建常量声明列表节点，与变量声明保持一致的结构
+		ast_node *const_decl_node = new ast_node(ast_operator_type::AST_OP_CONST_DECL);
+		// 添加类型节点作为第一个子节点
+		const_decl_node->insert_son_node(type_node);
+		
+		// 添加所有常量定义节点作为子节点
 		for (auto defCtx : ctx->constDef()) {
 			auto def_node = std::any_cast<ast_node *>(visit(defCtx));
-			if (!def_list) {
-				def_list = def_node;
-			} else {
-				def_list->insert_son_node(def_node);
+			if (def_node) {
+				const_decl_node->insert_son_node(def_node);
 			}
 		}
-		return create_const_decl_node(type_node, def_list);
+		
+		return const_decl_node;
 	}
 	std::any MiniCCSTVisitor::visitBType(MiniCParser::BTypeContext *ctx) {
-		// bType : 'int' | 'float'
+		// bType : 'int' ('float')?
 		// 这里只处理int
 		type_attr attr;
 		attr.type = BasicType::TYPE_INT;
@@ -91,10 +96,25 @@
 		var_id_attr id;
 		id.id = strdup(ctx->Ident()->getText().c_str());
 		id.lineno = ctx->Ident()->getSymbol()->getLine();
-		// 这里只处理标量，不处理数组
-		auto init_node = std::any_cast<ast_node *>(visit(ctx->constInitVal()));
 		auto id_node = ast_node::New(id);
-		return create_const_def_node(id_node, init_node);
+		
+		// 处理数组维度
+		std::vector<ast_node *> dimensions;
+		for (auto exp : ctx->constExp()) {
+			auto dim = std::any_cast<ast_node *>(visit(exp));
+			if (dim) dimensions.push_back(dim);
+		}
+		
+		auto init_node = std::any_cast<ast_node *>(visit(ctx->constInitVal()));
+		
+		// 根据是否有维度信息来区分普通变量和数组
+		if (dimensions.empty()) {
+			// 普通变量
+			return create_const_def_node(id_node, init_node);
+		} else {
+			// 数组变量 - 使用更清晰的节点结构
+			return create_array_const_def_node(id_node, dimensions, init_node);
+		}
 	}
 	std::any MiniCCSTVisitor::visitScalarConstInitVal(MiniCParser::ScalarConstInitValContext *ctx) {
 		// scalarConstInitVal : constExp
@@ -113,16 +133,21 @@
 	std::any MiniCCSTVisitor::visitVarDecl(MiniCParser::VarDeclContext *ctx) {
 		// varDecl : bType varDef (',' varDef)* ';'
 		auto type_node = std::any_cast<ast_node *>(visit(ctx->bType()));
-		ast_node *def_list = nullptr;
+		
+		// 创建变量声明列表节点
+		ast_node *var_decl_node = new ast_node(ast_operator_type::AST_OP_VAR_DECL);
+		// 添加类型节点作为第一个子节点
+		var_decl_node->insert_son_node(type_node);
+		
+		// 添加所有变量定义节点作为子节点
 		for (auto defCtx : ctx->varDef()) {
 			auto def_node = std::any_cast<ast_node *>(visit(defCtx));
-			if (!def_list) {
-				def_list = def_node;
-			} else {
-				def_list->insert_son_node(def_node);
+			if (def_node) {
+				var_decl_node->insert_son_node(def_node);
 			}
 		}
-		return create_var_decl_node(type_node, def_list);
+		
+		return var_decl_node;
 	}
 	std::any MiniCCSTVisitor::visitVarDef(MiniCParser::VarDefContext *ctx) {
 		// varDef : Ident ('[' constExp ']')* ('=' initVal)?
@@ -130,11 +155,27 @@
 		id.id = strdup(ctx->Ident()->getText().c_str());
 		id.lineno = ctx->Ident()->getSymbol()->getLine();
 		auto id_node = ast_node::New(id);
+		
+		// 处理数组维度
+		std::vector<ast_node *> dimensions;
+		for (auto exp : ctx->constExp()) {
+			auto dim = std::any_cast<ast_node *>(visit(exp));
+			if (dim) dimensions.push_back(dim);
+		}
+		
 		ast_node *init_node = nullptr;
 		if (ctx->initVal()) {
 			init_node = std::any_cast<ast_node *>(visit(ctx->initVal()));
 		}
-		return create_var_def_node(id_node, init_node);
+		
+		// 根据是否有维度信息来区分普通变量和数组
+		if (dimensions.empty()) {
+			// 普通变量
+			return create_var_def_node(id_node, init_node);
+		} else {
+			// 数组变量 - 使用更清晰的节点结构
+			return create_array_var_def_node(id_node, dimensions, init_node);
+		}
 	}
 	std::any MiniCCSTVisitor::visitScalarInitVal(MiniCParser::ScalarInitValContext *ctx) {
 		// scalarInitVal : exp
@@ -195,7 +236,7 @@
 		return params;
 	}
 	std::any MiniCCSTVisitor::visitFuncFParam(MiniCParser::FuncFParamContext *ctx) {
-		// funcFParam : bType Ident
+		// funcFParam : bType Ident ('[' ']' ('[' exp ']')?)?
 		return create_func_formal_param(ctx->Ident()->getSymbol()->getLine(), ctx->Ident()->getText().c_str());
 	}
 
@@ -249,15 +290,20 @@
 		auto cond = std::any_cast<ast_node *>(visit(ctx->cond()));
 		auto then_stmt = std::any_cast<ast_node *>(visit(ctx->stmt(0)));
 		ast_node *else_stmt = nullptr;
+		
 		if (ctx->stmt().size() > 1) {
 			else_stmt = std::any_cast<ast_node *>(visit(ctx->stmt(1)));
 		}
+		
+		// 使用工厂函数创建if-else节点
 		return create_if_else_stmt_node(cond, then_stmt, else_stmt);
 	}
 	std::any MiniCCSTVisitor::visitWhileLoopStatement(MiniCParser::WhileLoopStatementContext *ctx) {
 		// whileLoopStatement : 'while' '(' cond ')' stmt
 		auto cond = std::any_cast<ast_node *>(visit(ctx->cond()));
 		auto body = std::any_cast<ast_node *>(visit(ctx->stmt()));
+		
+		// 使用工厂函数创建while循环节点
 		return create_while_loop_node(cond, body);
 	}
 	std::any MiniCCSTVisitor::visitBreakStatement(MiniCParser::BreakStatementContext *ctx) {
@@ -286,12 +332,21 @@
 		id.id = strdup(ctx->Ident()->getText().c_str());
 		id.lineno = ctx->Ident()->getSymbol()->getLine();
 		auto id_node = ast_node::New(id);
+		
 		std::vector<ast_node *> indices;
 		for (auto e : ctx->exp()) {
 			auto idx = std::any_cast<ast_node *>(visit(e));
 			if (idx) indices.push_back(idx);
 		}
-		return create_lval_node(id_node, indices);
+		
+		// 根据是否有索引来区分普通变量和数组访问
+		if (indices.empty()) {
+			// 普通变量访问
+			return create_lval_node(id_node, indices);
+		} else {
+			// 数组元素访问
+			return create_array_access_node(id_node, indices);
+		}
 	}
 	std::any MiniCCSTVisitor::visitPrimaryExp(MiniCParser::PrimaryExpContext *ctx) {
 		// primaryExp : '(' exp ')' | lVal | number
@@ -321,8 +376,20 @@
 			auto op = std::any_cast<ast_node *>(visit(ctx->unaryOp()));
 			auto operand = std::any_cast<ast_node *>(visit(ctx->unaryExp()));
 			return create_unary_exp_node(op, operand);
+		} else if (ctx->Ident()) {
+			// 处理函数调用 Ident '(' funcRParams? ')'
+			var_id_attr id;
+			id.id = strdup(ctx->Ident()->getText().c_str());
+			id.lineno = ctx->Ident()->getSymbol()->getLine();
+			auto id_node = ast_node::New(id);
+			
+			ast_node *params_node = nullptr;
+			if (ctx->funcRParams()) {
+				params_node = std::any_cast<ast_node *>(visit(ctx->funcRParams()));
+			}
+			// 使用正确的函数名：create_func_call 而不是 create_func_call_node
+			return create_func_call(id_node, params_node);
 		}
-		// 这里只处理一元和primary
 		return nullptr;
 	}
 	std::any MiniCCSTVisitor::visitUnaryOp(MiniCParser::UnaryOpContext *ctx) {
@@ -344,102 +411,154 @@
 		return create_func_rparams_node(params);
 	}
 	std::any MiniCCSTVisitor::visitMulExp(MiniCParser::MulExpContext *ctx) {
-		// mulExp : unaryExp | mulExp ('*'|'/'|'%') unaryExp
+		// 根据文法规则: mulExp : unaryExp (('*' | '/' | '%') unaryExp)*
 		if (ctx->unaryExp().size() == 1) {
 			// 只有一个unaryExp，直接返回
 			return visit(ctx->unaryExp(0));
 		} else {
-			// 形如: mulExp op unaryExp
-			// 左递归，左侧是mulExp，右侧是unaryExp
+			// 处理多个unaryExp的情况
 			auto left = std::any_cast<ast_node *>(visit(ctx->unaryExp(0)));
+			
+			// 遍历所有操作符和右操作数
 			for (size_t i = 1; i < ctx->unaryExp().size(); ++i) {
 				auto right = std::any_cast<ast_node *>(visit(ctx->unaryExp(i)));
-				std::string op = ctx->children[2 * i - 1]->getText();
+				
+				// 获取操作符 - 通过直接检查相应位置的文本
+				// 操作符位于两个unaryExp之间，因此需要使用索引(2*i-1)
+				std::string op = ctx->children[2*i-1]->getText();
+				
 				int op_type = 0;
 				if (op == "*") op_type = 0;
 				else if (op == "/") op_type = 1;
 				else if (op == "%") op_type = 2;
+				
+				// 创建新的乘法表达式节点，并将其作为新的左操作数
 				left = create_mul_exp_node(left, right, op_type);
 			}
 			return left;
 		}
 	}
 	std::any MiniCCSTVisitor::visitAddExp(MiniCParser::AddExpContext *ctx) {
-		// addExp : mulExp | addExp ('+'|'-') mulExp
+		// 根据文法规则: addExp : mulExp (('+' | '-') mulExp)*
 		if (ctx->mulExp().size() == 1) {
+			// 只有一个mulExp，直接返回
 			return visit(ctx->mulExp(0));
 		} else {
+			// 处理多个mulExp的情况
 			auto left = std::any_cast<ast_node *>(visit(ctx->mulExp(0)));
+			
+			// 遍历所有操作符和右操作数
 			for (size_t i = 1; i < ctx->mulExp().size(); ++i) {
 				auto right = std::any_cast<ast_node *>(visit(ctx->mulExp(i)));
+				
+				// 获取运算符，运算符是在两个mulExp之间的token
 				std::string op = ctx->children[2 * i - 1]->getText();
+			
 				int op_type = 0;
 				if (op == "+") op_type = 0;
 				else if (op == "-") op_type = 1;
+				
+				// 创建新的加法表达式节点，并将其作为新的左操作数
 				left = create_add_exp_node(left, right, op_type);
 			}
 			return left;
 		}
 	}
 	std::any MiniCCSTVisitor::visitRelExp(MiniCParser::RelExpContext *ctx) {
-		// relExp : addExp | relExp ('<'|'>'|'<='|'>=') addExp
+		// 根据文法规则: relExp : addExp (('<' | '>' | '<=' | '>=') addExp)*
 		if (ctx->addExp().size() == 1) {
+			// 只有一个addExp，直接返回
 			return visit(ctx->addExp(0));
 		} else {
+			// 处理多个addExp的情况
 			auto left = std::any_cast<ast_node *>(visit(ctx->addExp(0)));
+			
+			// 获取所有运算符
+			auto relOps = ctx->children;
+			size_t opIndex = 1;
+			
 			for (size_t i = 1; i < ctx->addExp().size(); ++i) {
 				auto right = std::any_cast<ast_node *>(visit(ctx->addExp(i)));
-				std::string op = ctx->children[2 * i - 1]->getText();
+				
+				// 获取运算符，运算符是在两个addExp之间的token
+				std::string op = relOps[opIndex]->getText();
+				opIndex += 2; // 跳过下一个addExp
+				
 				int op_type = 0;
 				if (op == "<") op_type = 0;
 				else if (op == ">") op_type = 1;
 				else if (op == "<=") op_type = 2;
 				else if (op == ">=") op_type = 3;
+				
+				// 创建新的关系表达式节点，并将其作为新的左操作数
 				left = create_rel_exp_node(left, right, op_type);
 			}
 			return left;
 		}
 	}
 	std::any MiniCCSTVisitor::visitEqExp(MiniCParser::EqExpContext *ctx) {
-		// eqExp : relExp | eqExp ('=='|'!=') relExp
+		// 根据文法规则: eqExp : relExp (('==' | '!=') relExp)*
 		if (ctx->relExp().size() == 1) {
+			// 只有一个relExp，直接返回
 			return visit(ctx->relExp(0));
 		} else {
+			// 处理多个relExp的情况
 			auto left = std::any_cast<ast_node *>(visit(ctx->relExp(0)));
+			
+			// 获取所有运算符
+			auto eqOps = ctx->children;
+			size_t opIndex = 1;
+			
 			for (size_t i = 1; i < ctx->relExp().size(); ++i) {
 				auto right = std::any_cast<ast_node *>(visit(ctx->relExp(i)));
-				std::string op = ctx->children[2 * i - 1]->getText();
+				
+				// 获取运算符，运算符是在两个relExp之间的token
+				std::string op = eqOps[opIndex]->getText();
+				opIndex += 2; // 跳过下一个relExp
+				
 				int op_type = 0;
 				if (op == "==") op_type = 0;
 				else if (op == "!=") op_type = 1;
+				
+				// 创建新的等价表达式节点，并将其作为新的左操作数
 				left = create_eq_exp_node(left, right, op_type);
 			}
 			return left;
 		}
 	}
 	std::any MiniCCSTVisitor::visitLAndExp(MiniCParser::LAndExpContext *ctx) {
-		// lAndExp : eqExp | lAndExp '&&' eqExp
+		// 根据文法规则: lAndExp : eqExp ('&&' eqExp)*
 		if (ctx->eqExp().size() == 1) {
+			// 只有一个eqExp，直接返回
 			return visit(ctx->eqExp(0));
 		} else {
+			// 处理多个eqExp的情况，这是非递归规则，使用循环构建
 			auto left = std::any_cast<ast_node *>(visit(ctx->eqExp(0)));
+			
 			for (size_t i = 1; i < ctx->eqExp().size(); ++i) {
 				auto right = std::any_cast<ast_node *>(visit(ctx->eqExp(i)));
+				
+				// 创建新的逻辑与表达式节点，并将其作为左操作数继续处理
 				left = create_land_exp_node(left, right);
 			}
 			return left;
 		}
 	}
 	std::any MiniCCSTVisitor::visitLOrExp(MiniCParser::LOrExpContext *ctx) {
-		// lOrExp : lAndExp | lOrExp '||' lAndExp
+		// 根据文法规则: lOrExp : lAndExp ('||' lAndExp)*
 		if (ctx->lAndExp().size() == 1) {
+			// 只有一个lAndExp，直接返回
 			return visit(ctx->lAndExp(0));
 		} else {
+			// 处理多个lAndExp的情况，这是非递归规则，使用循环构建
 			auto left = std::any_cast<ast_node *>(visit(ctx->lAndExp(0)));
+			
 			for (size_t i = 1; i < ctx->lAndExp().size(); ++i) {
 				auto right = std::any_cast<ast_node *>(visit(ctx->lAndExp(i)));
-				left = create_lor_exp_node(left, right);
-			}
+				
+				// 创建新的逻辑或表达式节点，并将其作为左操作数继续处理
+                left = create_lor_exp_node(left, right);
+            }
 			return left;
 		}
 	}
