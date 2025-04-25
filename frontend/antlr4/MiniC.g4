@@ -10,7 +10,7 @@ decl: constDecl # constDeclaration | varDecl # varDeclaration;
 constDecl: 'const' bType constDef (',' constDef)* ';';
 
 // 基本类型系统（支持 int 和 int float 混合类型）
-bType: 'int' ('float')?;
+bType: 'int' # intType | 'float' # floatType;
 
 // 常量定义（标量/数组）
 constDef: Ident ('[' constExp ']')* '=' constInitVal;
@@ -44,7 +44,7 @@ funcType:
 funcFParams: funcFParam (',' funcFParam)*;
 
 // 单个形参（支持多维数组参数）
-funcFParam: bType Ident ('[' ']' ('[' exp ']')?)?;
+funcFParam: bType Ident ('[' ']' ('[' exp ']')*)?;
 
 // 语句块
 block: '{' blockItem* '}';
@@ -80,9 +80,9 @@ number: IntConst | FloatConst;
 
 // 一元表达式
 unaryExp:
-	primaryExp
-	| Ident '(' funcRParams? ')'
-	| unaryOp unaryExp;
+	primaryExp # UnaryExpPrimary 
+	| Ident '(' funcRParams? ')' # UnaryExpFuncCall 
+	| unaryOp unaryExp # UnaryOpUnaryExp;
 
 // 一元运算符
 unaryOp: '+' | '-' | '!';

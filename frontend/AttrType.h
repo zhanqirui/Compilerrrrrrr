@@ -69,33 +69,24 @@ typedef struct op_attr {
 } op_attr;
 
 ///
-/// @brief 表示关系运算符的枚举
+/// @brief 表示运算符的枚举
 ///
-enum class RelOp : std::int8_t {
+enum class Op : std::int8_t {
     LT, // <
     LE, // <=
     GT, // >
     GE, // >=
     EQ, // ==
     NE, // !=
-};
-
-///
-/// @brief 表示算术运算符的枚举
-///
-enum class ArithOp : std::int8_t {
-    ADD, // +
+	ADD, // +
     SUB, // -
     MUL, // *
     DIV, // /
     MOD, // %
-};
-
-///
-/// @brief 表示逻辑运算符的枚举
-///
-enum class LogicOp : std::int8_t {
-    AND, // &&
+	AND, // &&
     OR,  // ||
     NOT, // !
+	POS, // +
+	NEG,  // -
+	NONE
 };

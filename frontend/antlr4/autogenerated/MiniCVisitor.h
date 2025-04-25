@@ -27,7 +27,9 @@ public:
 
     virtual std::any visitConstDecl(MiniCParser::ConstDeclContext *context) = 0;
 
-    virtual std::any visitBType(MiniCParser::BTypeContext *context) = 0;
+    virtual std::any visitIntType(MiniCParser::IntTypeContext *context) = 0;
+
+    virtual std::any visitFloatType(MiniCParser::FloatTypeContext *context) = 0;
 
     virtual std::any visitConstDef(MiniCParser::ConstDefContext *context) = 0;
 
@@ -87,7 +89,11 @@ public:
 
     virtual std::any visitNumber(MiniCParser::NumberContext *context) = 0;
 
-    virtual std::any visitUnaryExp(MiniCParser::UnaryExpContext *context) = 0;
+    virtual std::any visitUnaryExpPrimary(MiniCParser::UnaryExpPrimaryContext *context) = 0;
+
+    virtual std::any visitUnaryExpFuncCall(MiniCParser::UnaryExpFuncCallContext *context) = 0;
+
+    virtual std::any visitUnaryOpUnaryExp(MiniCParser::UnaryOpUnaryExpContext *context) = 0;
 
     virtual std::any visitUnaryOp(MiniCParser::UnaryOpContext *context) = 0;
 

@@ -149,11 +149,30 @@ public:
   class  BTypeContext : public antlr4::ParserRuleContext {
   public:
     BTypeContext(antlr4::ParserRuleContext *parent, size_t invokingState);
+   
+    BTypeContext() = default;
+    void copyFrom(BTypeContext *context);
+    using antlr4::ParserRuleContext::copyFrom;
+
     virtual size_t getRuleIndex() const override;
+
+   
+  };
+
+  class  FloatTypeContext : public BTypeContext {
+  public:
+    FloatTypeContext(BTypeContext *ctx);
 
 
     virtual std::any accept(antlr4::tree::ParseTreeVisitor *visitor) override;
-   
+  };
+
+  class  IntTypeContext : public BTypeContext {
+  public:
+    IntTypeContext(BTypeContext *ctx);
+
+
+    virtual std::any accept(antlr4::tree::ParseTreeVisitor *visitor) override;
   };
 
   BTypeContext* bType();
@@ -348,7 +367,8 @@ public:
     virtual size_t getRuleIndex() const override;
     BTypeContext *bType();
     antlr4::tree::TerminalNode *Ident();
-    ExpContext *exp();
+    std::vector<ExpContext *> exp();
+    ExpContext* exp(size_t i);
 
 
     virtual std::any accept(antlr4::tree::ParseTreeVisitor *visitor) override;
@@ -567,16 +587,43 @@ public:
   class  UnaryExpContext : public antlr4::ParserRuleContext {
   public:
     UnaryExpContext(antlr4::ParserRuleContext *parent, size_t invokingState);
+   
+    UnaryExpContext() = default;
+    void copyFrom(UnaryExpContext *context);
+    using antlr4::ParserRuleContext::copyFrom;
+
     virtual size_t getRuleIndex() const override;
-    PrimaryExpContext *primaryExp();
+
+   
+  };
+
+  class  UnaryExpFuncCallContext : public UnaryExpContext {
+  public:
+    UnaryExpFuncCallContext(UnaryExpContext *ctx);
+
     antlr4::tree::TerminalNode *Ident();
     FuncRParamsContext *funcRParams();
+
+    virtual std::any accept(antlr4::tree::ParseTreeVisitor *visitor) override;
+  };
+
+  class  UnaryExpPrimaryContext : public UnaryExpContext {
+  public:
+    UnaryExpPrimaryContext(UnaryExpContext *ctx);
+
+    PrimaryExpContext *primaryExp();
+
+    virtual std::any accept(antlr4::tree::ParseTreeVisitor *visitor) override;
+  };
+
+  class  UnaryOpUnaryExpContext : public UnaryExpContext {
+  public:
+    UnaryOpUnaryExpContext(UnaryExpContext *ctx);
+
     UnaryOpContext *unaryOp();
     UnaryExpContext *unaryExp();
 
-
     virtual std::any accept(antlr4::tree::ParseTreeVisitor *visitor) override;
-   
   };
 
   UnaryExpContext* unaryExp();

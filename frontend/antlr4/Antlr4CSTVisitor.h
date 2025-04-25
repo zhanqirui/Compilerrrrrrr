@@ -42,7 +42,8 @@ protected:
     std::any visitConstDeclaration(MiniCParser::ConstDeclarationContext *ctx) override;
     std::any visitVarDeclaration(MiniCParser::VarDeclarationContext *ctx) override;
     std::any visitConstDecl(MiniCParser::ConstDeclContext *ctx) override;
-    std::any visitBType(MiniCParser::BTypeContext *ctx) override;
+    std::any visitIntType(MiniCParser::IntTypeContext * ctx) override;
+    std::any visitFloatType(MiniCParser::FloatTypeContext * ctx) override;
     std::any visitConstDef(MiniCParser::ConstDefContext *ctx) override;
     std::any visitScalarConstInitVal(MiniCParser::ScalarConstInitValContext *ctx) override;
     std::any visitArrayConstInitVal(MiniCParser::ArrayConstInitValContext *ctx) override;
@@ -78,7 +79,9 @@ protected:
     std::any visitLVal(MiniCParser::LValContext *ctx) override;
     std::any visitPrimaryExp(MiniCParser::PrimaryExpContext *ctx) override;
     std::any visitNumber(MiniCParser::NumberContext *ctx) override;
-    std::any visitUnaryExp(MiniCParser::UnaryExpContext *ctx) override;
+    std::any visitUnaryExpPrimary(MiniCParser::UnaryExpPrimaryContext *ctx) override;
+    std::any visitUnaryExpFuncCall(MiniCParser::UnaryExpFuncCallContext *ctx) override;
+    std::any visitUnaryOpUnaryExp(MiniCParser::UnaryOpUnaryExpContext *ctx) override;
     std::any visitUnaryOp(MiniCParser::UnaryOpContext *ctx) override;
     std::any visitFuncRParams(MiniCParser::FuncRParamsContext *ctx) override;
     std::any visitMulExp(MiniCParser::MulExpContext *ctx) override;

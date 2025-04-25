@@ -31,7 +31,11 @@ public:
     return visitChildren(ctx);
   }
 
-  virtual std::any visitBType(MiniCParser::BTypeContext *ctx) override {
+  virtual std::any visitIntType(MiniCParser::IntTypeContext *ctx) override {
+    return visitChildren(ctx);
+  }
+
+  virtual std::any visitFloatType(MiniCParser::FloatTypeContext *ctx) override {
     return visitChildren(ctx);
   }
 
@@ -151,7 +155,15 @@ public:
     return visitChildren(ctx);
   }
 
-  virtual std::any visitUnaryExp(MiniCParser::UnaryExpContext *ctx) override {
+  virtual std::any visitUnaryExpPrimary(MiniCParser::UnaryExpPrimaryContext *ctx) override {
+    return visitChildren(ctx);
+  }
+
+  virtual std::any visitUnaryExpFuncCall(MiniCParser::UnaryExpFuncCallContext *ctx) override {
+    return visitChildren(ctx);
+  }
+
+  virtual std::any visitUnaryOpUnaryExp(MiniCParser::UnaryOpUnaryExpContext *ctx) override {
     return visitChildren(ctx);
   }
 

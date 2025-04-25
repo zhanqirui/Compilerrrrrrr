@@ -17,7 +17,7 @@
 #include <vector>
 
 #include "AST.h"
-
+#include "AttrType.h"
 using namespace std;
 
 #ifdef USE_GRAPHVIZ
@@ -59,15 +59,24 @@ string getNodeName(ast_node * astnode)
         case ast_operator_type::AST_OP_FUNC_FORMAL_PARAMS:
             nodeName = "formal-params";
             break;
+		case ast_operator_type::AST_OP_FUNC_FORMAL_PARAM:
+			nodeName = "formal-param";
+			break;
         case ast_operator_type::AST_OP_CONST_DECL:
             nodeName = "const-decl";
             break;
+		case ast_operator_type::AST_OP_FUNC_CALL:
+			nodeName = "func-call";
+			break;
         case ast_operator_type::AST_OP_VAR_DECL:
             nodeName = "var-decl";
             break;
-        case ast_operator_type::AST_OP_BTYPE:
-            nodeName = "btype";
+        case ast_operator_type::AST_OP_INT_TYPE:
+            nodeName = "int";
             break;
+		case ast_operator_type::AST_OP_FLOAT_TYPE:
+			nodeName = "float";
+			break;
         case ast_operator_type::AST_OP_CONST_DEF:
             nodeName = "const-def";
             break;
@@ -75,16 +84,10 @@ string getNodeName(ast_node * astnode)
             nodeName = "var-def";
             break;
         case ast_operator_type::AST_OP_SCALAR_CONST_INIT:
-            nodeName = "scalar-const-init";
-            break;
         case ast_operator_type::AST_OP_ARRAY_CONST_INIT:
-            nodeName = "array-const-init";
-            break;
         case ast_operator_type::AST_OP_SCALAR_INIT:
-            nodeName = "scalar-init";
-            break;
         case ast_operator_type::AST_OP_ARRAY_INIT_VAL:
-            nodeName = "array-init-val";
+            nodeName = "=";
             break;
         case ast_operator_type::AST_OP_ASSIGN_STMT:
             nodeName = "assign-stmt";
@@ -98,26 +101,11 @@ string getNodeName(ast_node * astnode)
         case ast_operator_type::AST_OP_IF_ELSE_STMT:
             nodeName = "if-else-stmt";
             break;
-        case ast_operator_type::AST_OP_WHILE_LOOP:
-            nodeName = "while-loop";
-            break;
-        case ast_operator_type::AST_OP_BREAK_STMT:
-            nodeName = "break-stmt";
-            break;
-        case ast_operator_type::AST_OP_CONTINUE_STMT:
-            nodeName = "continue-stmt";
-            break;
-        case ast_operator_type::AST_OP_COND:
-            nodeName = "cond";
+		case ast_operator_type::AST_OP_EXP:
+            nodeName = "exp";
             break;
         case ast_operator_type::AST_OP_LVAL:
             nodeName = "lval";
-            break;
-        case ast_operator_type::AST_OP_PRIMARY:
-            nodeName = "primary";
-            break;
-        case ast_operator_type::AST_OP_NUMBER:
-            nodeName = "number";
             break;
         case ast_operator_type::AST_OP_UNARY_EXP:
             nodeName = "unary-exp";
@@ -129,16 +117,52 @@ string getNodeName(ast_node * astnode)
             nodeName = "func-rparams";
             break;
         case ast_operator_type::AST_OP_MUL_EXP:
-            nodeName = "mul-exp";
-            break;
-        case ast_operator_type::AST_OP_ADD_EXP:
-            nodeName = "add-exp";
+			{
+				// 显示乘法表达式的运算符
+				nodeName = "";
+				if (astnode->op_type == Op::MUL) {
+					nodeName += "*";
+				} else if (astnode->op_type == Op::DIV) {
+					nodeName += "/";
+				} else if (astnode->op_type == Op::MOD) {
+					nodeName += "%";
+				}
+			}
+			break;
+		case ast_operator_type::AST_OP_ADD_EXP:
+		{
+			// 显示加法表达式的运算符
+			nodeName = "";
+			if (astnode->op_type == Op::ADD) {
+				nodeName += "+";
+			} else if (astnode->op_type == Op::SUB) {
+				nodeName += "-";
+			}
+		}
             break;
         case ast_operator_type::AST_OP_REL_EXP:
-            nodeName = "rel-exp";
+            {
+				// 显示关系表达式的运算符
+				nodeName = "";
+				if (astnode->op_type == Op::LT) {
+					nodeName += "<";
+				} else if (astnode->op_type == Op::LE) {
+					nodeName += "<=";
+				} else if (astnode->op_type == Op::GT) {
+					nodeName += ">";
+				} else if (astnode->op_type == Op::GE) {
+					nodeName += ">=";
+				} 
+			}
             break;
         case ast_operator_type::AST_OP_EQ_EXP:
-            nodeName = "eq-exp";
+           {
+				if(astnode->op_type == Op::EQ) {
+					nodeName = "==";
+		   		} else if(astnode->op_type == Op::NE) {
+					nodeName = "!=";
+				}	
+		   }
             break;
         case ast_operator_type::AST_OP_LAND_EXP:
             nodeName = "land-exp";
@@ -152,15 +176,52 @@ string getNodeName(ast_node * astnode)
         case ast_operator_type::AST_OP_ARRAY_CONST_DEF:
             nodeName = "const-array";
             break;
-		case ast_operator_type::AST_OP_ARRAY_VAR_DEF:
-			nodeName = "var-array";
-			break;
 		case ast_operator_type::AST_OP_ARRAY_INDEX:
+		{
 			nodeName = "array-index";
-			break;
+			
+			// 显示数组维度的序号和值
+			if (!astnode->sons.empty()) {
+				nodeName += "\\n";
+				for (size_t i = 0; i < astnode->sons.size(); ++i) {
+					auto dim_node = astnode->sons[i];
+					if (dim_node == nullptr) {
+						// 处理可能的空节点
+						nodeName += "[]";
+					} 
+					else if (dim_node->node_type == ast_operator_type::AST_OP_LEAF_LITERAL_UINT) {
+						// 处理整数字面量维度
+						if (dim_node->integer_val == -1) {
+							nodeName += "[]";  // 显示空维度为 []
+						} else {
+							nodeName += "[" + std::to_string(dim_node->integer_val) + "]";
+						}
+					}
+					else if (dim_node->node_type == ast_operator_type::AST_OP_CONST_EXP || dim_node->node_type == ast_operator_type::AST_OP_EXP) {
+						// 处理常量表达式维度
+						// 如果常量表达式已经在语义分析阶段计算出值
+						if (dim_node->integer_val != 0) {
+							nodeName += "[" + std::to_string(dim_node->integer_val) + "]";
+						} else {
+							// 常量表达式未计算，显示为 [?]
+							nodeName += "[?]";
+						}
+					}
+					else {
+						// 处理其他类型的维度节点
+						nodeName += "[?]";  // 非常量维度或未知类型
+					}
+				}
+			}
+		}
+		break;
 		case ast_operator_type::AST_OP_ARRAY_ACCESS:
 			nodeName = "array-access";
 			break;
+		case ast_operator_type::AST_OP_ARRAY_VAR_DEF:
+			nodeName = "var-array";
+			break;
+		
         default:
             nodeName = "unknown";
             break;
