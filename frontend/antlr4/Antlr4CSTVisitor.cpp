@@ -403,8 +403,8 @@ std::any MiniCCSTVisitor::visitNumber(MiniCParser::NumberContext *ctx) {
 	}
 	// FloatConst
 	if (ctx->FloatConst()) {
-		int val = std::stoi(ctx->FloatConst()->getText());
-		return create_number_node(val);
+		float val = std::stof(ctx->FloatConst()->getText());
+		return create_float_node(val);
 	}
 	return nullptr;
 }

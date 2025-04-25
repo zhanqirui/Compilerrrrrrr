@@ -53,7 +53,7 @@ ast_node::ast_node(digit_int_attr attr)
 /// @brief 针对浮点数字面量的构造函数
 /// @param attr 浮点数字面量
 ast_node::ast_node(digit_real_attr attr)
-    : ast_node(ast_operator_type::AST_OP_LEAF_LITERAL_UINT, IntegerType::getTypeInt(), attr.lineno)
+    : ast_node(ast_operator_type::AST_OP_LEAF_LITERAL_UINT, FloatType::getTypeFloat(), attr.lineno)
 {
     float_val = attr.val;
 }
@@ -302,7 +302,7 @@ Type * typeAttr2Type(type_attr & attr)
     if (attr.type == BasicType::TYPE_INT) {
         return IntegerType::getTypeInt();
     } else if (attr.type == BasicType::TYPE_FLOAT) {
-        return FloatType::getTypeFloat(); // 占位
+        return FloatType::getTypeFloat(); 
     } else {
         return VoidType::getType();
     }

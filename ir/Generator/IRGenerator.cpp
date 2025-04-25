@@ -502,7 +502,7 @@ bool IRGenerator::ir_array_var_def_declare(ast_node * node)
         return false;
     }
     // 左儿子，array-index定义  AST_OP_LEAF_VAR_ID
-    ast_node * type_node = node->sons[0];
+    // ast_node * type_node = node->sons[0];
 
     return true;
 }
