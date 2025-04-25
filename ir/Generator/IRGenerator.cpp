@@ -40,8 +40,21 @@ IRGenerator::IRGenerator(ast_node * _root, Module * _module) : root(_root), modu
     ast2ir_handlers[ast_operator_type::AST_OP_LEAF_LITERAL_UINT] = &IRGenerator::ir_leaf_node_uint;
     ast2ir_handlers[ast_operator_type::AST_OP_LEAF_TYPE] = &IRGenerator::ir_leaf_node_type;
 
+    /* 表达式运算， 加减 */
+    ast2ir_handlers[ast_operator_type::AST_OP_EXP] = &IRGenerator::ir_visitExp;
+    // ast2ir_handlers[ast_operator_type::AST_OP_ADD] = &IRGenerator::ir_add;
+
+    // const 数组
+    ast2ir_handlers[ast_operator_type::AST_OP_CONST_DECL] = &IRGenerator::ir_const_declare;
+
     /* 语句 */
+
     ast2ir_handlers[ast_operator_type::AST_OP_RETURN] = &IRGenerator::ir_return;
+    /* 变量定义语句 */
+
+    // ast2ir_handlers[ast_operator_type::AST_OP_DECL_STMT] = &IRGenerator::ir_declare_statment;
+    ast2ir_handlers[ast_operator_type::AST_OP_VAR_DECL] = &IRGenerator::ir_variable_declare;
+    ast2ir_handlers[ast_operator_type::AST_OP_ARRAY_VAR_DEF] = &IRGenerator::ir_array_var_def_declare;
 
     /* 函数定义 */
     ast2ir_handlers[ast_operator_type::AST_OP_FUNC_DEF] = &IRGenerator::ir_function_define;
@@ -346,6 +359,150 @@ bool IRGenerator::ir_leaf_node_uint(ast_node * node)
     val = module->newConstInt((int32_t) node->integer_val);
 
     node->val = val;
+
+    return true;
+}
+
+/// @brief 处理表达式节点AST，生成相应的IR
+// @param node AST节点/
+/// @return 翻译是否成功，true：成功，false：失败
+/// @brief 处理表达式节点AST，生成相应的IR
+/// @param node AST节点
+/// @return 翻译是否成功，true：成功，false：失败
+bool IRGenerator::ir_visitExp(ast_node * node)
+{
+    // 判断当前节点是否为空
+    if (!node) {
+        return false;
+    }
+
+    // 如果当前节点是叶子节点，直接生成IR
+    if (node->sons[0]->node_type == ast_operator_type::AST_OP_LEAF_LITERAL_UINT) {
+        return ir_leaf_node_uint(node->sons[0]);
+    }
+
+    // 如果是一个表达式节点（不是叶子节点），递归访问它的子节点
+    if (node->node_type == ast_operator_type::AST_OP_EXP) {
+        // 假设这个节点是一个表达式，需要处理它的左右子树
+
+        // 假设该节点有左右子树
+        if (node->sons.size() != 2) {
+            return false; // 处理错误，表达式节点应该有两个子节点
+        }
+
+        // 递归访问左子树和右子树
+        ast_node * left = ir_visit_ast_node(node->sons[0]);
+        ast_node * right = ir_visit_ast_node(node->sons[1]);
+
+        if (!left || !right) {
+            return false;
+        }
+
+        // 生成一个临时变量来存储加法结果
+        LocalVariable * temp = static_cast<LocalVariable *>(module->newVarValue(left->type));
+
+        // 判断right是否为叶子节点，直接使用其值；否则需要继续递归处理
+        // if (right->node_type == ast_operator_type::AST_OP_LEAF_LITERAL_UINT) {
+        //     // 如果是叶子节点，直接使用其值
+        //     node->blockInsts.addInst(new MoveInstruction(currentFunc, temp, right->val));
+        // } else {
+        //     // 如果right是复杂的表达式，递归访问其值
+        //     ir_visitExp(right); // 处理右侧子表达式，递归调用
+
+        //     // 假设right最终将有一个计算结果，我们可以将其值用于指令
+        //     node->blockInsts.addInst(new MoveInstruction(currentFunc, temp, right->val));
+        // }
+
+        // 返回处理结果
+        node->val = temp; // 保存最终结果
+        return true;
+    }
+
+    return false; // 未处理的情况
+}
+
+bool IRGenerator::ir_const_declare(ast_node * node)
+{
+    // 不需要做什么，直接从节点中获取即可。
+    // 判断当前节点是否为空
+    if (!node) {
+        return false;
+    }
+
+    // ast_node * type_node = node->sons[0];
+    // int或bool或float
+    std::vector<ast_node *>::iterator pIter;
+    for (pIter = node->sons.begin() + 1; pIter != node->sons.end(); ++pIter) {
+
+        // 遍历Block的每个语句，进行显示或者运算
+        ast_node * temp = ir_visit_ast_node(*pIter);
+        if (!temp) {
+            return false;
+        }
+
+        node->blockInsts.addInst(temp->blockInsts);
+    }
+    return true;
+}
+
+bool IRGenerator::ir_declare_statment(ast_node * node)
+{
+    bool result = false;
+
+    for (auto & child: node->sons) {
+
+        // 遍历每个变量声明
+        result = ir_variable_declare(child);
+        if (!result) {
+            break;
+        }
+    }
+
+    return result;
+}
+
+/// @brief 变量定声明节点翻译成线性中间IR
+/// @param node AST节点
+/// @return 翻译是否成功，true：成功，false：失败
+// bool IRGenerator::ir_variable_declare(ast_node * node)
+// {
+//     // 共有两个孩子，第一个类型，第二个变量名
+
+//     // TODO 这里可强化类型等检查
+
+//     node->val = module->newVarValue(node->sons[0]->type, node->sons[1]->name);
+
+//     return true;
+// }
+bool IRGenerator::ir_variable_declare(ast_node * node)
+{
+    if (!node) {
+        return false;
+    }
+
+    // ast_node * type_node = node->sons[0];
+    // int或bool或float
+    std::vector<ast_node *>::iterator pIter;
+    for (pIter = node->sons.begin() + 1; pIter != node->sons.end(); ++pIter) {
+
+        // 遍历Block的每个语句，进行显示或者运算
+        ast_node * temp = ir_visit_ast_node(*pIter);
+        if (!temp) {
+            return false;
+        }
+
+        node->blockInsts.addInst(temp->blockInsts);
+    }
+    return true;
+}
+// 输入type为AST_OP_ARRAY_VAR_DEF
+bool IRGenerator::ir_array_var_def_declare(ast_node * node)
+{
+    if (!node) {
+        return false;
+    }
+    // 左儿子，array-index定义  AST_OP_LEAF_VAR_ID
+    ast_node * type_node = node->sons[0];
 
     return true;
 }

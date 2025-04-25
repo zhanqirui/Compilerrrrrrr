@@ -22,6 +22,7 @@
 #include "AttrType.h"
 #include "Types/IntegerType.h"
 #include "Types/VoidType.h"
+#include "Types/FloatType.h"
 
 /* 整个AST的根节点 */
 ast_node * ast_root = nullptr;
@@ -47,8 +48,8 @@ ast_node::ast_node(digit_int_attr attr)
     integer_val = attr.val;
 }
 
-
 // TODO 加入浮点数支持
+
 /// @brief 针对浮点数字面量的构造函数
 /// @param attr 浮点数字面量
 ast_node::ast_node(digit_real_attr attr)
@@ -63,7 +64,6 @@ ast_node::ast_node(var_id_attr attr) : ast_node(ast_operator_type::AST_OP_LEAF_V
 {
     name = attr.id;
 }
-
 
 /// @brief 针对标识符ID的叶子构造函数
 /// @param _id 标识符ID
@@ -302,7 +302,7 @@ Type * typeAttr2Type(type_attr & attr)
     if (attr.type == BasicType::TYPE_INT) {
         return IntegerType::getTypeInt();
     } else if (attr.type == BasicType::TYPE_FLOAT) {
-        return VoidType::getType(); // 占位
+        return FloatType::getTypeFloat(); // 占位
     } else {
         return VoidType::getType();
     }
@@ -320,12 +320,12 @@ ast_node * create_type_node(type_attr & attr)
     return type_node;
 }
 
-
 ast_node * create_func_call(ast_node * funcname_node, ast_node * params_node)
 {
     ast_node * node = new ast_node(ast_operator_type::AST_OP_FUNC_CALL);
     node->insert_son_node(funcname_node);
-    if (params_node) node->insert_son_node(params_node);
+    if (params_node)
+        node->insert_son_node(params_node);
     return node;
 }
 
@@ -334,7 +334,8 @@ ast_node * create_if_else_stmt_node(ast_node * condition, ast_node * then_stmt, 
     ast_node * node = new ast_node(ast_operator_type::AST_OP_IF_ELSE_STMT);
     node->insert_son_node(condition);
     node->insert_son_node(then_stmt);
-    if (else_stmt) node->insert_son_node(else_stmt);
+    if (else_stmt)
+        node->insert_son_node(else_stmt);
     return node;
 }
 
@@ -358,11 +359,11 @@ ast_node * create_assign_stmt_node(ast_node * lval, ast_node * expr)
 
 ast_node * create_return_stmt_node(ast_node * expr, int64_t line_no)
 {
-	ast_node * node = new ast_node(ast_operator_type::AST_OP_RETURN, nullptr, line_no);
-	if (expr) node->insert_son_node(expr);
-	return node;
+    ast_node * node = new ast_node(ast_operator_type::AST_OP_RETURN, nullptr, line_no);
+    if (expr)
+        node->insert_son_node(expr);
+    return node;
 }
-
 
 ast_node * create_float_literal_node(digit_real_attr & attr)
 {
@@ -370,7 +371,6 @@ ast_node * create_float_literal_node(digit_real_attr & attr)
     node->float_val = attr.val;
     return node;
 }
-
 
 ast_node * create_const_def_node(ast_node * id_node, ast_node * init_node)
 {
@@ -395,10 +395,11 @@ ast_node * create_scalar_const_init_node(ast_node * expr_node)
     return node;
 }
 
-ast_node * create_array_const_init_node(std::vector<ast_node *> &elements)
+ast_node * create_array_const_init_node(std::vector<ast_node *> & elements)
 {
     ast_node * node = new ast_node(ast_operator_type::AST_OP_ARRAY_CONST_INIT);
-    for (auto elem : elements) node->insert_son_node(elem);
+    for (auto elem: elements)
+        node->insert_son_node(elem);
     return node;
 }
 
@@ -409,32 +410,34 @@ ast_node * create_scalar_init_node(ast_node * expr_node)
     return node;
 }
 
-ast_node * create_array_init_val_node(std::vector<ast_node *> &elements)
+ast_node * create_array_init_val_node(std::vector<ast_node *> & elements)
 {
     ast_node * node = new ast_node(ast_operator_type::AST_OP_ARRAY_INIT_VAL);
-    for (auto elem : elements) node->insert_son_node(elem);
+    for (auto elem: elements)
+        node->insert_son_node(elem);
     return node;
 }
 
-ast_node * create_array_const_def_node(ast_node * id_node, std::vector<ast_node *> &dimensions, ast_node * init_node) {
+ast_node * create_array_const_def_node(ast_node * id_node, std::vector<ast_node *> & dimensions, ast_node * init_node)
+{
     // 创建一个数组常量定义节点
     ast_node * node = new ast_node(ast_operator_type::AST_OP_ARRAY_CONST_DEF);
-    
+
     // 添加标识符节点作为第一个子节点
     node->insert_son_node(id_node);
-    
+
     // 设置节点自身的数组属性
     node->is_array = true;
     node->array_element_type = id_node->type; // 使用标识符节点的类型作为元素类型
-    
+
     // 创建一个数组类型节点来存储维度信息
     ast_node * dims_node = new ast_node(ast_operator_type::AST_OP_ARRAY_INDEX);
-    
+
     // 混合方法：既在节点属性中存储，也在子节点中保留原始表达式
-    for (auto dim : dimensions) {
+    for (auto dim: dimensions) {
         // 将维度表达式添加到维度节点
         dims_node->insert_son_node(dim);
-        
+
         // 如果维度是常量表达式，则直接存储其值
         if (dim && dim->node_type == ast_operator_type::AST_OP_LEAF_LITERAL_UINT) {
             node->array_dimensions.push_back(dim->integer_val);
@@ -443,37 +446,38 @@ ast_node * create_array_const_def_node(ast_node * id_node, std::vector<ast_node 
             node->array_dimensions.push_back(-1);
         }
     }
-    
+
     // 将维度节点作为第二个子节点
     node->insert_son_node(dims_node);
-    
+
     // 如果有初始化节点，则作为第三个子节点
     if (init_node) {
         node->insert_son_node(init_node);
     }
-    
+
     return node;
 }
 
-ast_node * create_array_var_def_node(ast_node * id_node, std::vector<ast_node *> &dimensions, ast_node * init_node) {
+ast_node * create_array_var_def_node(ast_node * id_node, std::vector<ast_node *> & dimensions, ast_node * init_node)
+{
     // 创建一个数组变量定义节点
     ast_node * node = new ast_node(ast_operator_type::AST_OP_ARRAY_VAR_DEF);
-    
+
     // 添加标识符节点作为第一个子节点
     node->insert_son_node(id_node);
-    
+
     // 设置节点自身的数组属性
     node->is_array = true;
     node->array_element_type = id_node->type; // 使用标识符节点的类型作为元素类型
-    
+
     // 创建一个数组类型节点来存储维度信息
     ast_node * dims_node = new ast_node(ast_operator_type::AST_OP_ARRAY_INDEX);
-    
+
     // 混合方法：既在节点属性中存储，也在子节点中保留原始表达式
-    for (auto dim : dimensions) {
+    for (auto dim: dimensions) {
         // 将维度表达式添加到维度节点
         dims_node->insert_son_node(dim);
-        
+
         // 如果维度是常量表达式，则直接存储其值
         if (dim && dim->node_type == ast_operator_type::AST_OP_LEAF_LITERAL_UINT) {
             node->array_dimensions.push_back(dim->integer_val);
@@ -482,15 +486,15 @@ ast_node * create_array_var_def_node(ast_node * id_node, std::vector<ast_node *>
             node->array_dimensions.push_back(-1);
         }
     }
-    
+
     // 将维度节点作为第二个子节点
     node->insert_son_node(dims_node);
-    
+
     // 如果有初始化节点，则作为第三个子节点
     if (init_node) {
         node->insert_son_node(init_node);
     }
-    
+
     return node;
 }
 
@@ -516,24 +520,24 @@ ast_node * create_while_loop_node(ast_node * cond, ast_node * body)
     return node;
 }
 
-
 // 为了保持一致性，修改lval节点，支持数组访问
-ast_node * create_lval_node(ast_node * id_node, std::vector<ast_node *> &indices) {
+ast_node * create_lval_node(ast_node * id_node, std::vector<ast_node *> & indices)
+{
     ast_node * node = new ast_node(ast_operator_type::AST_OP_LVAL);
-    
+
     // 添加标识符节点
     node->insert_son_node(id_node);
-    
+
     // 如果有索引，说明是数组访问
     if (!indices.empty()) {
         node->is_array = true;
         node->name = id_node->name;
         node->array_element_type = id_node->type;
-        
+
         // 处理索引
-        for (auto idx : indices) {
+        for (auto idx: indices) {
             node->insert_son_node(idx);
-            
+
             // 如果索引是常量，存储其值以便优化
             if (idx && idx->node_type == ast_operator_type::AST_OP_LEAF_LITERAL_UINT) {
                 node->array_dimensions.push_back(idx->integer_val);
@@ -546,7 +550,7 @@ ast_node * create_lval_node(ast_node * id_node, std::vector<ast_node *> &indices
         // 不是数组访问，只是普通变量
         node->name = id_node->name;
     }
-    
+
     return node;
 }
 
@@ -582,10 +586,11 @@ ast_node * create_unary_op_node(Op op_type)
     return node;
 }
 
-ast_node * create_func_rparams_node(std::vector<ast_node *> &params)
+ast_node * create_func_rparams_node(std::vector<ast_node *> & params)
 {
     ast_node * node = new ast_node(ast_operator_type::AST_OP_FUNC_RPARAMS);
-    for (auto p : params) node->insert_son_node(p);
+    for (auto p: params)
+        node->insert_son_node(p);
     return node;
 }
 
@@ -641,62 +646,65 @@ ast_node * create_lor_exp_node(ast_node * left, ast_node * right)
     return node;
 }
 
-ast_node * create_exp_node(ast_node * expr) {
+ast_node * create_exp_node(ast_node * expr)
+{
     ast_node * node = new ast_node(ast_operator_type::AST_OP_EXP);
-    
+
     // 继承表达式的类型和行号
     node->type = expr->type;
     node->line_no = expr->line_no;
-    
+
     // 如果表达式是字面量，可以直接保存它的值
     if (expr->node_type == ast_operator_type::AST_OP_LEAF_LITERAL_UINT) {
         node->integer_val = expr->integer_val;
     } else if (expr->node_type == ast_operator_type::AST_OP_LEAF_LITERAL_FLOAT) {
         node->float_val = expr->float_val;
     }
-    
+
     // 一定要添加原始表达式作为子节点！这步可能在当前实现中缺失了
     node->insert_son_node(expr);
-    
+
     return node;
 }
 
-ast_node * create_const_exp_node(ast_node * expr) {
+ast_node * create_const_exp_node(ast_node * expr)
+{
     ast_node * node = new ast_node(ast_operator_type::AST_OP_CONST_EXP);
-    
+
     // 继承表达式的类型和行号
     node->type = expr->type;
     node->line_no = expr->line_no;
-    
+
     // 如果表达式是字面量，可以直接保存它的值
     if (expr->node_type == ast_operator_type::AST_OP_LEAF_LITERAL_UINT) {
         node->integer_val = expr->integer_val;
     } else if (expr->node_type == ast_operator_type::AST_OP_LEAF_LITERAL_FLOAT) {
         node->float_val = expr->float_val;
     }
-    
+
     // 一定要添加原始表达式作为子节点！这步可能在当前实现中缺失了
     node->insert_son_node(expr);
-    
+
     return node;
 }
 
 // 数组访问节点也应该使用混合方法
-ast_node * create_array_access_node(ast_node * id_node, std::vector<ast_node *> &indices) {
+ast_node * create_array_access_node(ast_node * id_node, std::vector<ast_node *> & indices)
+{
     ast_node * node = new ast_node(ast_operator_type::AST_OP_ARRAY_ACCESS);
-    
+
     // 设置数组访问的基本信息
     node->is_array = true;
     node->name = id_node->name;
-    node->type = id_node->type;  // 这里会在语义分析阶段更新为元素类型
-    
+    node->type = id_node->type; // 这里会在语义分析阶段更新为元素类型
+
     // 添加标识符节点
     node->insert_son_node(id_node);
-    
+
     // 处理索引表达式
-    for (auto idx : indices) {
+    for (auto idx: indices) {
         node->insert_son_node(idx);
-        
+
         // 如果索引是常量，存储其值以便优化
         if (idx && idx->node_type == ast_operator_type::AST_OP_LEAF_LITERAL_UINT) {
             node->array_dimensions.push_back(idx->integer_val);
@@ -705,12 +713,13 @@ ast_node * create_array_access_node(ast_node * id_node, std::vector<ast_node *> 
             node->array_dimensions.push_back(-1);
         }
     }
-    
+
     return node;
 }
 
-
-ast_node * create_func_fparam_node(ast_node * type_node, ast_node * id_node, bool is_array, std::vector<ast_node *> dimensions) {
+ast_node *
+create_func_fparam_node(ast_node * type_node, ast_node * id_node, bool is_array, std::vector<ast_node *> dimensions)
+{
     ast_node * node = new ast_node(ast_operator_type::AST_OP_FUNC_FORMAL_PARAM);
 
     node->type = type_node->type;
@@ -720,15 +729,15 @@ ast_node * create_func_fparam_node(ast_node * type_node, ast_node * id_node, boo
     // 添加类型和标识符作为子节点
     node->insert_son_node(type_node);
     node->insert_son_node(id_node);
-    
+
     // 设置数组相关属性
     if (is_array) {
         node->is_array = true;
         node->array_element_type = node->type;
-        
+
         // 创建一个专门的数组维度节点
         ast_node * dims_node = new ast_node(ast_operator_type::AST_OP_ARRAY_INDEX);
-        
+
         // 如果是函数参数的数组形式，必须在 AST 中明确标记第一维为空
         // 函数参数的第一维总是空的 int a[]
         if (dimensions.empty() || dimensions[0] == nullptr) {
@@ -738,12 +747,12 @@ ast_node * create_func_fparam_node(ast_node * type_node, ast_node * id_node, boo
             dims_node->insert_son_node(empty_dim);
             node->array_dimensions.push_back(-1);
         }
-        
+
         // 处理剩余维度
-        for (auto dim : dimensions) {
+        for (auto dim: dimensions) {
             if (dim) {
                 dims_node->insert_son_node(dim);
-                
+
                 // 如果维度是常量，存储其值
                 if (dim->node_type == ast_operator_type::AST_OP_LEAF_LITERAL_UINT) {
                     node->array_dimensions.push_back(dim->integer_val);
@@ -752,10 +761,10 @@ ast_node * create_func_fparam_node(ast_node * type_node, ast_node * id_node, boo
                 }
             }
         }
-        
+
         // 将维度节点添加为子节点
         node->insert_son_node(dims_node);
     }
-    
+
     return node;
 }

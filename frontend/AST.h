@@ -65,44 +65,44 @@ enum class ast_operator_type : int {
     AST_OP_RETURN,
 
     // 新增节点类型
-    
+
     /// @brief 常量声明
     AST_OP_CONST_DECL,
-    
+
     /// @brief 变量声明
     AST_OP_VAR_DECL,
-    
+
     /// @brief while循环语句
     AST_OP_WHILE,
-    
+
     /// @brief break语句
     AST_OP_BREAK,
-    
+
     /// @brief continue语句
     AST_OP_CONTINUE,
-    
+
     /// @brief 函数调用
     AST_OP_FUNC_CALL,
-    
+
     /// @brief 数组索引
     AST_OP_ARRAY_INDEX,
 
-	/// @brief 表达式定义
-	AST_OP_EXP,
+    /// @brief 表达式定义
+    AST_OP_EXP,
 
-	// ! not sure
+    // ! not sure
     /// @brief int类型
-	AST_OP_INT_TYPE,
+    AST_OP_INT_TYPE,
 
-	// ! not sure
-	/// @brief float类型
-	AST_OP_FLOAT_TYPE,
+    // ! not sure
+    /// @brief float类型
+    AST_OP_FLOAT_TYPE,
 
-	/// @brief 函数参数类型
-	AST_OP_FUNC_FORMAL_PARAM,
+    /// @brief 函数参数类型
+    AST_OP_FUNC_FORMAL_PARAM,
 
-	/// @brief 数组变量定义
-	AST_OP_ARRAY_VAR_DEF,
+    /// @brief 数组变量定义
+    AST_OP_ARRAY_VAR_DEF,
 
     /// @brief 常量定义
     AST_OP_CONST_DEF,
@@ -167,8 +167,8 @@ enum class ast_operator_type : int {
     /// @brief 常量表达式
     AST_OP_CONST_EXP,
 
-	/// @brief 数组constant定义
-	AST_OP_ARRAY_CONST_DEF,
+    /// @brief 数组constant定义
+    AST_OP_ARRAY_CONST_DEF,
 
     /// @brief 数组访问操作
     AST_OP_ARRAY_ACCESS,
@@ -203,14 +203,14 @@ public:
     /// @brief 变量名，或者函数名
     std::string name;
 
-	/// @brief 是否为数组
+    /// @brief 是否为数组
     bool is_array = false;
-    
+
     /// @brief 数组维度信息 (存储每个维度的大小)
     std::vector<int> array_dimensions;
-    
+
     /// @brief 数组基础类型
-    Type* array_element_type = nullptr;
+    Type * array_element_type = nullptr;
 
     /// @brief 父节点
     ast_node * parent = nullptr;
@@ -241,7 +241,7 @@ public:
     /// @param attr 无符号整数字面量
     ast_node(digit_int_attr attr);
 
-	/// @brief 针对无符号整数字面量的构造函数
+    /// @brief 针对无符号整数字面量的构造函数
     /// @param attr 无符号整数字面量
     ast_node(digit_real_attr attr);
 
@@ -275,7 +275,7 @@ public:
     /// @param line_no 行号
     static ast_node * New(digit_int_attr attr);
 
-	/// @brief 创建浮点数的叶子节点
+    /// @brief 创建浮点数的叶子节点
     /// @param attr 行号
     static ast_node * New(digit_real_attr attr);
 
@@ -428,7 +428,7 @@ ast_node * create_break_stmt_node(int64_t line_no);
 /// @brief 创建普通参数节点
 /// @param type_node 节点类型
 /// @param id_node 标识符节点类型
-ast_node* create_func_btype_node(ast_node * type_node, ast_node * id_node);
+ast_node * create_func_btype_node(ast_node * type_node, ast_node * id_node);
 
 ///
 /// @brief 创建continue语句节点
@@ -507,7 +507,6 @@ ast_node * create_const_decl_node(ast_node * type_node, ast_node * def_list);
 /// @return ast_node* 变量声明节点
 ast_node * create_var_decl_node(ast_node * type_node, ast_node * def_list);
 
-
 /// @brief 创建常量定义节点
 /// @param id_node 标识符节点
 /// @param init_node 初始化节点
@@ -528,7 +527,7 @@ ast_node * create_scalar_const_init_node(ast_node * expr_node);
 /// @brief 创建数组常量初始化节点
 /// @param elements 元素列表
 /// @return ast_node* 数组常量初始化节点
-ast_node * create_array_const_init_node(std::vector<ast_node *> &elements);
+ast_node * create_array_const_init_node(std::vector<ast_node *> & elements);
 
 /// @brief 创建标量变量初始化节点
 /// @param expr_node 表达式节点
@@ -538,7 +537,7 @@ ast_node * create_scalar_init_node(ast_node * expr_node);
 /// @brief 创建数组变量初始化节点
 /// @param elements 元素列表
 /// @return ast_node* 数组变量初始化节点
-ast_node * create_array_init_val_node(std::vector<ast_node *> &elements);
+ast_node * create_array_init_val_node(std::vector<ast_node *> & elements);
 
 /// @brief 创建赋值语句节点
 /// @param lval 左值节点
@@ -589,13 +588,13 @@ ast_node * create_cond_node(ast_node * expr);
 /// @param id_node 标识符节点
 /// @param indices 索引列表
 /// @return ast_node* 左值节点
-ast_node * create_lval_node(ast_node * id_node, std::vector<ast_node *> &indices);
+ast_node * create_lval_node(ast_node * id_node, std::vector<ast_node *> & indices);
 
 /// @brief 创建数组访问节点
 /// @param id_node 数组标识符节点
 /// @param indices 索引列表
 /// @return ast_node* 数组访问节点
-ast_node * create_array_access_node(ast_node * id_node, std::vector<ast_node *> &indices);
+ast_node * create_array_access_node(ast_node * id_node, std::vector<ast_node *> & indices);
 
 /// @brief 创建主表达式节点
 /// @param value 值节点
@@ -626,7 +625,7 @@ ast_node * create_unary_op_node(Op op_type);
 /// @brief 创建函数实参节点
 /// @param params 参数列表
 /// @return ast_node* 函数实参节点
-ast_node * create_func_rparams_node(std::vector<ast_node *> &params);
+ast_node * create_func_rparams_node(std::vector<ast_node *> & params);
 
 /// @brief 创建乘法表达式节点
 /// @param left 左操作数节点
@@ -668,21 +667,23 @@ ast_node * create_land_exp_node(ast_node * left, ast_node * right);
 /// @return ast_node* 逻辑或表达式节点
 ast_node * create_lor_exp_node(ast_node * left, ast_node * right);
 
-ast_node * create_const_exp_node(ast_node * expr);/// @return ast_node* 常量表达式节点/// @param expr 表达式节点/// @brief 创建常量表达式节点ast_node * create_lor_exp_node(ast_node * left, ast_node * right);
+ast_node * create_const_exp_node(
+    ast_node * expr); /// @return ast_node* 常量表达式节点/// @param expr 表达式节点/// @brief
+                      /// 创建常量表达式节点ast_node * create_lor_exp_node(ast_node * left, ast_node * right);
 
 /// @brief 创建数组常量定义节点
 /// @param id_node 标识符节点
 /// @param dimensions 数组维度列表
 /// @param init_node 初始化节点
 /// @return ast_node* 数组常量定义节点
-ast_node * create_array_const_def_node(ast_node * id_node, std::vector<ast_node *> &dimensions, ast_node * init_node);
+ast_node * create_array_const_def_node(ast_node * id_node, std::vector<ast_node *> & dimensions, ast_node * init_node);
 
 /// @brief 创建数组变量定义节点
 /// @param id_node 标识符节点
 /// @param dimensions 数组维度列表
 /// @param init_node 初始化节点
 /// @return ast_node* 数组变量定义节点
-ast_node * create_array_var_def_node(ast_node * id_node, std::vector<ast_node *> &dimensions, ast_node * init_node);
+ast_node * create_array_var_def_node(ast_node * id_node, std::vector<ast_node *> & dimensions, ast_node * init_node);
 
 /// @brief 创建函数形式参数节点
 /// @param type_node 类型节点
@@ -690,7 +691,9 @@ ast_node * create_array_var_def_node(ast_node * id_node, std::vector<ast_node *>
 /// @param is_array 是否为数组类型
 /// @param dimensions 数组维度列表
 /// @return ast_node* 函数形式参数节点
-ast_node * create_func_fparam_node(ast_node * type_node, ast_node * id_node, bool is_array = false, std::vector<ast_node *> dimensions = {});
-
+ast_node * create_func_fparam_node(ast_node * type_node,
+                                   ast_node * id_node,
+                                   bool is_array = false,
+                                   std::vector<ast_node *> dimensions = {});
 
 ast_node * create_exp_node(ast_node * expr);

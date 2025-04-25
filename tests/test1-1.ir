@@ -1,0 +1,7 @@
+define i32 @main()
+{
+	declare i32 %l0
+	entry
+.L1:
+	exit %l0
+}
