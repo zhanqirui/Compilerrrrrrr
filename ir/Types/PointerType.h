@@ -77,7 +77,15 @@ public:
             this->depth = 1;
         }
     }
+    static PointerType * getNonConstPointerType(Type * baseType)
+    {
 
+        // 调用 PointerType::get 获取指针类型
+        const PointerType * constPointerType = PointerType::get(baseType);
+
+        // 使用 const_cast 移除 const 限定符
+        return const_cast<PointerType *>(constPointerType);
+    }
     ///
     /// @brief 返回根类型，也就是连续解引用后的类型
     /// @return const Type*

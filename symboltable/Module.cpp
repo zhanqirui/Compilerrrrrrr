@@ -132,6 +132,47 @@ void Module::insertGlobalValueDirectly(GlobalVariable * val)
     globalVariableVector.push_back(val);
 }
 
+/// @brief 新建一个浮点数值的Value，并加入到符号表，用于后续释放空间
+/// @param floatVal 浮点值
+/// @return 常量Value
+ConstFloat * Module::newConstFloat(float floatVal)
+{
+    // 查找是否已经存在相同的浮点常量
+    ConstFloat * val = findConstFloat(floatVal);
+    if (!val) {
+        // 不存在，则创建浮点常量Value
+        val = new ConstFloat(floatVal);
+
+        // 插入到符号表中
+        insertConstFloatDirectly(val);
+    }
+
+    return val;
+}
+
+/// @brief 根据浮点值获取当前符号
+/// @param floatVal 浮点值
+/// @return 浮点常量对应的值
+ConstFloat * Module::findConstFloat(float floatVal)
+{
+    ConstFloat * temp = nullptr;
+
+    auto pIter = constFloatMap.find(floatVal);
+    if (pIter != constFloatMap.end()) {
+        // 查找到
+        temp = pIter->second;
+    }
+
+    return temp;
+}
+
+/// @brief Value直接插入到符号表中的浮点常量中
+/// @param val 浮点常量信息
+void Module::insertConstFloatDirectly(ConstFloat * val)
+{
+    constFloatMap.emplace(val->getVal(), val);
+}
+
 /// @brief Value直接插入到符号表中的全局变量中
 /// @param name Value的名称
 /// @param val Value信息
@@ -174,6 +215,48 @@ ConstInt * Module::findConstInt(int32_t val)
     return temp;
 }
 
+/// @brief 新建全局变量型数组
+/// @param name 数组ID
+/// @param type 数组类型
+/// @param index 下标集合
+Value * Module::newArrayValue(Type * type, std::string name, std::vector<int32_t> index)
+{
+    Value * retVal = nullptr;
+    if (!name.empty()) {
+        Value * tempValue = scopeStack->findCurrentScope(name);
+        if (tempValue) {
+            // 变量存在，语义错误
+            minic_log(LOG_ERROR, "变量(%s)已经存在", name.c_str());
+            return nullptr;
+        }
+    } else if (!currentFunc) {
+        // 全局变量要求name不能为空串，必须有效
+        minic_log(LOG_ERROR, "变量名为空");
+        return nullptr;
+    }
+    if (currentFunc) {
+        // 获取变量作用域的层级
+        int32_t scope_level;
+        if (name.empty()) {
+            scope_level = 1;
+        } else {
+            scope_level = scopeStack->getCurrentScopeLevel();
+        }
+
+        retVal = currentFunc->newLocalVarValue(type, name, scope_level);
+
+    } else {
+        retVal = newGlobalVariable(type, name);
+    }
+
+    //更新下标表
+    for (auto x: index) {
+        retVal->arraydimensionVector.push_back(x);
+    }
+    scopeStack->insertValue(retVal);
+
+    return retVal;
+}
 /// @brief 在当前的作用域中查找，若没有查找到则创建局部变量或者全局变量。请注意不能创建临时变量
 /// ! 该函数只有在AST遍历生成线性IR中使用，其它地方不能使用
 /// @param type 变量类型

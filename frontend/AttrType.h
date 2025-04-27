@@ -64,7 +64,7 @@ typedef struct type_attr {
 /// @brief 操作符属性
 ///
 typedef struct op_attr {
-    char op;       // 操作符
+    char op;        // 操作符
     int64_t lineno; // 行号
 } op_attr;
 
@@ -72,21 +72,64 @@ typedef struct op_attr {
 /// @brief 表示运算符的枚举
 ///
 enum class Op : std::int8_t {
-    LT, // <
-    LE, // <=
-    GT, // >
-    GE, // >=
-    EQ, // ==
-    NE, // !=
-	ADD, // +
+    LT,  // <
+    LE,  // <=
+    GT,  // >
+    GE,  // >=
+    EQ,  // ==
+    NE,  // !=
+    ADD, // +
     SUB, // -
     MUL, // *
     DIV, // /
     MOD, // %
-	AND, // &&
+    AND, // &&
     OR,  // ||
     NOT, // !
-	POS, // +
-	NEG,  // -
-	NONE
+    POS, // +
+    NEG, // -
+    NONE
 };
+///
+/// @brief 判断是否是加法运算符
+/// @param op 运算符枚举值
+/// @return true 如果是加法运算符
+/// @return false 如果不是
+///
+inline bool isAddOp(Op op)
+{
+    return op == Op::ADD;
+}
+
+///
+/// @brief 判断是否是减法运算符
+/// @param op 运算符枚举值
+/// @return true 如果是减法运算符
+/// @return false 如果不是
+///
+inline bool isSubOp(Op op)
+{
+    return op == Op::SUB;
+}
+
+///
+/// @brief 判断是否是乘法运算符
+/// @param op 运算符枚举值
+/// @return true 如果是乘法运算符
+/// @return false 如果不是
+///
+inline bool isMulOp(Op op)
+{
+    return op == Op::MUL;
+}
+
+///
+/// @brief 判断是否是除法运算符
+/// @param op 运算符枚举值
+/// @return true 如果是除法运算符
+/// @return false 如果不是
+///
+inline bool isDivOp(Op op)
+{
+    return op == Op::DIV;
+}

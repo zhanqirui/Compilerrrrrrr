@@ -48,6 +48,8 @@ protected:
     ///
     std::vector<Use *> uses;
 
+
+
 public:
     /// @brief 构造函数
     /// @param _type
@@ -124,4 +126,7 @@ public:
     /// @return int32_t 寄存器编号
     ///
     virtual void setLoadRegId(int32_t regId);
+    /// @brief 作为数组的下标集合
+    std::vector<int32_t> arrayIndexVector;
+    std::vector<int32_t> arraydimensionVector;
 };

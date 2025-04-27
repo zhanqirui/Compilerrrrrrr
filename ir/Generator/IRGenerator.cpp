@@ -18,19 +18,22 @@
 #include <unordered_map>
 #include <vector>
 #include <iostream>
-
+#include <AttrType.h>
 #include "AST.h"
 #include "Common.h"
 #include "Function.h"
 #include "IRCode.h"
 #include "IRGenerator.h"
 #include "Module.h"
+#include "PointerType.h"
 #include "EntryInstruction.h"
 #include "LabelInstruction.h"
 #include "ExitInstruction.h"
 #include "MoveInstruction.h"
 #include "GotoInstruction.h"
-
+#include "FuncCallInstruction.h"
+#include "BinaryInstruction.h"
+#include "StoreInstruction.h"
 /// @brief 构造函数
 /// @param _root AST的根
 /// @param _module 符号表
@@ -39,22 +42,28 @@ IRGenerator::IRGenerator(ast_node * _root, Module * _module) : root(_root), modu
     /* 叶子节点 */
     ast2ir_handlers[ast_operator_type::AST_OP_LEAF_LITERAL_UINT] = &IRGenerator::ir_leaf_node_uint;
     ast2ir_handlers[ast_operator_type::AST_OP_LEAF_TYPE] = &IRGenerator::ir_leaf_node_type;
+    ast2ir_handlers[ast_operator_type::AST_OP_LVAL] = &IRGenerator::ir_leaf_node_var_id;
 
     /* 表达式运算， 加减 */
     ast2ir_handlers[ast_operator_type::AST_OP_EXP] = &IRGenerator::ir_visitExp;
-    // ast2ir_handlers[ast_operator_type::AST_OP_ADD] = &IRGenerator::ir_add;
+    ast2ir_handlers[ast_operator_type::AST_OP_ADD_EXP] = &IRGenerator::ir_add;
+    ast2ir_handlers[ast_operator_type::AST_OP_MUL_EXP] = &IRGenerator::ir_mul;
 
     // const 数组
     ast2ir_handlers[ast_operator_type::AST_OP_CONST_DECL] = &IRGenerator::ir_const_declare;
-
+    // 数组访问
+    ast2ir_handlers[ast_operator_type::AST_OP_ARRAY_ACCESS] = &IRGenerator::ir_array_acess;
     /* 语句 */
-
+    ast2ir_handlers[ast_operator_type::AST_OP_ASSIGN_STMT] = &IRGenerator::ir_assign;
     ast2ir_handlers[ast_operator_type::AST_OP_RETURN] = &IRGenerator::ir_return;
     /* 变量定义语句 */
 
-    // ast2ir_handlers[ast_operator_type::AST_OP_DECL_STMT] = &IRGenerator::ir_declare_statment;
     ast2ir_handlers[ast_operator_type::AST_OP_VAR_DECL] = &IRGenerator::ir_variable_declare;
     ast2ir_handlers[ast_operator_type::AST_OP_ARRAY_VAR_DEF] = &IRGenerator::ir_array_var_def_declare;
+    ast2ir_handlers[ast_operator_type::AST_OP_VAR_DEF] = &IRGenerator::ir_var_def;
+    //初始化
+    ast2ir_handlers[ast_operator_type::AST_OP_SCALAR_INIT] = &IRGenerator::ir_scalar_init;
+    ast2ir_handlers[ast_operator_type::AST_OP_ARRAY_INIT_VAL] = &IRGenerator::ir_scalar_init;
 
     /* 函数定义 */
     ast2ir_handlers[ast_operator_type::AST_OP_FUNC_DEF] = &IRGenerator::ir_function_define;
@@ -318,7 +327,6 @@ bool IRGenerator::ir_return(ast_node * node)
 
         // 创建临时变量保存IR的值，以及线性IR指令
         node->blockInsts.addInst(right->blockInsts);
-
         // 返回值赋值到函数返回值变量上，然后跳转到函数的尾部
         node->blockInsts.addInst(new MoveInstruction(currentFunc, currentFunc->getReturnValue(), right->val));
 
@@ -353,19 +361,153 @@ bool IRGenerator::ir_leaf_node_type(ast_node * node)
 /// @return 翻译是否成功，true：成功，false：失败
 bool IRGenerator::ir_leaf_node_uint(ast_node * node)
 {
-    ConstInt * val;
+    // 根据类型创建对应的常量
+    if (node->type->isIntegerType()) {
+        // 创建整数常量
+        ConstInt * val = module->newConstInt((int32_t) node->integer_val);
+        node->val = val;
+    } else if (node->type->isFloatType()) {
+        // 创建浮点常量
+        ConstFloat * val = module->newConstFloat((float) node->sons[0]->float_val);
+        node->val = val;
+    } else {
+        std::cerr << "Error: Unsupported type for leaf node" << std::endl;
+        return false;
+    }
 
-    // 新建一个整数常量Value
-    val = module->newConstInt((int32_t) node->integer_val);
+    return true;
+}
+//@brief 处理左值，例如return x当中的x
+//传入的是exp，exp后跟一个lval，lval后是一个c
+bool IRGenerator::ir_leaf_value_uint(ast_node * node)
+{
+    Value * val;
+
+    // 查找ID型Value
+    // 变量，则需要在符号表中查找对应的值
+
+    val = module->findVarValue(node->sons[0]->name);
 
     node->val = val;
 
     return true;
 }
-
-/// @brief 处理表达式节点AST，生成相应的IR
-// @param node AST节点/
+/// @brief 整数加 减法AST节点翻译成线性中间IR,要根据op来判断加减
+/// @param node AST节点
 /// @return 翻译是否成功，true：成功，false：失败
+
+bool IRGenerator::ir_add(ast_node * node)
+{
+    Op op = node->op_type;
+    ast_node * src1_node = node->sons[0];
+    ast_node * src2_node = node->sons[1];
+
+    // 加法节点，左结合，先计算左节点，后计算右节点
+
+    // 加法的左边操作数
+    ast_node * left = ir_visit_ast_node(src1_node);
+    if (!left) {
+        // 某个变量没有定值
+        return false;
+    }
+
+    // 加法的右边操作数
+    ast_node * right = ir_visit_ast_node(src2_node);
+    if (!right) {
+        // 某个变量没有定值
+        return false;
+    }
+    BinaryInstruction * addInst;
+    StoreInstruction * LstoInst = nullptr;
+    StoreInstruction * RstoInst = nullptr;
+    if (left->node_type == ast_operator_type::AST_OP_ARRAY_ACCESS) {
+        LstoInst = new StoreInstruction(module->getCurrentFunction(), left->val, true);
+    }
+    if (right->node_type == ast_operator_type::AST_OP_ARRAY_ACCESS) {
+
+        RstoInst = new StoreInstruction(module->getCurrentFunction(), right->val, true);
+    }
+    IRInstOperator irOp = (op == Op::ADD) ? IRInstOperator::IRINST_OP_ADD_I : IRInstOperator::IRINST_OP_SUB_I;
+    addInst = new BinaryInstruction(module->getCurrentFunction(),
+                                    irOp,
+                                    LstoInst ? LstoInst : left->val,
+                                    RstoInst ? RstoInst : right->val,
+                                    IntegerType::getTypeInt());
+
+    // BinaryInstruction->getIRName();
+    // 创建临时变量保存IR的值，以及线性IR指令
+    node->blockInsts.addInst(left->blockInsts);
+    if (LstoInst) {
+        node->blockInsts.addInst(LstoInst);
+    }
+    node->blockInsts.addInst(right->blockInsts);
+    if (RstoInst) {
+        node->blockInsts.addInst(RstoInst);
+    }
+    node->blockInsts.addInst(addInst);
+
+    node->val = addInst;
+
+    return true;
+}
+/// @brief 整数乘 除法AST节点翻译成线性中间IR，要根据op来判断乘除
+/// @param node AST节点
+/// @return 翻译是否成功，true：成功，false：失败
+
+bool IRGenerator::ir_mul(ast_node * node)
+{
+    Op op = node->op_type;
+    ast_node * src1_node = node->sons[0];
+    ast_node * src2_node = node->sons[1];
+
+    // 加法节点，左结合，先计算左节点，后计算右节点
+
+    // 加法的左边操作数
+    ast_node * left = ir_visit_ast_node(src1_node);
+    if (!left) {
+        // 某个变量没有定值
+        return false;
+    }
+
+    // 加法的右边操作数
+    ast_node * right = ir_visit_ast_node(src2_node);
+    if (!right) {
+        // 某个变量没有定值
+        return false;
+    }
+
+    BinaryInstruction * mulInst;
+    StoreInstruction * LstoInst = nullptr;
+    StoreInstruction * RstoInst = nullptr;
+
+    if (left->node_type == ast_operator_type::AST_OP_ARRAY_ACCESS) {
+        LstoInst = new StoreInstruction(module->getCurrentFunction(), left->val, true);
+    }
+    if (right->node_type == ast_operator_type::AST_OP_ARRAY_ACCESS) {
+        RstoInst = new StoreInstruction(module->getCurrentFunction(), right->val, true);
+    }
+    IRInstOperator irOp = (op == Op::MUL) ? IRInstOperator::IRINST_OP_MUL_I : IRInstOperator::IRINST_OP_DIV_I;
+    mulInst = new BinaryInstruction(module->getCurrentFunction(),
+                                    irOp,
+                                    LstoInst ? LstoInst : left->val,
+                                    RstoInst ? RstoInst : right->val,
+                                    IntegerType::getTypeInt());
+
+    node->blockInsts.addInst(left->blockInsts);
+    if (LstoInst) {
+        node->blockInsts.addInst(LstoInst);
+    }
+    node->blockInsts.addInst(right->blockInsts);
+    if (RstoInst) {
+        node->blockInsts.addInst(RstoInst);
+    }
+    node->blockInsts.addInst(mulInst);
+
+    node->val = mulInst;
+
+    return true;
+}
+
 /// @brief 处理表达式节点AST，生成相应的IR
 /// @param node AST节点
 /// @return 翻译是否成功，true：成功，false：失败
@@ -375,52 +517,32 @@ bool IRGenerator::ir_visitExp(ast_node * node)
     if (!node) {
         return false;
     }
-
     // 如果当前节点是叶子节点，直接生成IR
     if (node->sons[0]->node_type == ast_operator_type::AST_OP_LEAF_LITERAL_UINT) {
-        return ir_leaf_node_uint(node->sons[0]);
+        return ir_leaf_node_uint(node);
+    } else if (node->sons[0]->node_type == ast_operator_type::AST_OP_LVAL) {
+        return ir_leaf_value_uint(node);
     }
-
+    Op op = node->sons[0]->op_type;
     // 如果是一个表达式节点（不是叶子节点），递归访问它的子节点
-    if (node->node_type == ast_operator_type::AST_OP_EXP) {
-        // 假设这个节点是一个表达式，需要处理它的左右子树
-
-        // 假设该节点有左右子树
-        if (node->sons.size() != 2) {
-            return false; // 处理错误，表达式节点应该有两个子节点
-        }
-
-        // 递归访问左子树和右子树
-        ast_node * left = ir_visit_ast_node(node->sons[0]);
-        ast_node * right = ir_visit_ast_node(node->sons[1]);
-
-        if (!left || !right) {
+    if (node->sons[0]->node_type == ast_operator_type::AST_OP_ADD_EXP ||
+        node->sons[0]->node_type == ast_operator_type::AST_OP_MUL_EXP) {
+        if (isAddOp(op) || isSubOp(op)) {
+            ir_add(node->sons[0]);
+        } else if (isMulOp(op) || isDivOp(op)) {
+            ir_mul(node->sons[0]);
+        } else {
             return false;
         }
-
-        // 生成一个临时变量来存储加法结果
-        LocalVariable * temp = static_cast<LocalVariable *>(module->newVarValue(left->type));
-
-        // 判断right是否为叶子节点，直接使用其值；否则需要继续递归处理
-        // if (right->node_type == ast_operator_type::AST_OP_LEAF_LITERAL_UINT) {
-        //     // 如果是叶子节点，直接使用其值
-        //     node->blockInsts.addInst(new MoveInstruction(currentFunc, temp, right->val));
-        // } else {
-        //     // 如果right是复杂的表达式，递归访问其值
-        //     ir_visitExp(right); // 处理右侧子表达式，递归调用
-
-        //     // 假设right最终将有一个计算结果，我们可以将其值用于指令
-        //     node->blockInsts.addInst(new MoveInstruction(currentFunc, temp, right->val));
-        // }
-
-        // 返回处理结果
-        node->val = temp; // 保存最终结果
-        return true;
+        node->val = node->sons[0]->val;
+        node->blockInsts.addInst(node->sons[0]->blockInsts);
+    } else if (node->sons[0]->node_type == ast_operator_type::AST_OP_ARRAY_ACCESS) {
+        ir_array_acess(node->sons[0]);
+        node->val = node->sons[0]->val;
+        node->blockInsts.addInst(node->sons[0]->blockInsts);
     }
-
-    return false; // 未处理的情况
+    return true;
 }
-
 bool IRGenerator::ir_const_declare(ast_node * node)
 {
     // 不需要做什么，直接从节点中获取即可。
@@ -429,8 +551,6 @@ bool IRGenerator::ir_const_declare(ast_node * node)
         return false;
     }
 
-    // ast_node * type_node = node->sons[0];
-    // int或bool或float
     std::vector<ast_node *>::iterator pIter;
     for (pIter = node->sons.begin() + 1; pIter != node->sons.end(); ++pIter) {
 
@@ -464,25 +584,17 @@ bool IRGenerator::ir_declare_statment(ast_node * node)
 /// @brief 变量定声明节点翻译成线性中间IR
 /// @param node AST节点
 /// @return 翻译是否成功，true：成功，false：失败
-// bool IRGenerator::ir_variable_declare(ast_node * node)
-// {
-//     // 共有两个孩子，第一个类型，第二个变量名
 
-//     // TODO 这里可强化类型等检查
-
-//     node->val = module->newVarValue(node->sons[0]->type, node->sons[1]->name);
-
-//     return true;
-// }
+// 传进来var-decl 声明
 bool IRGenerator::ir_variable_declare(ast_node * node)
 {
+
     if (!node) {
         return false;
     }
 
-    // ast_node * type_node = node->sons[0];
-    // int或bool或float
     std::vector<ast_node *>::iterator pIter;
+    // 第一个儿子是声明i32或f32
     for (pIter = node->sons.begin() + 1; pIter != node->sons.end(); ++pIter) {
 
         // 遍历Block的每个语句，进行显示或者运算
@@ -495,14 +607,276 @@ bool IRGenerator::ir_variable_declare(ast_node * node)
     }
     return true;
 }
-// 输入type为AST_OP_ARRAY_VAR_DEF
+// #赋值语句
+bool IRGenerator::ir_assign(ast_node * node)
+{
+    ast_node * son1_node = node->sons[0];
+    ast_node * son2_node = node->sons[1];
+
+    // 赋值节点，自右往左运算
+
+    // 赋值运算符的左侧操作数
+    ast_node * left = ir_visit_ast_node(son1_node);
+    if (!left) {
+        // 某个变量没有定值
+        // 这里缺省设置变量不存在则创建，因此这里不会错误
+        return false;
+    }
+
+    // 赋值运算符的右侧操作数
+    ast_node * right = ir_visit_ast_node(son2_node);
+    if (!right) {
+        // 某个变量没有定值
+        return false;
+    }
+    MoveInstruction * movInst = nullptr;
+
+    movInst = new MoveInstruction(module->getCurrentFunction(), left->val, right->val);
+    node->blockInsts.addInst(right->blockInsts);
+    node->blockInsts.addInst(left->blockInsts);
+    node->blockInsts.addInst(movInst);
+
+    // 这里假定赋值的类型是一致的
+    node->val = movInst;
+
+    return true;
+}
+
+// AST_OP_SCALAR_INIT
+bool IRGenerator::ir_scalar_init(ast_node * node)
+{
+    ast_node * left_val_node = node->parent;
+    ast_node * right_node = node->sons[0];
+
+    // 赋值运算符的右侧操作数
+    ast_node * right = ir_visit_ast_node(right_node);
+    if (!right) {
+        // 某个变量没有定值
+        return false;
+    }
+
+    // 这里只处理整型的数据，如需支持实数，则需要针对类型进行处理
+
+    MoveInstruction * movInst = new MoveInstruction(module->getCurrentFunction(), left_val_node->val, right->val);
+
+    // 创建临时变量保存IR的值，以及线性IR指令
+    node->blockInsts.addInst(left_val_node->blockInsts);
+    node->blockInsts.addInst(right->blockInsts);
+    node->blockInsts.addInst(movInst);
+    // 这里假定赋值的类型是一致的
+    node->val = movInst;
+    return true;
+}
+
+bool IRGenerator::ir_var_def(ast_node * node)
+{
+    if (!node) {
+        return false;
+    }
+    node->val = module->newVarValue(node->parent->sons[0]->type, node->sons[0]->name);
+    if (node->sons.size() > 1) {
+        ast_node * temp = ir_visit_ast_node(node->sons[1]);
+        node->blockInsts.addInst(temp->blockInsts);
+    }
+
+    return true;
+}
+
+// 输入type为AST_OP_ARRAY_VAR_DEF    var-array
 bool IRGenerator::ir_array_var_def_declare(ast_node * node)
 {
     if (!node) {
         return false;
     }
-    // 左儿子，array-index定义  AST_OP_LEAF_VAR_ID
-    ast_node * type_node = node->sons[0];
+
+    std::vector<int32_t> _dimensions;
+    // 第一个儿子是变量名称
+    std::string var_name = node->sons[0]->name;
+    // 第二个儿子是是array-index[10][4]定义
+    ast_node * dim_length = node->sons[1];
+    std::vector<ast_node *>::iterator pIter;
+    for (pIter = dim_length->sons.begin(); pIter != dim_length->sons.end(); ++pIter) {
+
+        // 遍历Block的每个语句，进行显示或者运算
+        int temp = ir_const_exp(*pIter);
+        _dimensions.push_back(static_cast<int32_t>(temp));
+    }
+
+    // Function * func = module->getCurrentFunction();
+    // const Type * baseType = dim_length->sons[0]->type; // 这是基础类型
+    PointerType * pointerType = PointerType::getNonConstPointerType(node->parent->sons[0]->type);
+    node->val = module->newArrayValue(pointerType, var_name, _dimensions);
+    return true;
+    //数组初始化不会写，先空了
+    // func->newLocalVarValue(dim_length->sons[0]->type, var_name, func->getScopeLevel(), _dimensions);
+    //如果有第三个儿子，说明变量再声明的时候同时初始化。AST_OP_ARRAY_INIT_VAL
+    // if (node->sons.size() > 2) {
+    //     ast_node * initi = node->sons[2]; //转到初始化
+
+    //     for (auto * init_node: initi->sons) {
+    // 计算当前初始化值
+    // Value * initVal = module->newConstInt(ir_const_exp(init_node));
+    // 生成乘法指令
+    // Value * mulResult = module->newTempVar(IntegerType::getTypeInt());
+    // node->blockInsts.addInst(new BinaryInstruction(BinaryOp::Mul, mulResult, currentVal, initVal));
+
+    // // 生成加法指令
+    // Value * addResult = module->newTempVar(IntegerType::getTypeInt());
+    // node->blockInsts.addInst(new BinaryInstruction(BinaryOp::Add, addResult, mulResult, initVal));
+
+    // // 更新当前值
+    // currentVal = addResult;
+}
+
+// 最终结果赋值给数组变量
+// node->blockInsts.addInst(new MoveInstruction(func, node->val, currentVal));
+// }
+
+// if (node->sons.size() > 2) {
+//     ast_node * initi = node->sons[2];
+//     int idx = 0;
+//     if (initi->node_type == ast_operator_type::AST_OP_ARRAY_INIT_VAL) {
+//         //依次遍历每一个赋值语句
+//         for (pIter = initi->sons.begin(); pIter != initi->sons.end(); ++pIter) {
+//             ast_node * assign_op = (*pIter)->sons[0];
+//             // 遍历Block的每个语句，进行显示或者运算
+//             ast_node * right = ir_visit_ast_node(assign_op);
+//             // Value * element = module->newArrayElement(array_value, index);
+//             std::string indexed_name = var_name + "[" + std::to_string(idx) + "]";
+//             Value * val = module->newVarValue(right->type, indexed_name);
+//             idx++;
+//             node->blockInsts.addInst(new MoveInstruction(func, val, right->val));
+//         }
+//     }
+// }
+//数组访问节点，有点冗余，可删减
+bool IRGenerator::ir_array_acess(ast_node * node)
+{
+    if (!node) {
+        return false;
+    }
+    if (node->node_type == ast_operator_type::AST_OP_EXP) {
+        node = node->sons[0];
+    }
+    //变量名称
+    std::vector<int32_t> index;
+    std::vector<int32_t> dim;
+    // 第一个儿子是变量名称
+    std::string var_name = node->sons[0]->name;
+    Value * array_Value = module->findVarValue(var_name);
+
+    std::vector<ast_node *>::iterator pIter;
+    for (pIter = node->sons.begin() + 1; pIter != node->sons.end(); ++pIter) {
+
+        // 遍历每一个index
+        int temp = ir_const_exp(*pIter);
+        index.push_back(static_cast<int32_t>(temp));
+    }
+    dim = array_Value->arraydimensionVector;
+    array_Value->arrayIndexVector = index;
+    Value * currentVal = nullptr; // 当前累积的值
+    // 根据类型创建对应的常量
+    if (index.size() == 1) {
+        ConstInt * offset = module->newConstInt((int32_t) index[0]);
+        BinaryInstruction * offset_inst = new BinaryInstruction(module->getCurrentFunction(),
+                                                                IRInstOperator::IRINST_OP_MUL_I,
+                                                                offset,
+                                                                module->newConstInt((int32_t) 4),
+                                                                IntegerType::getTypeInt());
+        node->blockInsts.addInst(offset_inst);
+        BinaryInstruction * address_inst = new BinaryInstruction(module->getCurrentFunction(),
+                                                                 IRInstOperator::IRINST_OP_ADD_I,
+                                                                 offset_inst,
+                                                                 array_Value,
+                                                                 array_Value->getType());
+        node->blockInsts.addInst(address_inst);
+        currentVal = address_inst;
+    } else {
+        ConstInt * mulleftval;
+        ConstInt * mulrightval;
+        ConstInt * addrightval;
+        BinaryInstruction * mul_inst;
+        BinaryInstruction * add_inst;
+        for (size_t i = 0; i < index.size() - 1; ++i) {
+            if (i == 0) {
+                // 第一维度的索引值直接作为初始值
+                mulleftval = module->newConstInt((int32_t) index[i]);
+                mulrightval = module->newConstInt((int32_t) dim[i + 1]);
+                addrightval = module->newConstInt((int32_t) index[i + 1]);
+                mul_inst = new BinaryInstruction(module->getCurrentFunction(),
+                                                 IRInstOperator::IRINST_OP_MUL_I,
+                                                 mulleftval,
+                                                 mulrightval,
+                                                 IntegerType::getTypeInt());
+                add_inst = new BinaryInstruction(module->getCurrentFunction(),
+                                                 IRInstOperator::IRINST_OP_ADD_I,
+                                                 mul_inst,
+                                                 addrightval,
+                                                 IntegerType::getTypeInt());
+                node->blockInsts.addInst(mul_inst);
+                node->blockInsts.addInst(add_inst);
+            } else {
+                mulleftval = module->newConstInt((int32_t) index[i]);
+                mulrightval = module->newConstInt((int32_t) dim[i + 1]);
+                addrightval = module->newConstInt((int32_t) index[i + 1]);
+                mul_inst = new BinaryInstruction(module->getCurrentFunction(),
+                                                 IRInstOperator::IRINST_OP_MUL_I,
+                                                 add_inst,
+                                                 mulrightval,
+                                                 IntegerType::getTypeInt());
+                add_inst = new BinaryInstruction(module->getCurrentFunction(),
+                                                 IRInstOperator::IRINST_OP_ADD_I,
+                                                 mul_inst,
+                                                 addrightval,
+                                                 IntegerType::getTypeInt());
+                node->blockInsts.addInst(mul_inst);
+                node->blockInsts.addInst(add_inst);
+            }
+        }
+        BinaryInstruction * offset_inst = new BinaryInstruction(module->getCurrentFunction(),
+                                                                IRInstOperator::IRINST_OP_MUL_I,
+                                                                add_inst,
+                                                                module->newConstInt((int32_t) 4),
+                                                                IntegerType::getTypeInt());
+        node->blockInsts.addInst(offset_inst);
+        BinaryInstruction * address_inst = new BinaryInstruction(module->getCurrentFunction(),
+                                                                 IRInstOperator::IRINST_OP_ADD_I,
+                                                                 offset_inst,
+                                                                 array_Value,
+                                                                 array_Value->getType());
+        node->blockInsts.addInst(address_inst);
+        currentVal = address_inst;
+    }
+    // 最终结果赋值给数组访问的值
+    node->val = currentVal;
+    // node->type = node->val->getType();
+    return true;
+}
+
+bool IRGenerator::ir_array_init(ast_node * node)
+{
+    return true;
+}
+
+//获取数组该维度的维度
+int IRGenerator::ir_const_exp(ast_node * node)
+{
+    return node->integer_val;
+}
+
+/// @brief 标识符叶子节点翻译成线性中间IR，变量声明的不走这个语句
+/// @param node AST节点
+/// @return 翻译是否成功，true：成功，false：失败
+bool IRGenerator::ir_leaf_node_var_id(ast_node * node)
+{
+    Value * val;
+
+    // 查找ID型Value
+    // 变量，则需要在符号表中查找对应的值
+
+    val = module->findVarValue(node->name);
+
+    node->val = val;
 
     return true;
 }

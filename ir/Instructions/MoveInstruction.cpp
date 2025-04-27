@@ -38,6 +38,13 @@ void MoveInstruction::toString(std::string & str)
 {
 
     Value *dstVal = getOperand(0), *srcVal = getOperand(1);
-
+    if (dstVal->getType() && dstVal->getType()->isPointerType()) {
+        str = '*' + dstVal->getIRName() + " = " + srcVal->getIRName();
+        return;
+    }
+    if (srcVal->getType() && srcVal->getType()->isPointerType()) {
+        str = dstVal->getIRName() + " = " + '*' + srcVal->getIRName();
+        return;
+    }
     str = dstVal->getIRName() + " = " + srcVal->getIRName();
 }

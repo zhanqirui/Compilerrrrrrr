@@ -105,7 +105,12 @@ void Function::toString(std::string & str)
 
         // 局部变量和临时变量需要输出declare语句
         str += "\tdeclare " + var->getType()->toString() + " " + var->getIRName();
-
+        const std::vector<int32_t> dims = var->arraydimensionVector;
+        if (!dims.empty()) {
+            for (auto dim: dims) {
+                str += "[" + std::to_string(dim) + "]";
+            }
+        }
         std::string extraStr;
         std::string realName = var->getName();
         if (!realName.empty()) {
@@ -238,10 +243,11 @@ void Function::setExistFuncCall(bool exist)
 /// @param name 变量ID
 /// @param type 变量类型
 /// @param scope_level 局部变量的作用域层级
-LocalVariable * Function::newLocalVarValue(Type * type, std::string name, int32_t scope_level)
+LocalVariable *
+Function::newLocalVarValue(Type * type, std::string name, int32_t scope_level, std::vector<int32_t> * _dimensions)
 {
     // 创建变量并加入符号表
-    LocalVariable * varValue = new LocalVariable(type, name, scope_level);
+    LocalVariable * varValue = new LocalVariable(type, name, scope_level, _dimensions);
 
     // varsVector表中可能存在变量重名的信息
     varsVector.push_back(varValue);

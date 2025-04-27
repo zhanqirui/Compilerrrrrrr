@@ -139,7 +139,10 @@ public:
     /// @param name 变量ID
     /// @param type 变量类型
     /// @param existInit 缺省为true。若真，则已存在需要进行初始化，否则什么都不做
-    LocalVariable * newLocalVarValue(Type * type, std::string name = "", int32_t scope_level = 1);
+    LocalVariable * newLocalVarValue(Type * type,
+                                     std::string name = "",
+                                     int32_t scope_level = 1,
+                                     std::vector<int32_t> * _dimensions = nullptr);
 
     /// @brief 新建一个内存型的Value，并加入到符号表，用于后续释放空间
     /// \param type 变量类型

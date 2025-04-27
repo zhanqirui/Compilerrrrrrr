@@ -33,10 +33,20 @@ private:
     /// @param _name 名称
     /// @param _scope_level 作用域层级
     ///
-    explicit LocalVariable(Type * _type, std::string _name, int32_t _scope_level)
-        : Value(_type), scope_level(_scope_level)
+    explicit LocalVariable(Type * _type,
+                           std::string _name,
+                           int32_t _scope_level,
+                           const std::vector<int32_t> * _dimensions)
+        : Value(_type), scope_level(_scope_level), dimensions(_dimensions)
     {
         this->name = _name;
+    }
+    ~LocalVariable()
+    {
+        if (dimensions) {
+            delete dimensions;
+            dimensions = nullptr;
+        }
     }
 
 public:
@@ -48,14 +58,32 @@ public:
     {
         return scope_level;
     }
-
-    ///
     /// @brief 获得分配的寄存器编号或ID
     /// @return int32_t 寄存器编号
     ///
     int32_t getRegId() override
     {
         return regId;
+    }
+    ///
+    /// @brief 设置数组的维度
+    /// @param dims 维度数组
+    ///
+    void setDimensions(const std::vector<int32_t> & dims)
+    {
+        if (this->dimensions) {
+            delete this->dimensions;
+        }
+        this->dimensions = new std::vector<int32_t>(dims);
+    }
+
+    ///
+    /// @brief 获取数组的维度
+    /// @return const std::vector<int32_t>* 维度数组指针
+    ///
+    const std::vector<int32_t> * getDimensions() const
+    {
+        return dimensions;
     }
 
     ///
@@ -115,6 +143,7 @@ private:
     /// @brief 当前变量所在作用域的层号，全局变量在第0层
     ///
     int scope_level = -1;
+    const std::vector<int32_t> * dimensions;
 
     /// @brief 寄存器编号，-1表示没有分配寄存器，大于等于0代表是寄存器型Value
     int32_t regId = -1;

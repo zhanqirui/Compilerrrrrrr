@@ -20,6 +20,7 @@
 #include <unordered_map>
 
 #include "ConstInt.h"
+#include "ConstFloat.h"
 #include "Type.h"
 #include "GlobalVariable.h"
 #include "Function.h"
@@ -109,7 +110,7 @@ public:
     /// \param intVal 整数值
     /// \return 临时Value
     ConstInt * newConstInt(int32_t intVal);
-
+    ConstFloat * newConstFloat(float floatVal);
     /// @brief 新建变量型Value，会根据currentFunc的值进行判断创建全局或者局部变量
     /// ! 该函数只有在AST遍历生成线性IR中使用，其它地方不能使用
     /// @param name 变量ID
@@ -124,7 +125,7 @@ public:
 
     /// @brief 清理Module中管理的所有信息资源
     void Delete();
-
+    Value * newArrayValue(Type * type, std::string name, std::vector<int32_t> index);
     /// @brief 输出线性IR指令列表
     /// @param filePath
     void outputIR(const std::string & filePath);
@@ -139,6 +140,11 @@ protected:
     /// \param name 变量名
     /// \return 变量对应的值
     ConstInt * findConstInt(int32_t val);
+
+    /// @brief 根据整数值获取当前符号
+    /// \param name 变量名
+    /// \return 变量对应的值
+    ConstFloat * findConstFloat(float floatVal);
 
     ///
     /// @brief 新建全局变量，要求name必须有效，并且加入到全局符号表中。
@@ -164,6 +170,8 @@ protected:
     /// @brief ConstInt插入到符号表中
     /// @param val Value信息
     void insertConstIntDirectly(ConstInt * val);
+
+    void insertConstFloatDirectly(ConstFloat * val);
 
 private:
     ///
@@ -196,4 +204,7 @@ private:
 
     /// @brief 常量表
     std::unordered_map<int32_t, ConstInt *> constIntMap;
+
+    // 存储浮点常量
+    std::unordered_map<float, ConstFloat *> constFloatMap;
 };

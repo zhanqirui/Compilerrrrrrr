@@ -87,6 +87,19 @@ protected:
     bool ir_declare_statment(ast_node * node);
     bool ir_variable_declare(ast_node * node);
     bool ir_array_var_def_declare(ast_node * node);
+    bool ir_var_def(ast_node * node);
+    int ir_const_exp(ast_node * node);
+    bool ir_leaf_value_uint(ast_node * node);
+    bool ir_scalar_init(ast_node * node);
+    bool ir_assign(ast_node * node);
+    bool ir_leaf_node_var_id(ast_node * node);
+    bool ir_add(ast_node * node);
+    bool ir_sub(ast_node * node);
+    bool ir_mul(ast_node * node);
+    bool ir_div(ast_node * node);
+    bool ir_array_init(ast_node * node);
+    bool ir_array_acess(ast_node * node);
+
     /// @brief AST节点运算符与动作函数关联的映射表
     std::unordered_map<ast_operator_type, ast2ir_handler_t> ast2ir_handlers;
 

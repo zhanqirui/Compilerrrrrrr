@@ -18,6 +18,8 @@
 
 #include "AST.h"
 #include "AttrType.h"
+#include "Type.h"
+
 using namespace std;
 
 #ifdef USE_GRAPHVIZ
@@ -33,7 +35,15 @@ string getNodeName(ast_node * astnode)
 
     switch (astnode->node_type) {
         case ast_operator_type::AST_OP_LEAF_LITERAL_UINT:
-            nodeName = to_string((int32_t) astnode->integer_val);
+			{
+                if(astnode->type && astnode->type->isIntegerType()) {
+					nodeName = to_string(astnode->integer_val);
+				} else if (astnode->type && astnode->type->isFloatType()) {
+					nodeName = to_string(astnode->float_val);
+				} else {
+					nodeName = "unknown_type";
+				}
+			}
             break;
         case ast_operator_type::AST_OP_LEAF_LITERAL_FLOAT:
             nodeName = to_string(astnode->float_val);
