@@ -75,13 +75,13 @@ enum class Op : std::int8_t {
     LT,  // <
     LE,  // <=
     GT,  // >
-    GE,  // >=
+    GE,  // >=REL
     EQ,  // ==
-    NE,  // !=
+    NE,  // !=EQ
     ADD, // +
     SUB, // -
     MUL, // *
-    DIV, // /
+    DIV, // /EXP
     MOD, // %
     AND, // &&
     OR,  // ||

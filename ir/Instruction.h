@@ -41,6 +41,17 @@ enum class IRInstOperator : std::int8_t {
     IRINST_OP_DIV_I,
     /// @brief 赋值指令，一元运算
     IRINST_OP_ASSIGN,
+    IRINST_OP_GT_I,  //>
+    IRINST_OP_LT_I,  //<
+    IRINST_OP_LE_I,  //<=
+    IRINST_OP_GE_I,  //>=
+    IRINST_OP_EQ_I,  //==
+    IRINST_OP_NE_I,  //!=
+    IRINST_OP_AND_I, //&&
+    IRINST_OP_OR_I,  //||
+    IRINST_OP_NOT_I, //!
+    IRINST_OP_MOD_I, //%
+    IRINST_OP_BRANCH_I,
 
     /// @brief 函数调用，多目运算，个数不限
     IRINST_OP_FUNC_CALL,

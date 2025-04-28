@@ -55,7 +55,14 @@ protected:
     /// @param node AST节点
     /// @return 翻译是否成功，true：成功，false：失败
     bool ir_block(ast_node * node);
-
+    // @brief 语句块（含函数体）AST节点翻译成线性中间IR
+    /// @param node AST节点
+    /// @return 翻译是否成功，true：成功，false：失败
+    bool ir_nested_block(ast_node * node);
+    /// @brief 语句块（含函数体）AST节点翻译成线性中间IR
+    /// @param node AST节点
+    /// @return 翻译是否成功，true：成功，false：失败
+    bool ir_if_else(ast_node * node);
     /// @brief return节点翻译成线性中间IR
     /// @param node AST节点
     /// @return 翻译是否成功，true：成功，false：失败
@@ -83,6 +90,11 @@ protected:
     /// @brief AST的节点操作函数
     typedef bool (IRGenerator::*ast2ir_handler_t)(ast_node *);
     bool ir_visitExp(ast_node * node);
+    bool ir_visitUNARYExp(ast_node * node);
+    bool ir_visitUNARYOP(ast_node * node);
+
+    bool ir_visitConfExp(ast_node * node);
+    bool ir_visitLogitExp(ast_node * node);
     bool ir_const_declare(ast_node * node);
     bool ir_declare_statment(ast_node * node);
     bool ir_variable_declare(ast_node * node);

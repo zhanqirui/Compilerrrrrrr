@@ -204,6 +204,10 @@ set(IR_SRCS
 	ir/Types/FloatType.h
 	ir/Instructions/StoreInstruction.h
 	ir/Instructions/StoreInstruction.cpp
+	ir/Instructions/BranchifCondition.cpp
+	ir/Instructions/BranchifCondition.h
+	ir/Instructions/UnaryInstruction.cpp
+	ir/Instructions/UnaryInstruction.h
 )
 
 # 符号表等共通化代码集合
