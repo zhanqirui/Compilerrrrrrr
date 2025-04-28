@@ -402,14 +402,6 @@ ast_node * create_if_stmt_node(ast_node * condition, ast_node * then_stmt);
 ast_node * create_if_else_stmt_node(ast_node * condition, ast_node * then_stmt, ast_node * else_stmt);
 
 ///
-/// @brief 创建while循环语句节点
-/// @param condition 条件表达式
-/// @param body 循环体
-/// @return ast_node* while循环语句节点
-///
-ast_node * create_while_stmt_node(ast_node * condition, ast_node * body);
-
-///
 /// @brief 创建break语句节点
 /// @param line_no 行号
 /// @return ast_node* break语句节点

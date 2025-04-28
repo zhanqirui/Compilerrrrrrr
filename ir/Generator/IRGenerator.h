@@ -51,11 +51,6 @@ protected:
     /// @return 翻译是否成功，true：成功，false：失败
     bool ir_function_formal_params(ast_node * node);
 
-    /// @brief 函数形式参数节点翻译成线性中间IR
-    /// @param node AST节点
-    /// @return 翻译是否成功，true：成功，false：失败
-    bool ir_func_formal_param(ast_node * node);
-
     /// @brief 语句块（含函数体）AST节点翻译成线性中间IR
     /// @param node AST节点
     /// @return 翻译是否成功，true：成功，false：失败
@@ -82,17 +77,6 @@ protected:
     /// @param node AST节点
     /// @return 翻译是否成功，true：成功，false：失败
     bool ir_leaf_node_uint(ast_node * node);
-   
-    /// @brief 浮点数字面量叶子节点翻译成线性中间IR
-    /// @param node AST节点
-    /// @return 翻译是否成功，true：成功，false：失败
-    bool ir_leaf_node_float(ast_node * node);
-    
-    /// @brief 变量ID叶子节点翻译成线性中间IR
-    /// @param node AST节点
-    /// @return 翻译是否成功，true：成功，false：失败
-    bool ir_leaf_node_var_id(ast_node * node);
-    
     /// @brief 未知节点类型的节点处理
     /// @param node AST节点
     /// @return 翻译是否成功，true：成功，false：失败

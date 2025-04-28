@@ -225,7 +225,9 @@ string getNodeName(ast_node * astnode)
 		case ast_operator_type::AST_OP_ARRAY_VAR_DEF:
 			nodeName = "var-array";
 			break;
-		
+		case ast_operator_type::AST_OP_WHILE:
+            nodeName = "while";
+            break;
         default:
             nodeName = "unknown";
             break;
