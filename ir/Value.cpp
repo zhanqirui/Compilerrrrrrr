@@ -78,6 +78,10 @@ Type * Value::getType()
 ///
 void Value::addUse(Use * use)
 {
+    // 添加空指针检查，避免添加空指针到uses向量
+    if (use == nullptr) {
+        return;
+    }
     uses.push_back(use);
 }
 
@@ -87,6 +91,10 @@ void Value::addUse(Use * use)
 ///
 void Value::removeUse(Use * use)
 {
+    // 添加空指针检查
+    if (use == nullptr) {
+        return;
+    }
     auto pIter = std::find(uses.begin(), uses.end(), use);
     if (pIter != uses.end()) {
         uses.erase(pIter);

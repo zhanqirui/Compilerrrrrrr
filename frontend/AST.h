@@ -90,14 +90,6 @@ enum class ast_operator_type : int {
     /// @brief 表达式定义
     AST_OP_EXP,
 
-    // ! not sure
-    /// @brief int类型
-    AST_OP_INT_TYPE,
-
-    // ! not sure
-    /// @brief float类型
-    AST_OP_FLOAT_TYPE,
-
     /// @brief 函数参数类型
     AST_OP_FUNC_FORMAL_PARAM,
 
@@ -436,14 +428,6 @@ ast_node * create_func_btype_node(ast_node * type_node, ast_node * id_node);
 /// @return ast_node* continue语句节点
 ///
 ast_node * create_continue_stmt_node(int64_t line_no);
-
-///
-/// @brief 创建赋值语句节点
-/// @param lval 左值
-/// @param expr 表达式
-/// @return ast_node* 赋值语句节点
-///
-ast_node * create_assign_stmt_node(ast_node * lval, ast_node * expr);
 
 /// @brief 创建return语句节点
 /// @param expr 表达式

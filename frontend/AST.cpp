@@ -562,7 +562,6 @@ ast_node * create_number_node(int value)
     return ast_node::New(attr);
 }
 
-// todo
 ast_node * create_float_node(float value)
 {
     digit_real_attr attr;

@@ -18,8 +18,9 @@
 
 #include "ExitInstruction.h"
 
-/// @brief return语句指令
-/// @param _result 返回结果值
+/// @brief return语句指令构造函数
+/// @param _func 所属函数
+/// @param _result 返回结果值，如果为nullptr，则表示无返回值
 ExitInstruction::ExitInstruction(Function * _func, Value * _result)
     : Instruction(_func, IRInstOperator::IRINST_OP_EXIT, VoidType::getType())
 {
@@ -30,6 +31,7 @@ ExitInstruction::ExitInstruction(Function * _func, Value * _result)
 
 /// @brief 转换成字符串显示
 /// @param str 转换后的字符串
+/// @details 当没有操作数时，表示返回void；否则返回第一个操作数的值
 void ExitInstruction::toString(std::string & str)
 {
     if (getOperandsNum() == 0) {

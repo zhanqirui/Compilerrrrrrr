@@ -34,6 +34,9 @@ enum class IRInstOperator : std::int8_t {
     /// @brief 无条件分支指令
     IRINST_OP_GOTO,
 
+    /// @brief 条件分支指令
+    IRINST_OP_BRANCH,
+
     /// @brief 整数的加法指令，二元运算
     IRINST_OP_ADD_I,
 

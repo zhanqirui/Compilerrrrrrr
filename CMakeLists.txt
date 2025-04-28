@@ -159,6 +159,10 @@ set(IR_SRCS
 	ir/Instructions/ArgInstruction.h
 	ir/Instructions/BinaryInstruction.cpp
 	ir/Instructions/BinaryInstruction.h
+	ir/Instructions/BranchInstruction.cpp
+	ir/Instructions/BranchInstruction.h
+	ir/Instructions/CallInstruction.cpp
+	ir/Instructions/CallInstruction.h
 	ir/Instructions/EntryInstruction.cpp
 	ir/Instructions/EntryInstruction.h
 	ir/Instructions/ExitInstruction.cpp
