@@ -111,7 +111,7 @@
 		},
 		{
 			// 可采用GCC或者Clang编译器
-			"name": "Debug Backend ARM32",
+			"name": "Debug Backend ARM64",
 			"type": "lldb",
 			"request": "launch",
 			"program": "${workspaceFolder}/build/minic",

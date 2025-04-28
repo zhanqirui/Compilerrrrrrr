@@ -26,7 +26,7 @@
 /// @param _falseTarget 条件为假时的跳转目标
 ///
 BranchInstruction::BranchInstruction(Function * _func, Value * _condition, Instruction * _trueTarget, Instruction * _falseTarget)
-    : Instruction(_func, IRInstOperator::IRINST_OP_BRANCH, VoidType::getType())
+    : Instruction(_func, IRInstOperator::IRINST_OP_BRANCH_I, VoidType::getType())
 {
     // 添加条件值作为操作数
     addOperand(_condition);

@@ -31,7 +31,7 @@ ast_node * ast_root = nullptr;
 /// @param _node_type 节点类型
 /// @param _line_no 行号
 ast_node::ast_node(ast_operator_type _node_type, Type * _type, int64_t _line_no)
-    : node_type(_node_type), line_no(-1), type(_type)
+    : node_type(_node_type), line_no(_line_no), type(_type)
 {}
 
 /// @brief 构造函数
@@ -56,6 +56,7 @@ ast_node::ast_node(digit_real_attr attr)
     : ast_node(ast_operator_type::AST_OP_LEAF_LITERAL_UINT, FloatType::getTypeFloat(), attr.lineno)
 {
     float_val = attr.val;
+    // line_no = attr.lineno;
 }
 
 /// @brief 针对标识符ID的叶子构造函数
@@ -479,7 +480,7 @@ ast_node * create_array_var_def_node(ast_node * id_node, std::vector<ast_node *>
         dims_node->insert_son_node(dim);
 
         // 如果维度是常量表达式，则直接存储其值
-        if (dim && dim->node_type == ast_operator_type::AST_OP_LEAF_LITERAL_UINT) {
+        if (dim && (dim->node_type == ast_operator_type::AST_OP_LEAF_LITERAL_UINT || dim->node_type == ast_operator_type::AST_OP_CONST_EXP)) {
             node->array_dimensions.push_back(dim->integer_val);
         } else {
             // 对于非常量表达式，存储-1表示需要运行时计算

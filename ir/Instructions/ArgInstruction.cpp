@@ -18,9 +18,8 @@
 #include "Function.h"
 #include "VoidType.h"
 
-/// @brief 函数实参指令构造函数
-/// @param _func 所属函数
-/// @param src 实参值
+/// @brief 函数实参指令
+/// @param target 跳转目标
 ArgInstruction::ArgInstruction(Function * _func, Value * src)
     : Instruction(_func, IRInstOperator::IRINST_OP_ARG, VoidType::getType())
 {
@@ -28,20 +27,19 @@ ArgInstruction::ArgInstruction(Function * _func, Value * src)
 }
 
 /// @brief 转换成字符串
-/// @details 将ARG指令转换为字符串形式，如果参数有寄存器分配或内存地址，则添加为注释
 void ArgInstruction::toString(std::string & str)
 {
     int32_t regId;
     int64_t offset;
     Value * src = getOperand(0);
 
-    str = "arg " + src->getIRName();
-
-    if (src->getRegId() != -1) {
-        str += " ; " + std::to_string(src->getRegId());
-    } else if (src->getMemoryAddr(&regId, &offset)) {
-        str += " ; " + std::to_string(regId) + "[" + std::to_string(offset) + "]";
-    }
+    // str = "arg " + src->getIRName();
+    str = "";
+    // if (src->getRegId() != -1) {
+    //     str += " ; " + std::to_string(src->getRegId());
+    // } else if (src->getMemoryAddr(&regId, &offset)) {
+    //     str += " ; " + std::to_string(regId) + "[" + std::to_string(offset) + "]";
+    // }
 
     // ARG指令个数增加1
     func->realArgCountInc();

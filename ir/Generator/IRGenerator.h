@@ -115,6 +115,8 @@ protected:
     bool ir_div(ast_node * node);
     bool ir_array_init(ast_node * node);
     bool ir_array_acess(ast_node * node);
+    // 新增：函数调用
+    bool ir_func_call(ast_node * node);
 
     /// @brief AST节点运算符与动作函数关联的映射表
     std::unordered_map<ast_operator_type, ast2ir_handler_t> ast2ir_handlers;

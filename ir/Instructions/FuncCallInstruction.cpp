@@ -42,12 +42,12 @@ void FuncCallInstruction::toString(std::string & str)
     int32_t argCount = func->getRealArgcount();
     int32_t operandsNum = getOperandsNum();
 
-    if (operandsNum != argCount) {
-        // 两者不一致 也可能没有ARG指令，正常
-        if (argCount != 0) {
-            minic_log(LOG_ERROR, "ARG指令的个数与调用函数个数不一致");
-        }
-    }
+    // if (operandsNum != argCount) {
+    //     // 两者不一致 也可能没有ARG指令，正常
+    //     if (argCount != 0) {
+    //         minic_log(LOG_ERROR, "ARG指令的个数与调用函数个数不一致");
+    //     }
+    // }
 
     // TODO 这里应该根据函数名查找函数定义或者声明获取函数的类型
     // 这里假定所有函数返回类型要么是i32，要么是void
@@ -77,6 +77,20 @@ void FuncCallInstruction::toString(std::string & str)
             }
         }
     }
+	else
+	{
+		// 如果有arg指令，则输出函数的实参
+		for (int32_t k = 0; k < argCount; ++k) {
+
+			auto operand = getOperand(k);
+
+			str += operand->getType()->toString() + " " + operand->getIRName();
+
+			if (k != (argCount - 1)) {
+				str += ", ";
+			}
+		}
+	}
 
     str += ")";
 

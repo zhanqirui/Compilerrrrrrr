@@ -32,6 +32,7 @@
 #include "MoveInstruction.h"
 #include "GotoInstruction.h"
 #include "FuncCallInstruction.h"
+#include "ArgInstruction.h"
 #include "BinaryInstruction.h"
 #include "StoreInstruction.h"
 #include "BranchifCondition.h"
@@ -76,7 +77,7 @@ IRGenerator::IRGenerator(ast_node * _root, Module * _module) : root(_root), modu
     /* 函数定义 */
     ast2ir_handlers[ast_operator_type::AST_OP_FUNC_DEF] = &IRGenerator::ir_function_define;
     ast2ir_handlers[ast_operator_type::AST_OP_FUNC_FORMAL_PARAMS] = &IRGenerator::ir_function_formal_params;
-
+    ast2ir_handlers[ast_operator_type::AST_OP_FUNC_CALL] = &IRGenerator::ir_func_call; // 注册函数调用
     /* 语句块 */
     ast2ir_handlers[ast_operator_type::AST_OP_BLOCK] = &IRGenerator::ir_block;
     ast2ir_handlers[ast_operator_type::AST_OP_IF_ELSE_STMT] = &IRGenerator::ir_if_else;
@@ -221,6 +222,27 @@ bool IRGenerator::ir_function_define(ast_node * node)
     }
     node->blockInsts.addInst(param_node->blockInsts);
 
+    // --- 新增：将形参寄存器赋值给局部变量 ---
+    {
+        Function *curFunc = module->getCurrentFunction();
+        if (curFunc) {
+            auto &params = curFunc->getParams();
+            auto &locals = curFunc->getVarValues();
+            for (auto *param : params) {
+                if (!param) continue;
+                // 查找同名局部变量
+                for (auto *local : locals) {
+                    if (local && local->getName() == param->getName()) {
+                        // %lX = %tX
+                        node->blockInsts.addInst(new MoveInstruction(curFunc, local, param));
+                        break;
+                    }
+                }
+            }
+        }
+    }
+    // --- 新增结束 ---
+
     // 新建一个Value，用于保存函数的返回值，如果没有返回值可不用申请
     LocalVariable * retValue = nullptr;
     if (!type_node->type->isVoidType()) {
@@ -269,13 +291,27 @@ bool IRGenerator::ir_function_define(ast_node * node)
 /// @return 翻译是否成功，true：成功，false：失败
 bool IRGenerator::ir_function_formal_params(ast_node * node)
 {
-    // TODO 目前形参还不支持，直接返回true
-
-    // 每个形参变量都创建对应的临时变量，用于表达实参转递的值
-    // 而真实的形参则创建函数内的局部变量。
-    // 然后产生赋值指令，用于把表达实参值的临时变量拷贝到形参局部变量上。
-    // 请注意这些指令要放在Entry指令后面，因此处理的先后上要注意。
-
+    Function *curFunc = module->getCurrentFunction();
+    std::vector<FormalParam*> paramList;
+    // 依次处理每个形参
+    for (auto param_node : node->sons) {
+        if (!param_node) continue;
+        Type *param_type = param_node->type;
+        std::string param_name = param_node->name;
+        Value *var = nullptr;
+        if (param_node->is_array) {
+            PointerType *ptrType = PointerType::getNonConstPointerType(param_node->array_element_type ? param_node->array_element_type : param_type);
+            var = module->newVarValue(ptrType, param_name);
+        } else {
+            var = module->newVarValue(param_type, param_name);
+        }
+        param_node->val = var;
+        // 构造FormalParam并加入列表（只传type和name）
+        FormalParam* formal = new FormalParam(param_type, param_name);
+        paramList.push_back(formal);
+    }
+    // 批量加入参数
+    if (curFunc) curFunc->addParams(paramList);
     return true;
 }
 
@@ -365,7 +401,7 @@ bool IRGenerator::ir_if_else(ast_node * node)
         node->blockInsts.addInst(branch1->blockInsts);
         node->blockInsts.addInst(branch2->blockInsts);
     } else {
-        LabelInstruction * exitLabelInst = new LabelInstruction(currentFunc);
+        exitLabelInst = new LabelInstruction(currentFunc);
         branch_Inst = new BranchifCondition(module->getCurrentFunction(), cond->val, branch1->val, exitLabelInst);
         node->blockInsts.addInst(branch_Inst);
         node->blockInsts.addInst(branch1->blockInsts);
@@ -564,7 +600,7 @@ bool IRGenerator::ir_add(ast_node * node)
 
     return true;
 }
-/// @brief 整数乘 除法AST节点翻译成线性中间IR，要根据op来判断乘除
+/// @brief 整数乘 除法AST节点翻译成线性中间IR,要根据op来判断乘除
 /// @param node AST节点
 /// @return 翻译是否成功，true：成功，false：失败
 bool IRGenerator::ir_visitUNARYExp(ast_node * node)
@@ -1017,6 +1053,7 @@ bool IRGenerator::ir_array_var_def_declare(ast_node * node)
     PointerType * pointerType = PointerType::getNonConstPointerType(node->parent->sons[0]->type);
     node->val = module->newArrayValue(pointerType, var_name, _dimensions);
     return true;
+}
     //数组初始化不会写，先空了
     // func->newLocalVarValue(dim_length->sons[0]->type, var_name, func->getScopeLevel(), _dimensions);
     //如果有第三个儿子，说明变量再声明的时候同时初始化。AST_OP_ARRAY_INIT_VAL
@@ -1036,30 +1073,26 @@ bool IRGenerator::ir_array_var_def_declare(ast_node * node)
 
     // // 更新当前值
     // currentVal = addResult;
-}
+    // }
 
-// 最终结果赋值给数组变量
-// node->blockInsts.addInst(new MoveInstruction(func, node->val, currentVal));
-// }
-
-// if (node->sons.size() > 2) {
-//     ast_node * initi = node->sons[2];
-//     int idx = 0;
-//     if (initi->node_type == ast_operator_type::AST_OP_ARRAY_INIT_VAL) {
-//         //依次遍历每一个赋值语句
-//         for (pIter = initi->sons.begin(); pIter != initi->sons.end(); ++pIter) {
-//             ast_node * assign_op = (*pIter)->sons[0];
-//             // 遍历Block的每个语句，进行显示或者运算
-//             ast_node * right = ir_visit_ast_node(assign_op);
-//             // Value * element = module->newArrayElement(array_value, index);
-//             std::string indexed_name = var_name + "[" + std::to_string(idx) + "]";
-//             Value * val = module->newVarValue(right->type, indexed_name);
-//             idx++;
-//             node->blockInsts.addInst(new MoveInstruction(func, val, right->val));
-//         }
-//     }
-// }
-//数组访问节点，有点冗余，可删减
+    // if (node->sons.size() > 2) {
+    //     ast_node * initi = node->sons[2];
+    //     int idx = 0;
+    //     if (initi->node_type == ast_operator_type::AST_OP_ARRAY_INIT_VAL) {
+    //         //依次遍历每一个赋值语句
+    //         for (pIter = initi->sons.begin(); pIter != initi->sons.end(); ++pIter) {
+    //             ast_node * assign_op = (*pIter)->sons[0];
+    //             // 遍历Block的每个语句，进行显示或者运算
+    //             ast_node * right = ir_visit_ast_node(assign_op);
+    //             // Value * element = module->newArrayElement(array_value, index);
+    //             std::string indexed_name = var_name + "[" + std::to_string(idx) + "]";
+    //             Value * val = module->newVarValue(right->type, indexed_name);
+    //             idx++;
+    //             node->blockInsts.addInst(new MoveInstruction(func, val, right->val));
+    //         }
+    //     }
+    // }
+    //数组访问节点，有点冗余，可删减
 bool IRGenerator::ir_array_acess(ast_node * node)
 {
     if (!node) {
@@ -1188,5 +1221,53 @@ bool IRGenerator::ir_leaf_node_var_id(ast_node * node)
 
     node->val = val;
 
+    return true;
+}
+
+// 函数调用AST节点翻译成线性中间IR
+bool IRGenerator::ir_func_call(ast_node * node)
+{
+    // node->sons[0] 是函数名节点，node->sons[1] 可能是参数节点(AST_OP_FUNC_RPARAMS)
+    std::string func_name = node->sons[0]->name;
+    Function *callee = module->findFunction(func_name);
+    if (!callee) {
+        std::cerr << "Error: function not found: " << func_name << std::endl;
+        return false;
+    }
+
+    std::vector<Value *> args;
+    // 支持无参数、有参数（AST_OP_FUNC_RPARAMS）、单参数直接表达式等情况
+    if (node->sons.size() > 1 && node->sons[1]) {
+        ast_node *param_node = node->sons[1];
+        if (param_node->node_type == ast_operator_type::AST_OP_FUNC_RPARAMS) {
+            // 多参数
+            for (auto arg_ast : param_node->sons) {
+                ast_node *arg_node = ir_visit_ast_node(arg_ast);
+                if (!arg_node) return false;
+                node->blockInsts.addInst(arg_node->blockInsts);
+                args.push_back(arg_node->val);
+            }
+        } else {
+            // 兼容单参数直接是表达式的情况
+            ast_node *arg_node = ir_visit_ast_node(param_node);
+            if (!arg_node) return false;
+            node->blockInsts.addInst(arg_node->blockInsts);
+            args.push_back(arg_node->val);
+        }
+    }
+    // else: 无参数
+
+    // --- 新增：为每个参数生成ARG指令 ---
+    for (auto *arg_val : args) {
+        node->blockInsts.addInst(new ArgInstruction(module->getCurrentFunction(), arg_val));
+    }
+    // --- 新增结束 ---
+
+    // 只传递参数，不要把call结果变量也作为参数
+    FuncCallInstruction *callInst = new FuncCallInstruction(
+        module->getCurrentFunction(), callee, args, callee->getReturnType());
+
+    node->blockInsts.addInst(callInst);
+    node->val = callInst;
     return true;
 }

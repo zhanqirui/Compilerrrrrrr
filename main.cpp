@@ -21,7 +21,7 @@
 #include "AST.h"
 #include "Antlr4Executor.h"
 #include "CodeGenerator.h"
-#include "CodeGeneratorArm32.h"
+#include "CodeGeneratorArm64.h"
 #include "FlexBisonExecutor.h"
 #include "FrontEndExecutor.h"
 #include "Graph.h"
@@ -78,7 +78,7 @@ static bool gAsmAlsoShowIR = false;
 static int gOptLevel = 0;
 
 /// @brief 指定CPU目标架构，这里默认为ARM32
-static std::string gCPUTarget = "ARM32";
+static std::string gCPUTarget = "ARM64";
 
 /// @brief 输入源文件
 static std::string gInputFile;
@@ -361,9 +361,9 @@ static int compile(std::string inputFile, std::string outputFile)
 
             CodeGenerator * generator = nullptr;
 
-            if (gCPUTarget == "ARM32") {
-                // 输出面向ARM32的汇编指令
-                generator = new CodeGeneratorArm32(module);
+            if (gCPUTarget == "ARM64") {
+                // 输出面向ARM64的汇编指令
+                generator = new CodeGeneratorArm64(module);
                 generator->setShowLinearIR(gAsmAlsoShowIR);
                 generator->run(outputFile);
             } else {

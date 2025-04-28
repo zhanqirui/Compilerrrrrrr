@@ -87,7 +87,7 @@ public:
     }
 
     ///
-    /// @brief  检查是否是函数
+    /// @brief  棢查是否是函数
     /// @return true 是函数
     /// @return false 不是函数
     ///
@@ -172,6 +172,10 @@ public:
     /// @brief 用于统计ARG指令个数的清零
     ///
     void realArgCountReset();
+
+    void addParams(const std::vector<FormalParam*>& paramList) {
+        params.insert(params.end(), paramList.begin(), paramList.end());
+    }
 
 private:
     ///
