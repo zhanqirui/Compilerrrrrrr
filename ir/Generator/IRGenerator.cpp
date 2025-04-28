@@ -81,6 +81,7 @@ IRGenerator::IRGenerator(ast_node * _root, Module * _module) : root(_root), modu
     ast2ir_handlers[ast_operator_type::AST_OP_BLOCK] = &IRGenerator::ir_block;
     ast2ir_handlers[ast_operator_type::AST_OP_IF_ELSE_STMT] = &IRGenerator::ir_if_else;
     ast2ir_handlers[ast_operator_type::AST_OP_NESTED_BLOCK] = &IRGenerator::ir_nested_block;
+    ast2ir_handlers[ast_operator_type::AST_OP_WHILE] = &IRGenerator::ir_while;
 
     /* 编译单元 */
     ast2ir_handlers[ast_operator_type::AST_OP_COMPILE_UNIT] = &IRGenerator::ir_compile_unit;
@@ -206,10 +207,10 @@ bool IRGenerator::ir_function_define(ast_node * node)
     irCode.addInst(new EntryInstruction(newFunc));
 
     // 创建出口指令并不加入出口指令，等函数内的指令处理完毕后加入出口指令
-    LabelInstruction * exitLabelInst = new LabelInstruction(newFunc);
+    LabelInstruction * entryLabelInst = new LabelInstruction(newFunc);
 
     // 函数出口指令保存到函数信息中，因为在语义分析函数体时return语句需要跳转到函数尾部，需要这个label指令
-    newFunc->setExitLabel(exitLabelInst);
+    newFunc->setExitLabel(entryLabelInst);
 
     // 遍历形参，没有IR指令，不需要追加
     result = ir_function_formal_params(param_node);
@@ -249,7 +250,7 @@ bool IRGenerator::ir_function_define(ast_node * node)
     irCode.addInst(node->blockInsts);
 
     // 添加函数出口Label指令，主要用于return语句跳转到这里进行函数的退出
-    irCode.addInst(exitLabelInst);
+    irCode.addInst(entryLabelInst);
 
     // 函数出口指令
     irCode.addInst(new ExitInstruction(newFunc, retValue));
@@ -317,8 +318,8 @@ bool IRGenerator::ir_nested_block(ast_node * node)
         module->enterScope();
     }
     Function * currentFunc = module->getCurrentFunction();
-    LabelInstruction * exitLabelInst = new LabelInstruction(currentFunc);
-    node->blockInsts.addInst(exitLabelInst);
+    LabelInstruction * entryLabelInst = new LabelInstruction(currentFunc);
+    node->blockInsts.addInst(entryLabelInst);
 
     std::vector<ast_node *>::iterator pIter;
     for (pIter = node->sons.begin(); pIter != node->sons.end(); ++pIter) {
@@ -331,7 +332,7 @@ bool IRGenerator::ir_nested_block(ast_node * node)
 
         node->blockInsts.addInst(temp->blockInsts);
     }
-    node->val = exitLabelInst;
+    node->val = entryLabelInst;
     // 离开作用域
     if (node->needScope) {
         module->leaveScope();
@@ -346,21 +347,64 @@ bool IRGenerator::ir_if_else(ast_node * node)
         module->enterScope();
     }
     Function * currentFunc = module->getCurrentFunction();
-    LabelInstruction * exitLabelInst = new LabelInstruction(currentFunc);
-    node->blockInsts.addInst(exitLabelInst);
+    LabelInstruction * entryLabelInst = new LabelInstruction(currentFunc);
+    node->blockInsts.addInst(entryLabelInst);
     ast_node * cond = ir_visit_ast_node(node->sons[0]);
     // cond->blocks是放的最后计算的变量，%t2= icmp gt %l1,100中的t2.
     node->blockInsts.addInst(cond->blockInsts);
 
     ast_node * branch1 = ir_visit_ast_node(node->sons[1]);
-    ast_node * branch2 = ir_visit_ast_node(node->sons[2]);
-    // branch1->val是一个label指令
+    ast_node * branch2;
+    LabelInstruction * exitLabelInst;
     BranchifCondition * branch_Inst;
-    branch_Inst = new BranchifCondition(module->getCurrentFunction(), cond->val, branch1->val, branch2->val);
+    // 可能不存在else分支，只有单if
+    if (node->sons[2]) {
+        branch2 = ir_visit_ast_node(node->sons[2]);
+        branch_Inst = new BranchifCondition(module->getCurrentFunction(), cond->val, branch1->val, branch2->val);
+        node->blockInsts.addInst(branch_Inst);
+        node->blockInsts.addInst(branch1->blockInsts);
+        node->blockInsts.addInst(branch2->blockInsts);
+    } else {
+        LabelInstruction * exitLabelInst = new LabelInstruction(currentFunc);
+        branch_Inst = new BranchifCondition(module->getCurrentFunction(), cond->val, branch1->val, exitLabelInst);
+        node->blockInsts.addInst(branch_Inst);
+        node->blockInsts.addInst(branch1->blockInsts);
+        node->blockInsts.addInst(exitLabelInst);
+
+    } // branch1->val是一个label指令
+    node->val = entryLabelInst;
+    // 离开作用域
+    if (node->needScope) {
+        module->leaveScope();
+    }
+
+    return true;
+}
+bool IRGenerator::ir_while(ast_node * node)
+{
+    // 进入作用域
+    if (node->needScope) {
+        module->enterScope();
+    }
+    Function * currentFunc = module->getCurrentFunction();
+    LabelInstruction * entryLabelInst = new LabelInstruction(currentFunc);
+    LabelInstruction * exitLabelInst = new LabelInstruction(currentFunc);
+    node->blockInsts.addInst(entryLabelInst);
+
+    ast_node * cond = ir_visit_ast_node(node->sons[0]);
+    // cond->blocks是放的最后计算的变量，%t2= icmp gt %l1,100中的t2.
+    node->blockInsts.addInst(cond->blockInsts);
+    // nested_block->val是语块的的一个label，也就是开头
+    ast_node * nested_block = ir_visit_ast_node(node->sons[1]);
+
+    // nested_block->val是一个label指令
+    BranchifCondition * branch_Inst;
+    branch_Inst = new BranchifCondition(module->getCurrentFunction(), cond->val, nested_block->val, exitLabelInst);
     node->blockInsts.addInst(branch_Inst);
-    node->blockInsts.addInst(branch1->blockInsts);
-    node->blockInsts.addInst(branch2->blockInsts);
-    node->val = exitLabelInst;
+    node->blockInsts.addInst(nested_block->blockInsts);
+    node->blockInsts.addInst(new GotoInstruction(currentFunc, entryLabelInst));
+    node->val = entryLabelInst;
+    node->blockInsts.addInst(exitLabelInst);
     // 离开作用域
     if (node->needScope) {
         module->leaveScope();
