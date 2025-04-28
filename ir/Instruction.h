@@ -34,17 +34,24 @@ enum class IRInstOperator : std::int8_t {
     /// @brief 无条件分支指令
     IRINST_OP_GOTO,
 
-    /// @brief 条件分支指令
-    IRINST_OP_BRANCH,
-
-    /// @brief 整数的加法指令，二元运算
+    /// @brief 整数的加减乘除指令，二元运算
     IRINST_OP_ADD_I,
-
-    /// @brief 整数的减法指令，二元运算
     IRINST_OP_SUB_I,
-
+    IRINST_OP_MUL_I,
+    IRINST_OP_DIV_I,
     /// @brief 赋值指令，一元运算
     IRINST_OP_ASSIGN,
+    IRINST_OP_GT_I,  //>
+    IRINST_OP_LT_I,  //<
+    IRINST_OP_LE_I,  //<=
+    IRINST_OP_GE_I,  //>=
+    IRINST_OP_EQ_I,  //==
+    IRINST_OP_NE_I,  //!=
+    IRINST_OP_AND_I, //&&
+    IRINST_OP_OR_I,  //||
+    IRINST_OP_NOT_I, //!
+    IRINST_OP_MOD_I, //%
+    IRINST_OP_BRANCH_I,
 
     /// @brief 函数调用，多目运算，个数不限
     IRINST_OP_FUNC_CALL,

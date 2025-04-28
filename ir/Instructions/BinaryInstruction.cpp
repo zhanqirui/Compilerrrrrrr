@@ -50,7 +50,62 @@ void BinaryInstruction::toString(std::string & str)
             // 减法指令，二元运算
             str = getIRName() + " = sub " + src1->getIRName() + "," + src2->getIRName();
             break;
+        case IRInstOperator::IRINST_OP_MUL_I:
 
+            // 减法指令，二元运算
+            str = getIRName() + " = mul " + src1->getIRName() + "," + src2->getIRName();
+            break;
+        case IRInstOperator::IRINST_OP_DIV_I:
+
+            // 减法指令，二元运算
+            str = getIRName() + " = div " + src1->getIRName() + "," + src2->getIRName();
+            break;
+        case IRInstOperator::IRINST_OP_GT_I:
+
+            str = getIRName() + " = icmp gt " + src1->getIRName() + "," + src2->getIRName();
+            break;
+
+            break;
+        case IRInstOperator::IRINST_OP_GE_I:
+
+            // 减法指令，二元运算
+            str = getIRName() + " = icmp ge " + src1->getIRName() + "," + src2->getIRName();
+            break;
+        case IRInstOperator::IRINST_OP_LT_I:
+
+            // 减法指令，二元运算
+            str = getIRName() + " = icmp lt " + src1->getIRName() + "," + src2->getIRName();
+            break;
+        case IRInstOperator::IRINST_OP_LE_I:
+
+            // 减法指令，二元运算
+            str = getIRName() + " = icmp le " + src1->getIRName() + "," + src2->getIRName();
+            break;
+        case IRInstOperator::IRINST_OP_EQ_I:
+
+            // 减法指令，二元运算
+            str = getIRName() + " = icmp eq " + src1->getIRName() + "," + src2->getIRName();
+            break;
+        case IRInstOperator::IRINST_OP_NE_I:
+
+            // 减法指令，二元运算
+            str = getIRName() + " = icmp ne " + src1->getIRName() + "," + src2->getIRName();
+            break;
+        case IRInstOperator::IRINST_OP_AND_I:
+
+            // 减法指令，二元运算
+            str = getIRName() + " = icmp and " + src1->getIRName() + "," + src2->getIRName();
+            break;
+        case IRInstOperator::IRINST_OP_OR_I:
+
+            // 减法指令，二元运算
+            str = getIRName() + " = icmp or " + src1->getIRName() + "," + src2->getIRName();
+            break;
+        case IRInstOperator::IRINST_OP_MOD_I:
+
+            // 减法指令，二元运算
+            str = getIRName() + " = mod " + src1->getIRName() + "," + src2->getIRName();
+            break;
         default:
             // 未知指令
             Instruction::toString(str);

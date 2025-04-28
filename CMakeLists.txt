@@ -2,6 +2,7 @@ cmake_minimum_required(VERSION 3.12)
 
 # 设置工程属性，如版本，开发语言等
 project(minic VERSION 1.0.0 LANGUAGES CXX)
+add_compile_options(-Wno-error=unused-variable)
 
 # 是否输出Bison语法分析时是否输出自动机， 默认不输出
 # 如果修改为ON，请删除build后重新构建程序
@@ -205,6 +206,12 @@ set(IR_SRCS
 	ir/Value.h
 	ir/Types/FloatType.cpp
 	ir/Types/FloatType.h
+	ir/Instructions/StoreInstruction.h
+	ir/Instructions/StoreInstruction.cpp
+	ir/Instructions/BranchifCondition.cpp
+	ir/Instructions/BranchifCondition.h
+	ir/Instructions/UnaryInstruction.cpp
+	ir/Instructions/UnaryInstruction.h
 )
 
 # 符号表等共通化代码集合

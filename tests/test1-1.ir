@@ -1,7 +1,34 @@
 define i32 @main()
 {
 	declare i32 %l0
+	declare i32 %l1 ; 1:x
+	declare i32 %t3
+	declare i32 %t6
+	declare i32 %t9
 	entry
-.L1:
+	%l1 = 1
+.L2:
+	%t3 = icmp gt %l1,10
+	bc %t3,   label .L4  label .L12
+.L4:
+.L5:
+	%t6 = icmp eq %l1,1
+	bc %t6,   label .L7  label .L8
+.L7:
+	%l0 = 10
+	br label .L13
+.L8:
+	%t9 = icmp eq %l1,12312
+	bc %t9,   label .L10  label .L11
+.L10:
+	%l0 = 123
+	br label .L13
+.L11:
+	%l0 = 21
+	br label .L13
+.L12:
+	%l0 = 12130
+	br label .L13
+.L13:
 	exit %l0
 }
