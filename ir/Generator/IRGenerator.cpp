@@ -518,7 +518,7 @@ bool IRGenerator::ir_leaf_node_uint(ast_node * node)
         node->val = val;
     } else if (node->type->isFloatType()) {
         // 创建浮点常量
-        ConstFloat * val = module->newConstFloat((float) node->sons[0]->float_val);
+        ConstFloat * val = module->newConstFloat((float) node->float_val);
         node->val = val;
     } else {
         std::cerr << "Error: Unsupported type for leaf node" << std::endl;
