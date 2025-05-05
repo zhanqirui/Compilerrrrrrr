@@ -142,3 +142,12 @@ void Value::setLoadRegId(int32_t regId)
 {
     (void) regId;
 }
+
+///
+/// @brief 获取活跃结束位置
+/// @return int32_t 结束位置指令编号
+///
+int32_t Value::getLiveEnd()
+{
+	return -1;
+}

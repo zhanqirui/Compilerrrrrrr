@@ -48,6 +48,8 @@ protected:
     ///
     std::vector<Use *> uses;
 
+	int liveStart;  // 活跃起始位置（如指令编号）
+    int liveEnd;    // 活跃结束位置
 
 
 public:
@@ -126,6 +128,13 @@ public:
     /// @return int32_t 寄存器编号
     ///
     virtual void setLoadRegId(int32_t regId);
+
+	///
+    /// @brief 获取活跃结束位置
+    /// @return int32_t 结束位置指令编号
+    ///
+    virtual int32_t getLiveEnd();
+
     /// @brief 作为数组的下标集合
     std::vector<int32_t> arrayIndexVector;
     std::vector<int32_t> arraydimensionVector;
