@@ -109,7 +109,7 @@ static void showHelp(const std::string & exeName)
     std::cout << "  -o, --output=FILE          Specify output file\n";
     std::cout << "  -S, --symbol               Show symbol information\n";
     std::cout << "  -T, --ast                  Output abstract syntax tree\n";
-    std::cout << "  -L, --ir                   Output intermediate representation\n";
+    std::cout << "  -I, --ir                   Output intermediate representation\n";
     std::cout << "  -A, --antlr4               Use Antlr4 for lexical and syntax analysis\n";
     std::cout << "  -D, --recursive-descent    Use recursive descent parsing\n";
     std::cout << "  -O, --optimize=LEVEL       Set optimization level\n";
@@ -153,10 +153,9 @@ lb_check:
             case 'T':
                 gShowAST = true;
                 break;
-            case 'L':
+            case 'I':
                 // 产生中间IR
                 gShowLineIR = true;
-                break;
                 break;
             case 'A':
                 // 选用antlr4
