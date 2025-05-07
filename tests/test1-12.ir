@@ -1,0 +1,21 @@
+define i32 @main()
+{
+	declare i32 %l0
+	declare i32* %l1[3][4] ; 1:A
+	declare i32* %l2[4][2] ; 1:B
+	declare i32* %l3[2][3] ; 1:C
+	declare i32 %t4
+	declare i32 %t5
+	declare i32 %t6
+	declare i32* %t7
+	entry
+	%t4 = mul 2,2
+	%t5 = add %t4,1
+	%t6 = mul %t5,4
+	%t7 = add %t6,%l2
+	*%t7 = 8
+	%l0 = 0
+	br label .L8
+.L8:
+	exit %l0
+}

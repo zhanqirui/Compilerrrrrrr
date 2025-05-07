@@ -111,6 +111,7 @@ public:
     /// \return 临时Value
     ConstInt * newConstInt(int32_t intVal);
     ConstFloat * newConstFloat(float floatVal);
+
     /// @brief 新建变量型Value，会根据currentFunc的值进行判断创建全局或者局部变量
     /// ! 该函数只有在AST遍历生成线性IR中使用，其它地方不能使用
     /// @param name 变量ID
@@ -134,6 +135,11 @@ public:
     /// @brief 对IR指令中没有名字的全部命名
     ///
     void renameIR();
+
+    /// @brief 新建常量型Value，创建的变量对象应该标记为“只读/常量”
+    /// @param name 常量ID
+    /// @param type 常量类型
+    Value * newConstValue(Type * type, std::string name);
 
 protected:
     /// @brief 根据整数值获取当前符号
@@ -171,6 +177,8 @@ protected:
     /// @param val Value信息
     void insertConstIntDirectly(ConstInt * val);
 
+    /// @brief ConstFloat插入到符号表中
+    /// @param val Value信息
     void insertConstFloatDirectly(ConstFloat * val);
 
 private:

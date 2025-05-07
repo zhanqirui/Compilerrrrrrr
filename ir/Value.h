@@ -48,7 +48,10 @@ protected:
     ///
     std::vector<Use *> uses;
 
-
+    ///
+    /// @brief 判断是否是const型变量
+    ///
+    bool is_constant = false;
 
 public:
     /// @brief 构造函数
@@ -129,4 +132,18 @@ public:
     /// @brief 作为数组的下标集合
     std::vector<int32_t> arrayIndexVector;
     std::vector<int32_t> arraydimensionVector;
+
+    /// @brief 设置是否为常量
+    /// @param value
+    void setConst(bool value)
+    {
+        is_constant = value;
+    }
+
+    /// @brief 判断该值是否为常量
+    /// @return 是否是const，默认返回false
+    bool isConst()
+    {
+        return is_constant;
+    }
 };

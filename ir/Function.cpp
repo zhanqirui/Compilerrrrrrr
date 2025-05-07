@@ -91,7 +91,7 @@ void Function::toString(std::string & str)
             str += ", ";
         }
 
-        std::string param_str = param->getType()->toString() + " "+ param->getIRName();
+        std::string param_str = param->getType()->toString() + " " + param->getIRName();
 
         str += param_str;
     }
@@ -102,9 +102,15 @@ void Function::toString(std::string & str)
 
     // 输出局部变量的名字与IR名字
     for (auto & var: this->varsVector) {
+        str += "\t";
+
+        if (var->isConst()) {
+            // 判断是否为 ConstVariable 类型并强转（前提是你确认变量来自该类）
+            str += "Constant ";
+        }
 
         // 局部变量和临时变量需要输出declare语句
-        str += "\tdeclare " + var->getType()->toString() + " " + var->getIRName();
+        str += "declare " + var->getType()->toString() + " " + var->getIRName();
         const std::vector<int32_t> dims = var->arraydimensionVector;
         if (!dims.empty()) {
             for (auto dim: dims) {
@@ -116,6 +122,8 @@ void Function::toString(std::string & str)
         if (!realName.empty()) {
             str += " ; " + std::to_string(var->getScopeLevel()) + ":" + realName;
         }
+
+        // ====== 新增：如果是常量变量，输出其值 ======
 
         str += "\n";
     }

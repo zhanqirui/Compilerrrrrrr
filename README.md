@@ -5,6 +5,9 @@ cmake -B build -S . -G Ninja -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_COMPILER:FILEP
 # cmake，其中--parallel说明是并行编译，也可用-j选项
 cmake --build build --parallel
 
+cmake -B build -S . -G Ninja -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_COMPILER:FILEPATH=/usr/bin/clang++
+cmake --build build --parallel
+
 ’‘’
 
 ‘’‘
@@ -26,5 +29,7 @@ cmake --build build --parallel
 ./build/minic -S -A -o ./tests/test1-1.s ./tests/test1-1.c
 
 ./build/minic -S -D -o ./tests/test1-1.s ./tests/test1-1.c
+
+clang  -S -emit-llvm -o test1-1-clang.ll ./tests/test1-1.c
 
 ’‘’

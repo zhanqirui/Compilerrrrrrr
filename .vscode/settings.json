@@ -21,7 +21,7 @@
 	"gitlens.graph.layout": "editor",
 	"gitlens.gitCommands.skipConfirmations": ["fetch:command", "switch:command", "push:command"],
 	"workbench.iconTheme": "material-icon-theme",
-	"workbench.colorTheme": "Default Dark Modern",
+	"workbench.colorTheme": "Default Dark+",
 	"workbench.editor.enablePreview": false,
 	"workbench.editorAssociations": {
 		"*.ipynb": "jupyter-notebook",
@@ -265,6 +265,7 @@
 		"streambuf": "cpp",
 		"thread": "cpp",
 		"cinttypes": "cpp",
-		"typeinfo": "cpp"
+		"typeinfo": "cpp",
+		"*.def": "cpp"
 	}
 }
