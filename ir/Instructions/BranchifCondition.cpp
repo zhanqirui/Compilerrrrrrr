@@ -22,7 +22,7 @@
 ///
 
 BranchifCondition::BranchifCondition(Function * _func, Value * cond, Value * label1, Value * label2)
-    : Instruction(_func, IRInstOperator::IRINST_OP_ASSIGN, VoidType::getType())
+    : Instruction(_func, IRInstOperator::IRINST_OP_BRANCH_I, VoidType::getType())
 {
     addOperand(cond);
     addOperand(label1);

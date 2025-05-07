@@ -49,6 +49,7 @@ protected:
     void translate_not(Instruction * inst);
     void translate_mod(Instruction * inst);
     void translate_branch(Instruction * inst);
+    void translate_cmp(Instruction * inst, IRInstOperator op);
     void translate_func_call(Instruction * inst);
     void translate_arg(Instruction * inst);
 

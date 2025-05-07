@@ -359,7 +359,6 @@ static int compile(std::string inputFile, std::string outputFile)
         if (gShowASM) {
 
             CodeGenerator * generator = nullptr;
-
             if (gCPUTarget == "ARM64") {
                 // 输出面向ARM64的汇编指令
                 generator = new CodeGeneratorArm64(module);

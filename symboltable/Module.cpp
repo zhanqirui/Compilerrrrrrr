@@ -265,7 +265,6 @@ Value * Module::newArrayValue(Type * type, std::string name, std::vector<int32_t
 Value * Module::newVarValue(Type * type, std::string name)
 {
     Value * retVal;
-    std::string varName;
 
     // 若变量名有效，检查当前作用域中是否存在变量，如存在则语义错误
     // 反之，因无效需创建新的变量名，肯定不现在的不同，不需要查找

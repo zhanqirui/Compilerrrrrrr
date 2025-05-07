@@ -1,12 +1,11 @@
-int add(int a, int b)
-{
-    return a + b;
-}
-
 int main()
 {
-    int a = 3;
-    if (a == 1)
-        return 3;
+    int a = 4;
+    int c = 10;
+    int d = a + c;
+    if (a > c) {
+        return 10;
+    }
+
     return 0;
 }
