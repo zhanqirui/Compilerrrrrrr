@@ -1,47 +1,33 @@
-define i32 @func(i32 %t0, i32 %t1)
+define i32 @add(i32 %t0, i32 %t1)
 {
-	declare i32 %l2 ; 1:x
-	declare i32 %l3 ; 1:y
+	declare i32 %l2 ; 1:a
+	declare i32 %l3 ; 1:b
 	declare i32 %l4
-	declare i32 %l5 ; 1:a
-	declare i32 %t6
+	declare i32 %t5
 	entry
 	%l2 = %t0
 	%l3 = %t1
-	%t6 = add 5,%l2
-	%l5 = %t6
-	%l4 = %l2
-	br label .L7
-.L7:
+	%t5 = add %l2,%l3
+	%l4 = %t5
+	br label .L6
+.L6:
 	exit %l4
 }
 define i32 @main()
 {
 	declare i32 %l0
-	declare f32* %l1[3][4] ; 1:x
-	declare i32 %l2 ; 1:a
-	declare i32 %l3 ; 1:b
-	declare i32 %l4 ; 4:a
-	declare i32 %t6
-	declare i32 %t9
+	declare i32 %l1 ; 1:a
+	declare i32 %t3
 	entry
-	%l2 = 5
-	%l3 = 10
+	%l1 = 3
+.L2:
+	%t3 = icmp eq %l1,3
+	bc %t3,   label %l1  label .L4
+	%l0 = %l1
+	br label .L5
+.L4:
+	%l0 = 0
+	br label .L5
 .L5:
-	%t6 = icmp gt %l2,0
-	bc %t6,   label .L7  label .L12
-.L7:
-	%l4 = 0
-.L8:
-	%t9 = icmp gt %l3,5
-	bc %t9,   label .L10  label .L11
-.L10:
-	%l3 = 0
-.L11:
-	%l3 = 1
-.L12:
-	%l0 = %l2
-	br label .L13
-.L13:
 	exit %l0
 }

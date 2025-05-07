@@ -25,11 +25,14 @@ func:
 .type main, %function
 main:
 	stp x16,fp,[sp, #-16]!
-	sub sp,sp,#4
+	sub sp,sp,#20
 	add fp,sp,#0
-
+	mov x0,#10
+	str x0,[fp]
+	b .L0
+.L0:
 	ldr x0,[fp]
-	add fp,fp,#4
+	add fp,fp,#20
 	mov sp,fp
 	ldp x16,fp,[sp], #16
 	ret

@@ -33,6 +33,25 @@ protected:
     void translate_goto(Instruction * inst);
     void outputIRInstruction(Instruction * inst);
 
+    // 新增：声明各算术/逻辑指令的处理函数
+    void translate_add(Instruction * inst);
+    void translate_sub(Instruction * inst);
+    void translate_mul(Instruction * inst);
+    void translate_div(Instruction * inst);
+    void translate_gt(Instruction * inst);
+    void translate_lt(Instruction * inst);
+    void translate_le(Instruction * inst);
+    void translate_ge(Instruction * inst);
+    void translate_eq(Instruction * inst);
+    void translate_ne(Instruction * inst);
+    void translate_and(Instruction * inst);
+    void translate_or(Instruction * inst);
+    void translate_not(Instruction * inst);
+    void translate_mod(Instruction * inst);
+    void translate_branch(Instruction * inst);
+    void translate_func_call(Instruction * inst);
+    void translate_arg(Instruction * inst);
+
     typedef void (InstSelectorArm64::*translate_handler)(Instruction *);
     map<IRInstOperator, translate_handler> translator_handlers;
     SimpleRegisterAllocator & simpleRegisterAllocator;

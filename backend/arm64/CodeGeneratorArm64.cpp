@@ -366,8 +366,12 @@ void CodeGeneratorArm64::stackAlloc(Function * func)
 
             int32_t size = var->getType()->getSize();
 
-            // 32位ARM平台按照4字节的大小整数倍分配局部变量
-            size += (4 - size % 4) % 4;
+            // // 32位ARM平台按照4字节的大小整数倍分配局部变量
+            // size += (4 - size % 4) % 4;
+			// 64位arm平台
+			// 64位ARM平台按照8字节的大小整数倍分配局部变量
+			size += (8 - size % 8) % 8;
+
 
             // 这里要注意检查变量栈的偏移范围。一般采用机制寄存器+立即数方式间接寻址
             // 若立即数满足要求，可采用基址寄存器+立即数变量的方式访问变量

@@ -1,9 +1,12 @@
-int func(int x, int y)
+int add(int a, int b)
 {
-    int a = 5 + x;
-
-    return x;
+    return a + b;
 }
 
 int main()
-{}
+{
+    int a = 3;
+    if (a == 1)
+        return 3;
+    return 0;
+}

@@ -88,10 +88,12 @@ string getNodeName(ast_node * astnode)
             nodeName = "var-def";
             break;
         case ast_operator_type::AST_OP_SCALAR_CONST_INIT:
-        case ast_operator_type::AST_OP_ARRAY_CONST_INIT:
         case ast_operator_type::AST_OP_SCALAR_INIT:
-        case ast_operator_type::AST_OP_ARRAY_INIT_VAL:
             nodeName = "=";
+			break;
+		case ast_operator_type::AST_OP_ARRAY_CONST_INIT:
+        case ast_operator_type::AST_OP_ARRAY_INIT_VAL:
+            nodeName = "array-init";
             break;
         case ast_operator_type::AST_OP_ASSIGN_STMT:
             nodeName = "assign-stmt";
