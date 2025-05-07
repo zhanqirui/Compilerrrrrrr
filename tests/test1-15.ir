@@ -19,7 +19,7 @@ define i32 @main()
 	*%t5 = 2
 	%t6 = mul 2,4
 	%t7 = add %t6,%l1
-	*%t7 = 3
+	*%t7 = 0
 	%t8 = mul 1,4
 	%t9 = add %t8,%l1
 	*%t9 = 4

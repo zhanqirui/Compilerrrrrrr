@@ -1131,9 +1131,17 @@ bool IRGenerator::ir_array_var_def_declare(ast_node * node)
 
         printf("flatten_nodes size: %zu\n", flatten_nodes.size());
 
-        // 检查初始化个数是否匹配
+        /*
         if ((int) flatten_nodes.size() != total_size) {
             std::cerr << "Error: array initializer size mismatch" << std::endl;
+            return false;
+        }
+        */
+        // 检查初始化个数
+        int init_count = flatten_nodes.size();
+        if (init_count > total_size) {
+            std::cerr << "Error: array initializer has too many elements! "
+                      << "Expected at most " << total_size << ", but got " << init_count << "." << std::endl;
             return false;
         }
 
@@ -1145,6 +1153,26 @@ bool IRGenerator::ir_array_var_def_declare(ast_node * node)
                 return false;
             }
             init_val_vector.push_back(init_node->val); // ConstInt* 或 ConstFloat*
+        }
+
+        // 自动补 0（补成 total_size 个元素）
+        Value * zero_val = nullptr;
+        if (!init_val_vector.empty()) {
+            auto type = init_val_vector[0]->getType();
+            if (type->isIntegerType()) {
+                zero_val = module->newConstInt(0);
+            } else if (type->isFloatType()) {
+                zero_val = module->newConstFloat(0.0);
+            } else {
+                std::cerr << "Error: unsupported array element type for zero init" << std::endl;
+                return false;
+            }
+        } else {
+            // 没有元素，默认当 int 型
+            zero_val = module->newConstInt(0);
+        }
+        while ((int) init_val_vector.size() < total_size) {
+            init_val_vector.push_back(zero_val);
         }
 
         // 遍历数组所有初始化值，生成每个元素的偏移地址并进行赋值
