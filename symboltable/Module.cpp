@@ -142,7 +142,8 @@ ConstFloat * Module::newConstFloat(float floatVal)
     if (!val) {
         // 不存在，则创建浮点常量Value
         val = new ConstFloat(floatVal);
-
+        val->real_float = floatVal;
+        val->real_int = floatVal;
         // 插入到符号表中
         insertConstFloatDirectly(val);
     }
@@ -192,7 +193,8 @@ ConstInt * Module::newConstInt(int32_t intVal)
 
         // 不存在，则创建整数常量Value
         val = new ConstInt(intVal);
-
+        val->real_int = intVal;
+        val->real_float = intVal;
         insertConstIntDirectly(val);
     }
 
@@ -347,7 +349,21 @@ GlobalVariable * Module::findGlobalVariable(std::string name)
 
     return temp;
 }
+Value * Module::findVar(std::string name)
+{
+    // 逐层级作用域查找
+    Value * tempValue = scopeStack->findAllScope(name);
+    if (tempValue)
+        return tempValue;
+    GlobalVariable * temp = nullptr;
 
+    auto pIter = globalVariableMap.find(name);
+    if (pIter != globalVariableMap.end()) {
+        // 查找到
+        temp = pIter->second;
+    }
+    return temp;
+}
 /// @brief 清理注册的所有Value资源
 void Module::Delete()
 {
@@ -412,4 +428,40 @@ void Module::outputIR(const std::string & filePath)
     }
 
     fclose(fp);
+}
+
+Value * Module::newConstValue(Type * type, std::string name)
+{
+    Value * retVal;
+    std::string varName;
+
+    if (!name.empty()) {
+        Value * tempValue = scopeStack->findCurrentScope(name);
+        if (tempValue) {
+            minic_log(LOG_ERROR, "常量(%s)已经存在", name.c_str());
+            return nullptr;
+        }
+    } else if (!currentFunc) {
+        minic_log(LOG_ERROR, "常量名为空");
+        return nullptr;
+    }
+
+    if (currentFunc) {
+        int32_t scope_level;
+        if (name.empty()) {
+            scope_level = 1;
+        } else {
+            scope_level = scopeStack->getCurrentScopeLevel();
+        }
+
+        retVal = currentFunc->newLocalVarValue(type, name, scope_level);
+    } else {
+        retVal = newGlobalVariable(type, name);
+    }
+
+    //  标记为常量
+    retVal->setConst(true);
+
+    scopeStack->insertValue(retVal);
+    return retVal;
 }

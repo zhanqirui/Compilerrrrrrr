@@ -41,4 +41,5 @@ protected:
     ///
     Constant(Type * _type) : User(_type)
     {}
+	
 };

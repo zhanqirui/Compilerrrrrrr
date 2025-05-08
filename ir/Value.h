@@ -41,7 +41,6 @@ protected:
     std::string IRName;
 
     /// @brief 类型
-    Type * type;
 
     ///
     /// @brief define-use链，这个定值被使用的所有边，即所有的User
@@ -51,6 +50,10 @@ protected:
 	int liveStart;  // 活跃起始位置（如指令编号）
     int liveEnd;    // 活跃结束位置
 
+    ///
+    /// @brief 判断是否是const型变量
+    ///
+    bool is_constant = false;
 
 public:
     /// @brief 构造函数
@@ -138,4 +141,22 @@ public:
     /// @brief 作为数组的下标集合
     std::vector<int32_t> arrayIndexVector;
     std::vector<int32_t> arraydimensionVector;
+
+    /// @brief 设置是否为常量
+    /// @param value
+    void setConst(bool value)
+    {
+        is_constant = value;
+    }
+
+    /// @brief 判断该值是否为常量
+    /// @return 是否是const，默认返回false
+    bool isConst()
+    {
+        return is_constant;
+    }
+    int real_int;
+    float real_float;
+
+    Type * type;
 };

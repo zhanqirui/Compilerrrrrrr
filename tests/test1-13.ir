@@ -1,0 +1,19 @@
+define i32 @main()
+{
+	declare i32 %l0
+	declare f32* %l1[3][4] ; 1:A
+	declare i32 %t2
+	declare i32 %t3
+	declare i32 %t4
+	declare f32* %t5
+	entry
+	%t2 = mul 1,4
+	%t3 = add %t2,2
+	%t4 = mul %t3,4
+	%t5 = add %t4,%l1
+	*%t5 = 2.200000
+	%l0 = 0
+	br label .L6
+.L6:
+	exit %l0
+}
