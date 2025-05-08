@@ -49,8 +49,9 @@ protected:
     /// @brief 形式参数AST节点翻译成线性中间IR
     /// @param node AST节点
     /// @return 翻译是否成功，true：成功，false：失败
-    bool ir_function_formal_params(ast_node * node);
-
+    bool ir_function_formal_params(ast_node * node); //处理形参集合
+    bool ir_function_formal_param(ast_node * node);  //处理单个形参
+    bool ir_function_call(ast_node * node);
     /// @brief 语句块（含函数体）AST节点翻译成线性中间IR
     /// @param node AST节点
     /// @return 翻译是否成功，true：成功，false：失败

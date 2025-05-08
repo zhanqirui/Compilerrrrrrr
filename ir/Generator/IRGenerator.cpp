@@ -72,10 +72,14 @@ IRGenerator::IRGenerator(ast_node * _root, Module * _module) : root(_root), modu
     //初始化
     ast2ir_handlers[ast_operator_type::AST_OP_SCALAR_INIT] = &IRGenerator::ir_scalar_init;
     ast2ir_handlers[ast_operator_type::AST_OP_ARRAY_INIT_VAL] = &IRGenerator::ir_scalar_init;
+    /// @brief 表达式语句
+    // ast2ir_handlers[ast_operator_type::AST_OP_EXPR_STMT] = &IRGenerator::ir_scalar_init;
 
     /* 函数定义 */
     ast2ir_handlers[ast_operator_type::AST_OP_FUNC_DEF] = &IRGenerator::ir_function_define;
     ast2ir_handlers[ast_operator_type::AST_OP_FUNC_FORMAL_PARAMS] = &IRGenerator::ir_function_formal_params;
+    //函数调用
+    ast2ir_handlers[ast_operator_type::AST_OP_FUNC_CALL] = &IRGenerator::ir_function_call;
 
     /* 语句块 */
     ast2ir_handlers[ast_operator_type::AST_OP_BLOCK] = &IRGenerator::ir_block;
@@ -270,11 +274,124 @@ bool IRGenerator::ir_function_define(ast_node * node)
 bool IRGenerator::ir_function_formal_params(ast_node * node)
 {
     // TODO 目前形参还不支持，直接返回true
+    if (!node) {
+        return true;
+    }
 
+    std::vector<ast_node *>::iterator pIter;
+    StoreInstruction * movInst = nullptr;
+    for (pIter = node->sons.begin(); pIter != node->sons.end(); ++pIter) {
+
+        // 遍历Block的每个语句，进行显示或者运算
+        int temp = ir_function_formal_param(*pIter);
+        if (!temp) {
+            return false;
+        }
+        movInst = new StoreInstruction(module->getCurrentFunction(), (*pIter)->val, true);
+        node->blockInsts.addInst(movInst);
+        // node->blockInsts.addInst(temp->blockInsts);
+    }
     // 每个形参变量都创建对应的临时变量，用于表达实参转递的值
     // 而真实的形参则创建函数内的局部变量。
     // 然后产生赋值指令，用于把表达实参值的临时变量拷贝到形参局部变量上。
     // 请注意这些指令要放在Entry指令后面，因此处理的先后上要注意。
+
+    return true;
+}
+bool IRGenerator::ir_function_formal_param(ast_node * node)
+{
+    // TODO 目前形参还不支持，直接返回true
+    if (!node) {
+        return true;
+    }
+    ast_node * type_node = node->sons[0];
+    ast_node * name_node = node->sons[1];
+    Value * val = module->newFormalParam(type_node->type, name_node->name);
+    node->val = val;
+
+    // 返回的是这个val值
+    //  Value * val = module->createFormalParam(type_node->type, name_node->name);
+
+    // node->val = module->newVarValue(type_node->type, name_node->name);
+    // MoveInstruction * movInst = nullptr;
+    // movInst = new MoveInstruction(module->getCurrentFunction(), node->val, val);
+    // node->blockInsts.addInst(movInst);
+    return true;
+}
+bool IRGenerator::ir_function_call(ast_node * node)
+{
+    std::vector<Value *> realParams;
+
+    // 获取当前正在处理的函数
+    Function * currentFunc = module->getCurrentFunction();
+
+    // 函数调用的节点包含两个节点：
+    // 第一个节点：函数名节点
+    // 第二个节点：实参列表节点
+
+    std::string funcName = node->sons[0]->name;
+    int64_t lineno = node->sons[0]->line_no;
+
+    // 检查是否有第二个儿子
+    ast_node * paramsNode = nullptr;
+    if (node->sons.size() > 1) {
+        paramsNode = node->sons[1];
+    }
+
+    // 根据函数名查找函数，看是否存在。若不存在则出错
+    // 这里约定函数必须先定义后使用
+    auto calledFunction = module->findFunction(funcName);
+    if (nullptr == calledFunction) {
+        minic_log(LOG_ERROR, "函数(%s)未定义或声明", funcName.c_str());
+        return false;
+    }
+
+    // 当前函数存在函数调用
+    currentFunc->setExistFuncCall(true);
+
+    // 如果没有孩子，也认为是没有参数
+    if (paramsNode && !paramsNode->sons.empty()) {
+
+        int32_t argsCount = (int32_t) paramsNode->sons.size();
+
+        // 当前函数中调用函数实参个数最大值统计，实际上是统计实参传参需在栈中分配的大小
+        // 因为目前的语言支持的int和float都是四字节的，只统计个数即可
+        if (argsCount > currentFunc->getMaxFuncCallArgCnt()) {
+            currentFunc->setMaxFuncCallArgCnt(argsCount);
+        }
+        ast_node * temp;
+        // 遍历参数列表，孩子是表达式
+        // 这里自左往右计算表达式
+        for (auto son: paramsNode->sons) {
+
+            // 遍历Block的每个语句，进行显示或者运算
+            temp = ir_visit_ast_node(son);
+            if (!temp) {
+                return false;
+            }
+
+            realParams.push_back(temp->val);
+            node->blockInsts.addInst(temp->blockInsts);
+        }
+    }
+
+    // TODO 这里请追加函数调用的语义错误检查，这里只进行了函数参数的个数检查等，其它请自行追加。
+    if (realParams.size() != calledFunction->getParams().size()) {
+        // 函数参数的个数不一致，语义错误
+        minic_log(LOG_ERROR, "第%lld行的被调用函数(%s)未定义或声明", (long long) lineno, funcName.c_str());
+        return false;
+    }
+
+    // 返回调用有返回值，则需要分配临时变量，用于保存函数调用的返回值
+    Type * type = calledFunction->getReturnType();
+
+    FuncCallInstruction * funcCallInst = new FuncCallInstruction(currentFunc, calledFunction, realParams, type);
+
+    // 创建函数调用指令
+    node->blockInsts.addInst(funcCallInst);
+
+    // 函数调用结果Value保存到node中，可能为空，上层节点可利用这个值
+    node->val = funcCallInst;
 
     return true;
 }
@@ -365,7 +482,7 @@ bool IRGenerator::ir_if_else(ast_node * node)
         node->blockInsts.addInst(branch1->blockInsts);
         node->blockInsts.addInst(branch2->blockInsts);
     } else {
-        LabelInstruction * exitLabelInst = new LabelInstruction(currentFunc);
+        exitLabelInst = new LabelInstruction(currentFunc);
         branch_Inst = new BranchifCondition(module->getCurrentFunction(), cond->val, branch1->val, exitLabelInst);
         node->blockInsts.addInst(branch_Inst);
         node->blockInsts.addInst(branch1->blockInsts);

@@ -1,10 +1,13 @@
+int putint12(int a)
+{
 
+    return a;
+}
 int main()
 {
-    int x = 1;
+    int a, b;
+    a = 2;
+    b = putint12(a);
 
-    if(x<=100)
-	{
-        x=x+1;
-    }
+    return 0;
 }

@@ -28,8 +28,8 @@ Module::Module(std::string _name) : name(_name)
     scopeStack->enterScope();
 
     // 加入内置函数putint
-    (void) newFunction("putint", VoidType::getType(), {new FormalParam{IntegerType::getTypeInt(), ""}}, true);
-    (void) newFunction("getint", IntegerType::getTypeInt(), {}, true);
+    // (void) newFunction("putint", VoidType::getType(), {new FormalParam{IntegerType::getTypeInt(), ""}}, true);
+    // (void) newFunction("getint", IntegerType::getTypeInt(), {}, true);
 }
 
 /// @brief 进入作用域，如进入函数体块、语句块等
@@ -316,7 +316,19 @@ Value * Module::findVarValue(std::string name)
 
     return tempValue;
 }
+FormalParam * Module::newFormalParam(Type * type, std::string name)
+{
 
+    // 创建一个新的形参对象
+    FormalParam * param = new FormalParam(type, name);
+    Function * Func = getCurrentFunction();
+    Func->addParams(param);
+    // 这里可以选择是否将形参加入到某个符号表或其他管理结构中
+    // 如果需要，可以在这里插入逻辑，例如：
+    // insertFormalParam(param);
+
+    return param;
+}
 ///
 /// @brief 新建全局变量，要求name必须有效，并且加入到全局符号表中。不检查是否现有的符号表中是否存在。
 /// @param type 类型

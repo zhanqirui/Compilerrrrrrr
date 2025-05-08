@@ -105,7 +105,7 @@ public:
     {
         return funcVector;
     }
-
+    FormalParam * newFormalParam(Type * type, std::string name);
     /// @brief 新建一个整型数值的Value，并加入到符号表，用于后续释放空间
     /// \param intVal 整数值
     /// \return 临时Value

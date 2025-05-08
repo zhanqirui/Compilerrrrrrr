@@ -63,20 +63,20 @@ void FuncCallInstruction::toString(std::string & str)
         str = type->toString() + " " + getIRName() + " = call i32 " + calledFunction->getIRName() + "(";
     }
 
-    if (argCount == 0) {
+    // if (argCount == 0) {
 
-        // 如果没有arg指令，则输出函数的实参
-        for (int32_t k = 0; k < operandsNum; ++k) {
+    //     // 如果没有arg指令，则输出函数的实参
+    //     for (int32_t k = 0; k < operandsNum; ++k) {
 
-            auto operand = getOperand(k);
+    //         auto operand = getOperand(k);
 
-            str += operand->getType()->toString() + " " + operand->getIRName();
+    //         str += operand->getType()->toString() + " " + operand->getIRName();
 
-            if (k != (operandsNum - 1)) {
-                str += ", ";
-            }
-        }
-    }
+    //         if (k != (operandsNum - 1)) {
+    //             str += ", ";
+    //         }
+    //     }
+    // }
 
     str += ")";
 

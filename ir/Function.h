@@ -50,6 +50,7 @@ public:
     /// @brief 获取函数的形参列表
     /// @return 形参列表
     std::vector<FormalParam *> & getParams();
+    void addParams(FormalParam * param);
 
     /// @brief 获取函数内的IR指令代码
     /// @return IR指令代码

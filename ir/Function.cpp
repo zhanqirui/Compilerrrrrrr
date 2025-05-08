@@ -55,7 +55,23 @@ std::vector<FormalParam *> & Function::getParams()
 {
     return params;
 }
+// void Function::addParams(FormalParam * param)
+// {
+//     // 将参数添加到参数列表中
+//     params.push_back(param);
+// }
+// FormalParam * NewFormalParam(Type * type, std::string name)
+// {
 
+//     // 创建一个新的形参对象
+//     FormalParam * param12 = new FormalParam(type, name);
+
+//     // 将形参添加到函数的形参列表中
+//     std::vector<FormalParam *> PA = this->getParams();
+//     PA.push_back(param12);
+
+//     return param12;
+// }
 /// @brief 获取函数内的IR指令代码
 /// @return IR指令代码
 InterCode & Function::getInterCode()
@@ -69,7 +85,11 @@ bool Function::isBuiltin()
 {
     return builtIn;
 }
-
+void Function::addParams(FormalParam * param)
+{
+    std::vector<FormalParam *> paramList = getParams();
+    paramList.push_back(param);
+}
 /// @brief 函数指令信息输出
 /// @param str 函数指令
 void Function::toString(std::string & str)
