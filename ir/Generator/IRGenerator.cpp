@@ -152,11 +152,13 @@ bool IRGenerator::ir_default(ast_node * node)
 bool IRGenerator::ir_compile_unit(ast_node * node)
 {
     module->setCurrentFunction(nullptr);
-
+    ast_node * son_node;
     for (auto son: node->sons) {
-
-        // 遍历编译单元，要么是函数定义，要么是语句
-        ast_node * son_node = ir_visit_ast_node(son);
+        if (son->node_type == ast_operator_type::AST_OP_FUNC_DEF) { // 遍历编译单元，要么是函数定义，要么是语句
+            son_node = ir_visit_ast_node(son);
+        } else {
+            son_node = ir_global(son);
+        }
         if (!son_node) {
             // TODO 自行追加语义错误处理
             return false;
@@ -545,7 +547,8 @@ bool IRGenerator::ir_leaf_value_uint(ast_node * node)
     // 查找ID型Value
     // 变量，则需要在符号表中查找对应的值
 
-    val = module->findVarValue(node->sons[0]->name);
+    // val = module->findVarValue(node->sons[0]->name);
+    val = module->findVar(node->sons[0]->name);
 
     node->val = val;
 
@@ -560,6 +563,95 @@ bool IRGenerator::ir_add(ast_node * node)
     Op op = node->op_type;
     ast_node * src1_node = node->sons[0];
     ast_node * src2_node = node->sons[1];
+    float op1 = src1_node->type->isFloatType() ? src1_node->float_val : src1_node->integer_val;
+    float op2 = src2_node->type->isFloatType() ? src2_node->float_val : src2_node->integer_val;
+    // 优化x=2+3变成x=5
+    if (src1_node->node_type == ast_operator_type::AST_OP_LEAF_LITERAL_UINT &&
+        src2_node->node_type == ast_operator_type::AST_OP_LEAF_LITERAL_UINT) {
+        if (src1_node->type->isFloatType() || src2_node->type->isFloatType()) {
+            ConstFloat * val = module->newConstFloat((op == Op::ADD) ? (op1 + op2) : (op1 - op2));
+            node->val = val;
+            node->type = src1_node->type->isFloatType() ? src1_node->type : src2_node->type;
+            return true;
+        } else {
+            ConstInt * val = module->newConstInt((op == Op::ADD) ? ((int) op1 + (int) op2) : ((int) op1 - (int) op2));
+            node->val = val;
+            node->type = src1_node->type;
+            return true;
+        }
+    }
+    // 针对const进行优化
+    Value * Var1 = nullptr;
+    Value * Var2 = nullptr;
+    float leftV;
+    float rightV;
+    if (!src1_node->name.empty()) {
+        Var1 = module->findVar(src1_node->name);
+        if (Var1->isConst()) {
+            if (Var1->type->isIntegerType())
+                leftV = Var1->real_int;
+            else {
+                leftV = Var1->real_float;
+            }
+        }
+    }
+    if (!src2_node->name.empty()) {
+        Var2 = module->findVar(src2_node->name);
+        if (Var2->isConst()) {
+            if (Var2->type->isIntegerType())
+                rightV = Var2->real_int;
+            else {
+                rightV = Var2->real_float;
+            }
+        }
+    }
+    if (Var1 && Var1->isConst() && Var2 && Var2->isConst()) {
+        if (Var1->type->isFloatType() || Var2->type->isFloatType()) {
+            ConstFloat * val = module->newConstFloat((op == Op::ADD) ? leftV + rightV : leftV - rightV);
+            node->val = val;
+            node->type = src1_node->type->isFloatType() ? src1_node->type : src2_node->type;
+            return true;
+        } else {
+            ConstInt * val =
+                module->newConstInt((op == Op::ADD) ? (int) leftV + (int) rightV : (int) leftV - (int) rightV);
+            node->val = val;
+            node->type = src1_node->type;
+            return true;
+        }
+        return true;
+    }
+    if (src1_node->node_type == ast_operator_type::AST_OP_LEAF_LITERAL_UINT ||
+        src2_node->node_type == ast_operator_type::AST_OP_LEAF_LITERAL_UINT) {
+        if (Var1 && Var1->isConst()) {
+            if (Var1->type->isFloatType() || src1_node->type->isFloatType()) {
+                ConstFloat * val = module->newConstFloat((op == Op::ADD) ? (leftV + op2) : (leftV - op2));
+                node->val = val;
+                node->type = src1_node->type->isFloatType() ? src1_node->type : src2_node->type;
+                return true;
+            } else {
+                ConstInt * val =
+                    module->newConstInt((op == Op::ADD) ? ((int) leftV + (int) op2) : ((int) leftV - (int) op2));
+                node->val = val;
+                node->type = src1_node->type;
+                return true;
+            }
+            return true;
+        } else if (Var2 && Var2->isConst()) {
+            if (src1_node->type->isFloatType() || Var2->type->isFloatType()) {
+                ConstFloat * val = module->newConstFloat((op == Op::ADD) ? (op1 + rightV) : (op1 - rightV));
+                node->val = val;
+                node->type = src1_node->type->isFloatType() ? src1_node->type : src2_node->type;
+                return true;
+            } else {
+                ConstInt * val =
+                    module->newConstInt((op == Op::ADD) ? ((int) op1 + (int) rightV) : ((int) op1 - (int) rightV));
+                node->val = val;
+                node->type = src1_node->type;
+                return true;
+            }
+            return true;
+        }
+    }
 
     // 加法节点，左结合，先计算左节点，后计算右节点
 
@@ -715,6 +807,107 @@ bool IRGenerator::ir_mul(ast_node * node)
     Op op = node->op_type;
     ast_node * src1_node = node->sons[0];
     ast_node * src2_node = node->sons[1];
+    float op1 = src1_node->type->isFloatType() ? src1_node->float_val : src1_node->integer_val;
+    float op2 = src2_node->type->isFloatType() ? src2_node->float_val : src2_node->integer_val;
+    // 优化x=2+3变成x=5
+    if (src1_node->node_type == ast_operator_type::AST_OP_LEAF_LITERAL_UINT &&
+        src2_node->node_type == ast_operator_type::AST_OP_LEAF_LITERAL_UINT) {
+        if (src1_node->type->isFloatType() || src2_node->type->isFloatType()) {
+            ConstFloat * val = module->newConstFloat((op == Op::MUL)   ? (op1 * op2)
+                                                     : (op == Op::DIV) ? (op1 / op2)
+                                                                       : ((int) op1 % (int) op2));
+            node->val = val;
+            node->type = src1_node->type->isFloatType() ? src1_node->type : src2_node->type;
+            return true;
+        } else {
+            ConstInt * val = module->newConstInt((op == Op::MUL)   ? ((int) op1 * (int) op2)
+                                                 : (op == Op::DIV) ? ((int) op1 / (int) op2)
+                                                                   : ((int) op1 % (int) op2));
+            node->val = val;
+            node->type = src1_node->type;
+            return true;
+        }
+    }
+    // 针对const进行优化
+    Value * Var1 = nullptr;
+    Value * Var2 = nullptr;
+    float leftV;
+    float rightV;
+    if (!src1_node->name.empty()) {
+        Var1 = module->findVar(src1_node->name);
+        if (Var1->isConst()) {
+            if (Var1->type->isIntegerType())
+                leftV = Var1->real_int;
+            else {
+                leftV = Var1->real_float;
+            }
+        }
+    }
+    if (!src2_node->name.empty()) {
+        Var2 = module->findVar(src2_node->name);
+        if (Var2->isConst()) {
+            if (Var2->type->isIntegerType())
+                rightV = Var2->real_int;
+            else {
+                rightV = Var2->real_float;
+            }
+        }
+    }
+    if (Var1 && Var1->isConst() && Var2 && Var2->isConst()) {
+        if (Var1->type->isFloatType() || Var2->type->isFloatType()) {
+            ConstFloat * val = module->newConstFloat((op == Op::MUL)   ? leftV * rightV
+                                                     : (op == Op::DIV) ? (leftV / rightV)
+                                                                       : (int) leftV % (int) rightV);
+            node->val = val;
+            node->type = src1_node->type->isFloatType() ? src1_node->type : src2_node->type;
+            return true;
+        } else {
+            ConstInt * val = module->newConstInt((op == Op::MUL)   ? ((int) leftV * (int) rightV)
+                                                 : (op == Op::DIV) ? ((int) leftV / (int) rightV)
+                                                                   : ((int) leftV % (int) rightV));
+            node->val = val;
+            node->type = src1_node->type;
+            return true;
+        }
+        return true;
+    }
+    if (src1_node->node_type == ast_operator_type::AST_OP_LEAF_LITERAL_UINT ||
+        src2_node->node_type == ast_operator_type::AST_OP_LEAF_LITERAL_UINT) {
+        if (Var1 && Var1->isConst()) {
+            if (Var1->type->isFloatType() || src1_node->type->isFloatType()) {
+                ConstFloat * val = module->newConstFloat((op == Op::MUL)   ? (leftV * op2)
+                                                         : (op == Op::DIV) ? (leftV / op2)
+                                                                           : ((int) leftV % (int) op2));
+                node->val = val;
+                node->type = src1_node->type->isFloatType() ? src1_node->type : src2_node->type;
+                return true;
+            } else {
+                ConstInt * val = module->newConstInt((op == Op::MUL)   ? ((int) leftV * (int) op2)
+                                                     : (op == Op::DIV) ? ((int) leftV / (int) op2)
+                                                                       : ((int) leftV % (int) op2));
+                node->val = val;
+                node->type = src1_node->type;
+                return true;
+            }
+        } else if (Var2 && Var2->isConst()) {
+            if (src1_node->type->isFloatType() || Var2->type->isFloatType()) {
+                ConstFloat * val = module->newConstFloat((op == Op::MUL)   ? (op1 * rightV)
+                                                         : (op == Op::DIV) ? (op1 / rightV)
+                                                                           : ((int) op1 % (int) rightV));
+                node->val = val;
+                node->type = src1_node->type->isFloatType() ? src1_node->type : src2_node->type;
+                return true;
+            } else {
+                ConstInt * val = module->newConstInt((op == Op::MUL)   ? ((int) op1 * (int) rightV)
+                                                     : (op == Op::DIV) ? ((int) op1 / (int) rightV)
+                                                                       : ((int) op1 % (int) rightV));
+                node->val = val;
+                node->type = src1_node->type;
+                return true;
+            }
+            return true;
+        }
+    }
 
     // 加法节点，左结合，先计算左节点，后计算右节点
 
@@ -742,7 +935,9 @@ bool IRGenerator::ir_mul(ast_node * node)
     if (right->node_type == ast_operator_type::AST_OP_ARRAY_ACCESS) {
         RstoInst = new StoreInstruction(module->getCurrentFunction(), right->val, true);
     }
-    IRInstOperator irOp = (op == Op::MUL) ? IRInstOperator::IRINST_OP_MUL_I : IRInstOperator::IRINST_OP_MOD_I;
+    IRInstOperator irOp = (op == Op::MUL)   ? IRInstOperator::IRINST_OP_MUL_I
+                          : (op == Op::DIV) ? IRInstOperator::IRINST_OP_DIV_I
+                                            : IRInstOperator::IRINST_OP_MOD_I;
     mulInst = new BinaryInstruction(module->getCurrentFunction(),
                                     irOp,
                                     LstoInst ? LstoInst : left->val,
@@ -785,9 +980,62 @@ bool IRGenerator::ir_visitLogitExp(ast_node * node)
     if (!node) {
         return false;
     }
+    ast_operator_type Node_Type = node->node_type;
     ast_node * src1_node = node->sons[0];
     ast_node * src2_node = node->sons[1];
-
+    int op1 = src1_node->integer_val;
+    int op2 = src2_node->integer_val;
+    // 优化x=2+3变成x=5
+    if (src1_node->node_type == ast_operator_type::AST_OP_LEAF_LITERAL_UINT &&
+        src2_node->node_type == ast_operator_type::AST_OP_LEAF_LITERAL_UINT) {
+        ConstFloat * val =
+            module->newConstFloat((Node_Type == ast_operator_type::AST_OP_LAND_EXP) ? (op1 && op2) : (op1 || op2));
+        node->val = val;
+        node->type = src1_node->type->isFloatType() ? src1_node->type : src2_node->type;
+        return true;
+    }
+    // 针对const进行优化
+    Value * Var1 = nullptr;
+    Value * Var2 = nullptr;
+    int leftV;
+    int rightV;
+    if (!src1_node->name.empty()) {
+        Var1 = module->findVar(src1_node->name);
+        if (Var1->isConst()) {
+            leftV = Var1->real_int;
+        }
+    }
+    if (!src2_node->name.empty()) {
+        Var2 = module->findVar(src2_node->name);
+        if (Var2->isConst()) {
+            rightV = Var2->real_int;
+        }
+    }
+    if (Var1 && Var1->isConst() && Var2 && Var2->isConst()) {
+        ConstInt * val = module->newConstInt(
+            (Node_Type == ast_operator_type::AST_OP_LAND_EXP) ? (int) leftV && (int) rightV : (int) leftV || (int) op2);
+        node->val = val;
+        node->type = src1_node->type;
+        return true;
+    }
+    if (src1_node->node_type == ast_operator_type::AST_OP_LEAF_LITERAL_UINT ||
+        src2_node->node_type == ast_operator_type::AST_OP_LEAF_LITERAL_UINT) {
+        if (Var1 && Var1->isConst()) {
+            ConstInt * val =
+                module->newConstInt((Node_Type == ast_operator_type::AST_OP_LAND_EXP) ? ((int) leftV && (int) op2)
+                                                                                      : ((int) leftV || (int) op2));
+            node->val = val;
+            node->type = src1_node->type;
+            return true;
+        } else if (Var2 && Var2->isConst()) {
+            ConstInt * val =
+                module->newConstInt((Node_Type == ast_operator_type::AST_OP_LAND_EXP) ? ((int) op1 && (int) rightV)
+                                                                                      : ((int) op1 || (int) rightV));
+            node->val = val;
+            node->type = src1_node->type;
+            return true;
+        }
+    }
     // 加法节点，左结合，先计算左节点，后计算右节点
 
     // 加法的左边操作数
@@ -844,7 +1092,85 @@ bool IRGenerator::ir_visitConfExp(ast_node * node)
     Op op = node->op_type;
     ast_node * src1_node = node->sons[0];
     ast_node * src2_node = node->sons[1];
-
+    int op1 = src1_node->integer_val;
+    int op2 = src2_node->integer_val;
+    // 优化x=2+3变成x=5
+    if (src1_node->node_type == ast_operator_type::AST_OP_LEAF_LITERAL_UINT &&
+        src2_node->node_type == ast_operator_type::AST_OP_LEAF_LITERAL_UINT) {
+        ConstFloat * val = module->newConstFloat((op == Op::GT)    ? (op1 > op2)
+                                                 : (op == Op::LT)  ? (op1 < op2)
+                                                 : (op == Op::EQ)  ? (op1 == op2)
+                                                 : (op == Op::NE)  ? (op1 != op2)
+                                                 : (op == Op::GE)  ? (op1 >= op2)
+                                                 : (op == Op::LE)  ? (op1 <= op2)
+                                                 : (op == Op::AND) ? (op1 && op2)
+                                                 : (op == Op::OR)  ? (op1 || op2)
+                                                                   : 0.0f);
+        node->val = val;
+        node->type = src1_node->type->isFloatType() ? src1_node->type : src2_node->type;
+        return true;
+    }
+    // 针对const进行优化
+    Value * Var1 = nullptr;
+    Value * Var2 = nullptr;
+    int leftV;
+    int rightV;
+    if (!src1_node->name.empty()) {
+        Var1 = module->findVar(src1_node->name);
+        if (Var1->isConst()) {
+            leftV = Var1->real_int;
+        }
+    }
+    if (!src2_node->name.empty()) {
+        Var2 = module->findVar(src2_node->name);
+        if (Var2->isConst()) {
+            rightV = Var2->real_int;
+        }
+    }
+    if (Var1 && Var1->isConst() && Var2 && Var2->isConst()) {
+        ConstInt * val = module->newConstInt((op == Op::GT)    ? ((int) leftV > (int) rightV)
+                                             : (op == Op::LT)  ? ((int) leftV < (int) rightV)
+                                             : (op == Op::EQ)  ? ((int) leftV == (int) rightV)
+                                             : (op == Op::NE)  ? ((int) leftV != (int) rightV)
+                                             : (op == Op::GE)  ? ((int) leftV >= (int) rightV)
+                                             : (op == Op::LE)  ? ((int) leftV <= (int) rightV)
+                                             : (op == Op::AND) ? ((int) leftV && (int) rightV)
+                                             : (op == Op::OR)  ? ((int) leftV || (int) rightV)
+                                                               : 0);
+        node->val = val;
+        node->type = src1_node->type;
+        return true;
+    }
+    if (src1_node->node_type == ast_operator_type::AST_OP_LEAF_LITERAL_UINT ||
+        src2_node->node_type == ast_operator_type::AST_OP_LEAF_LITERAL_UINT) {
+        if (Var1 && Var1->isConst()) {
+            ConstInt * val = module->newConstInt((op == Op::GT)    ? ((int) leftV > (int) op2)
+                                                 : (op == Op::LT)  ? ((int) leftV < (int) op2)
+                                                 : (op == Op::EQ)  ? ((int) leftV == (int) op2)
+                                                 : (op == Op::NE)  ? ((int) leftV != (int) op2)
+                                                 : (op == Op::GE)  ? ((int) leftV >= (int) op2)
+                                                 : (op == Op::LE)  ? ((int) leftV <= (int) op2)
+                                                 : (op == Op::AND) ? ((int) leftV && (int) op2)
+                                                 : (op == Op::OR)  ? ((int) leftV || (int) op2)
+                                                                   : 0);
+            node->val = val;
+            node->type = src1_node->type;
+            return true;
+        } else if (Var2 && Var2->isConst()) {
+            ConstInt * val = module->newConstInt((op == Op::GT)    ? ((int) op1 > (int) rightV)
+                                                 : (op == Op::LT)  ? ((int) op1 < (int) rightV)
+                                                 : (op == Op::EQ)  ? ((int) op1 == (int) rightV)
+                                                 : (op == Op::NE)  ? ((int) op1 != (int) rightV)
+                                                 : (op == Op::GE)  ? ((int) op1 >= (int) rightV)
+                                                 : (op == Op::LE)  ? ((int) op1 <= (int) rightV)
+                                                 : (op == Op::AND) ? ((int) op1 && (int) rightV)
+                                                 : (op == Op::OR)  ? ((int) op1 || (int) rightV)
+                                                                   : 0);
+            node->val = val;
+            node->type = src2_node->type;
+            return true;
+        }
+    }
     // 加法节点，左结合，先计算左节点，后计算右节点
 
     // 加法的左边操作数
@@ -1310,7 +1636,8 @@ bool IRGenerator::ir_array_acess(ast_node * node)
     std::vector<int32_t> dim;
     // 第一个儿子是变量名称
     std::string var_name = node->sons[0]->name;
-    Value * array_Value = module->findVarValue(var_name);
+    // Value * array_Value = module->findVarValue(var_name);
+    Value * array_Value = module->findVar(var_name);
 
     std::vector<ast_node *>::iterator pIter;
     for (pIter = node->sons.begin() + 1; pIter != node->sons.end(); ++pIter) {
@@ -1421,8 +1748,7 @@ bool IRGenerator::ir_leaf_node_var_id(ast_node * node)
     // 查找ID型Value
     // 变量，则需要在符号表中查找对应的值
 
-    val = module->findVarValue(node->name);
-
+    val = module->findVar(node->name);
     node->val = val;
 
     return true;
@@ -1529,4 +1855,153 @@ bool IRGenerator::ir_const_def(ast_node * node)
     }
 
     return true;
+}
+
+ast_node * IRGenerator::ir_global(ast_node * node)
+{
+    // 空节点
+    if (nullptr == node) {
+        return nullptr;
+    }
+    bool result = false;
+    if (node->node_type == ast_operator_type::AST_OP_VAR_DECL) {
+        result = ir_global_variable_declare(node);
+    } else if (node->node_type == ast_operator_type::AST_OP_CONST_DECL) {
+        result = ir_global_const_declare(node);
+    }
+    if (!result) {
+        return nullptr;
+    }
+
+    return node;
+}
+
+bool IRGenerator::ir_global_variable_declare(ast_node * node)
+{
+    if (!node) {
+        return false;
+    }
+
+    std::vector<ast_node *>::iterator pIter;
+    bool result = false;
+    // 第一个儿子是声明i32或f32
+    for (pIter = node->sons.begin() + 1; pIter != node->sons.end(); ++pIter) {
+
+        // 遍历Block的每个语句，进行显示或者运算
+        if ((*pIter)->node_type == ast_operator_type::AST_OP_ARRAY_VAR_DEF) {
+            result = ir_global_array_var_def_declare(*pIter);
+        } else {
+            result = ir_global_var_def(*pIter);
+        }
+
+        if (!result) {
+            return false;
+        }
+
+        node->blockInsts.addInst((*pIter)->blockInsts);
+    }
+    return true;
+}
+
+bool IRGenerator::ir_global_var_def(ast_node * node)
+{
+    if (!node) {
+        return false;
+    }
+    bool result = false;
+    node->val = module->newGlobalVariable(node->parent->sons[0]->type, node->sons[0]->name);
+    if (node->sons.size() > 1) {
+        ast_node * node_son = node->sons[1];
+        result = ir_global_scalar_init(node_son);
+
+        node->val->real_int = node_son->val->real_int;
+        node->val->real_float = node_son->val->real_float;
+
+        node->blockInsts.addInst(node_son->blockInsts);
+    }
+
+    return result;
+}
+
+bool IRGenerator::ir_global_scalar_init(ast_node * node)
+{
+    ast_node * left_val_node = node->parent;
+    ast_node * right_node = node->sons[0];
+
+    // 赋值运算符的右侧操作数
+    ast_node * right = ir_visit_ast_node(right_node);
+    if (!right) {
+        return false;
+    }
+    node->val = right->val;
+    node->blockInsts.addInst(right->blockInsts);
+    return true;
+}
+
+bool IRGenerator::ir_global_array_var_def_declare(ast_node * node)
+{
+    if (!node) {
+        return false;
+    }
+
+    std::vector<int32_t> _dimensions;
+    // 第一个儿子是变量名称
+    std::string var_name = node->sons[0]->name;
+    // 第二个儿子是是array-index[10][4]定义
+    ast_node * dim_length = node->sons[1]; // node->sons[1]对应array-index[x][y]
+    std::vector<ast_node *>::iterator pIter;
+    for (pIter = dim_length->sons.begin(); pIter != dim_length->sons.end(); ++pIter) {
+
+        // 遍历Block的每个语句，进行显示或者运算
+        int temp = ir_const_exp(*pIter);
+        _dimensions.push_back(static_cast<int32_t>(temp));
+    }
+
+    // Function * func = module->getCurrentFunction();
+    // const Type * baseType = dim_length->sons[0]->type; // 这是基础类型
+    PointerType * pointerType = PointerType::getNonConstPointerType(node->parent->sons[0]->type);
+    node->val = module->newArrayValue(pointerType, var_name, _dimensions);
+
+    return true;
+}
+
+bool IRGenerator::ir_global_const_declare(ast_node * node)
+{
+    // 不需要做什么，直接从节点中获取即可。
+    // 判断当前节点是否为空
+    if (!node) {
+        return false;
+    }
+    bool result = false;
+    std::vector<ast_node *>::iterator pIter;
+    for (pIter = node->sons.begin() + 1; pIter != node->sons.end(); ++pIter) {
+
+        // 遍历Block的每个语句，进行显示或者运算
+        result = ir_global_const_def(*pIter);
+        if (!result) {
+            return false;
+        }
+
+        // node->blockInsts.addInst(temp->blockInsts);
+    }
+    return true;
+}
+bool IRGenerator::ir_global_const_def(ast_node * node)
+{
+    if (!node) {
+        return false;
+    }
+    bool result = false;
+    node->val = module->newConstValue(node->parent->sons[0]->type, node->sons[0]->name);
+    if (node->sons.size() <= 1) {
+        printf("A const variable must be assigned an initial value when it is defined.");
+        return false;
+    } else {
+        result = ir_global_scalar_init(node->sons[1]);
+        // node->blockInsts.addInst(temp->blockInsts);
+    }
+    node->val->real_float = node->sons[1]->val->real_float;
+    node->val->real_int = node->sons[1]->val->real_int;
+
+    return result;
 }

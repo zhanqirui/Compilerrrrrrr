@@ -41,7 +41,6 @@ protected:
     std::string IRName;
 
     /// @brief 类型
-    Type * type;
 
     ///
     /// @brief define-use链，这个定值被使用的所有边，即所有的User
@@ -146,4 +145,13 @@ public:
     {
         return is_constant;
     }
+    int real_int;
+    float real_float;
+
+    Type * type;
+    ///
+    /// @brief 获取活跃结束位置
+    /// @return int32_t 结束位置指令编号
+    ///
+    virtual int32_t getLiveEnd();
 };

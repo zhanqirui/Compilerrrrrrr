@@ -4,7 +4,6 @@
 	// For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
 	"version": "0.2.0",
 	"configurations": [
-
 		{
 			"type": "antlr-debug",
 			"request": "launch",
@@ -38,7 +37,7 @@
 			"type": "cppdbg",
 			"request": "launch",
 			"program": "${workspaceFolder}/build/minic",
-			"args": ["-S", "-I", "-A", "-o", "tests/test1-15.ir", "tests/test1-15.c"],
+			"args": ["-S", "-I", "-A", "-o", "tests/test1-1.ir", "tests/test1-1.c"],
 			// 程序的入口（main函数的入口）是否停止
 			"stopAtEntry": true,
 			"cwd": "${workspaceFolder}",

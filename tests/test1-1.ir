@@ -1,24 +1,27 @@
-define i32 @func(i32 %t0, i32 %t1)
-{
-	declare i32 %l2 ; 1:x
-	declare i32 %l3 ; 1:y
-	declare i32 %l4
-	declare i32 %l5 ; 1:a
-	declare i32 %t6
-	entry
-	%l2 = %t0
-	%l3 = %t1
-	%t6 = add 5,%l2
-	%l5 = %t6
-	%l4 = %l2
-	br label .L7
-.L7:
-	exit %l4
-}
+declare f32* @y[2][2]
 define i32 @main()
 {
 	declare i32 %l0
+	declare i32 %t1
+	declare i32 %t2
+	declare i32 %t3
+	declare f32* %t4
+	declare i32 %t5
+	declare i32 %t6
+	declare i32 %t7
+	declare f32* %t8
 	entry
-.L1:
+	%t1 = mul 1,2
+	%t2 = add %t1,1
+	%t3 = mul %t2,4
+	%t4 = add %t3,@y
+	*%t4 = 11212
+	%t5 = mul 1,2
+	%t6 = add %t5,1
+	%t7 = mul %t6,4
+	%t8 = add %t7,@y
+	%l0 = *%t8
+	br label .L9
+.L9:
 	exit %l0
 }

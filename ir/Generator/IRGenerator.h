@@ -123,7 +123,13 @@ protected:
 
     //新增数组初始化展平操作
     void flatten_array_init(ast_node * node, std::vector<ast_node *> & flat_init_list);
-
+    ast_node * ir_global(ast_node * node);
+    bool ir_global_variable_declare(ast_node * node);
+    bool ir_global_var_def(ast_node * node);
+    bool ir_global_scalar_init(ast_node * node);
+    bool ir_global_array_var_def_declare(ast_node * node);
+    bool ir_global_const_declare(ast_node * node);
+    bool ir_global_const_def(ast_node * node);
     /// @brief AST节点运算符与动作函数关联的映射表
     std::unordered_map<ast_operator_type, ast2ir_handler_t> ast2ir_handlers;
 
