@@ -1,25 +1,29 @@
+declare i32 @a=1432946832
+define i32 @func(i32 %t0)
+{
+	declare i32 %l1 ; 1:p
+	declare i32 %l2
+	declare i32 %t3
+	entry
+	%l1 = %t0
+	%t3 = sub %l1,1
+	%l1 = %t3
+	%l2 = %l1
+	br label .L4
+.L4:
+	exit %l2
+}
 define i32 @main()
 {
 	declare i32 %l0
-	declare i32 %l1 ; 1:a
-	declare i32 %l2 ; 1:c
-	declare i32 %l3 ; 1:d
-	declare i32 %t4
-	declare i32 %t6
+	declare i32 %l1 ; 1:b
+	declare i32 %t2
 	entry
-	%l1 = 4
-	%l2 = 10
-	%t4 = add %l1,%l2
-	%l3 = %t4
-.L5:
-	%t6 = icmp gt %l1,%l2
-	bc %t6,   label .L7  label .L8
-.L7:
-	%l0 = 10
-	br label .L9
-.L8:
-	%l0 = 0
-	br label .L9
-.L9:
+	@a = 10
+	i32 %t2 = call i32 @func(i32 @a)
+	%l1 = %t2
+	%l0 = %l1
+	br label .L3
+.L3:
 	exit %l0
 }

@@ -2073,6 +2073,8 @@ bool IRGenerator::ir_global_var_def(ast_node * node)
 
         node->blockInsts.addInst(node_son->blockInsts);
     }
+	else
+        result = true;
 
     return result;
 }

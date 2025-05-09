@@ -1,8 +1,13 @@
-// test domain of global var define and local define
+int a;
+int func(int p)
+{
+    p = p - 1;
+    return p;
+}
 int main()
 {
-    int a = -1;
-    int b = 5;
-
-    return a + b;
+    int b;
+    a = 10;
+    b = func(a);
+    return b;
 }
