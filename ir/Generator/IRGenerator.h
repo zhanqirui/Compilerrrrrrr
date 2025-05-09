@@ -121,6 +121,13 @@ protected:
     // const常量的定义
     bool ir_const_def(ast_node * node);
 
+    ast_node * ir_global(ast_node * node);
+    bool ir_global_variable_declare(ast_node * node);
+    bool ir_global_var_def(ast_node * node);
+    bool ir_global_scalar_init(ast_node * node);
+    bool ir_global_array_var_def_declare(ast_node * node);
+    bool ir_global_const_declare(ast_node * node);
+    bool ir_global_const_def(ast_node * node);
     struct InitElement {
         ast_node * node;
         int linear_index;
