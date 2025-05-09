@@ -1368,7 +1368,242 @@ bool IRGenerator::ir_var_def(ast_node * node)
 
     return true;
 }
+//数组初始化时展平函数
+void IRGenerator::flatten_array_init(ast_node * node,
+                                     std::vector<InitElement> & flat_init_list,
+                                     std::vector<int> & index_counters,
+                                     std::vector<int> & dimensions,
+                                     int & now_rank,
+                                     int & large_rank,
+                                     int & level)
+{
+    if (!node)
+        return;
+    for (int i = 0; i < dimensions.size(); i++) {
+        if (index_counters[i] >= dimensions[i]) {
+            std::cerr << "It 's out of range when you initialize a number in dimensions:" << i << std::endl;
+            return;
+        }
+    }
 
+    // 最底层：形如 =(常量) 的 scalar_init
+    if ((node->node_type == ast_operator_type::AST_OP_SCALAR_CONST_INIT ||
+         node->node_type == ast_operator_type::AST_OP_SCALAR_INIT) &&
+        !node->sons.empty()) {
+
+        ast_node * exp_node = node->sons[0];
+        ast_node * element_node = ir_visit_ast_node(exp_node);
+
+        if (!element_node || !element_node->val || !element_node->val->isConst()) {
+            std::cerr << "Error: array init element is not a constant!" << std::endl;
+            return;
+        }
+        int linear_index = 0;
+        int before_dim_total = 1;
+        for (int i = index_counters.size() - 1; i >= 0; i--) {
+            linear_index += index_counters[i] * before_dim_total;
+            before_dim_total *= dimensions[i];
+        }
+        // 填充初始化列表
+        flat_init_list.push_back({element_node, linear_index});
+
+        //对于下一节点的具体维度层级在当前节点就把判断先做掉
+        //下一节点首先要存在，同时为=号才可以判断为在同一层级上
+        if (now_rank + 1 < large_rank) {
+            ast_node * next_node = node->parent->sons[now_rank + 1];
+            if ((next_node->node_type == ast_operator_type::AST_OP_SCALAR_CONST_INIT ||
+                 next_node->node_type == ast_operator_type::AST_OP_SCALAR_INIT)) {
+                int i = index_counters.size() - 1;
+                if (index_counters[i] == dimensions[i] - 1) {
+                    while (index_counters[i] == dimensions[i] - 1 && i > 0) {
+                        index_counters[i] = 0;
+                        index_counters[i - 1] += 1;
+                        i--;
+                    }
+                } else {
+                    index_counters[i] += 1;
+                }
+            }
+        }
+        /*
+        if (node->parent->sons[now_rank + 1] &&
+            (node->parent->sons[now_rank + 1]->node_type == ast_operator_type::AST_OP_SCALAR_CONST_INIT ||
+             node->parent->sons[now_rank + 1]->node_type == ast_operator_type::AST_OP_SCALAR_INIT)) {
+            int i = index_counters.size() - 1;
+            if (index_counters[i] == dimensions[i] - 1) {
+                while (index_counters[i] == dimensions[i] - 1 && i > 0) {
+                    index_counters[i] = 0;
+                    index_counters[i - 1] += 1;
+                    i--;
+                }
+            } else {
+                index_counters[i] += 1;
+            }
+        }
+        */
+        return;
+    }
+
+    // 中间层：数组初始化结构，递归展开每一层
+    if (node->node_type == ast_operator_type::AST_OP_ARRAY_CONST_INIT ||
+        node->node_type == ast_operator_type::AST_OP_ARRAY_INIT_VAL) {
+        //每一个array-init开始前都要对index_counters在当前维度进行重置
+        if (level > -1) {
+            // level = -1,说明是最开始的初始化根节点，那就没必要做了
+            //初始化的具体做法是当前维度直接进1，后续维度清零
+            index_counters[level] += 1;
+            for (int i = level + 1; i < index_counters.size(); i++) {
+                index_counters[i] = 0;
+            }
+        }
+        //所有子节点的维度也要在父节点的维度上加一
+        int tmp_level = level + 1;
+        //之后所有子节点在兄弟中的排序也要清零
+        int tmp_now_rank = 0;
+        int son_large_rank = 0;
+        // 遍历当前维度的所有子节点计算出子节点的数量
+        for (auto & child: node->sons) {
+            son_large_rank++;
+        }
+        // 遍历当前维度的所有子节点
+        for (auto & child: node->sons) {
+            flatten_array_init(child,
+                               flat_init_list,
+                               index_counters,
+                               dimensions,
+                               tmp_now_rank,
+                               son_large_rank,
+                               tmp_level);
+            tmp_now_rank += 1;
+        }
+        //当前为array-init节点，下一个兄弟节点如果为“=”则还要对index_count在当前维度进行重置
+        if (now_rank + 1 < large_rank) {
+            ast_node * next_node = node->parent->sons[now_rank + 1];
+            if ((next_node->node_type == ast_operator_type::AST_OP_SCALAR_CONST_INIT ||
+                 next_node->node_type == ast_operator_type::AST_OP_SCALAR_INIT)) {
+                if (level > -1) {
+                    //跟上面同样的做法
+                    index_counters[level] += 1;
+                    for (int i = level + 1; i < index_counters.size(); i++) {
+                        index_counters[i] = 0;
+                    }
+                }
+            }
+        }
+    }
+}
+
+bool IRGenerator::ir_array_var_def_declare(ast_node * node)
+{
+    if (!node)
+        return false;
+
+    // Step 1: 提取维度信息
+    std::vector<int32_t> dimensions;
+    std::string var_name = node->sons[0]->name; // 获取变量名
+    ast_node * dim_length = node->sons[1];      // 获取维度节点
+
+    // 提取所有维度
+    for (auto dim_node: dim_length->sons) {
+        int temp = ir_const_exp(dim_node);
+        dimensions.push_back(static_cast<int32_t>(temp));
+    }
+
+    // Step 2: 获取指针类型
+    PointerType * pointerType = PointerType::getNonConstPointerType(node->parent->sons[0]->type);
+    node->val = module->newArrayValue(pointerType, var_name, dimensions);
+
+    // 计算数组总大小
+    int total_size = 1;
+    for (auto d: dimensions)
+        total_size *= d;
+
+    // 获取数组变量的实际值
+    Value * array_val = module->findVarValue(var_name);
+
+    // Step 3: 初始化数组所有元素为0
+    Value * zero_val = module->newConstInt(0);
+    for (int i = 0; i < total_size; ++i) {
+        ConstInt * offset = module->newConstInt(i);
+        ConstInt * word_size = module->newConstInt(4); // 假设每个元素占 4 字节
+        BinaryInstruction * offset_inst = new BinaryInstruction(module->getCurrentFunction(),
+                                                                IRInstOperator::IRINST_OP_MUL_I,
+                                                                offset,
+                                                                word_size,
+                                                                IntegerType::getTypeInt());
+
+        BinaryInstruction * addr_inst = new BinaryInstruction(module->getCurrentFunction(),
+                                                              IRInstOperator::IRINST_OP_ADD_I,
+                                                              offset_inst,
+                                                              array_val,
+                                                              array_val->getType());
+
+        MoveInstruction * move_inst = new MoveInstruction(module->getCurrentFunction(), addr_inst, zero_val);
+
+        // 将生成的指令添加到当前的指令块
+        node->blockInsts.addInst(offset_inst);
+        node->blockInsts.addInst(addr_inst);
+        node->blockInsts.addInst(move_inst);
+    }
+
+    // Step 4: 处理显式初始化
+    if (node->sons.size() > 2) {
+        std::vector<InitElement> flatten_nodes;
+        // int linear_index = 0;
+        std::vector<int> index_counters(dimensions.size(), 0); // 初始化index_counters
+        int now_rank = 0;
+        int level = -1;
+        int large_rank = 1;
+        flatten_array_init(node->sons[2], flatten_nodes, index_counters, dimensions, now_rank, large_rank, level);
+
+        // 处理显式初始化列表
+        for (auto & item: flatten_nodes) {
+            ast_node * init_node = item.node;
+            int index = item.linear_index;
+
+            // 检查初始化节点是否合法
+            if (!init_node || !init_node->val || !init_node->val->isConst()) {
+                std::cerr << "Error: initializer is not a valid constant!\n";
+                return false;
+            }
+
+            // 检查是否超出数组的大小
+            if (index >= total_size) {
+                std::cerr << "Error: too many initializers for array '" << var_name << "'" << std::endl;
+                return false;
+            }
+
+            // 生成 IR 指令，将初始化值赋给数组元素
+            ConstInt * offset = module->newConstInt(index);
+            ConstInt * word_size = module->newConstInt(4); // 假设每个元素占 4 字节
+            BinaryInstruction * offset_inst = new BinaryInstruction(module->getCurrentFunction(),
+                                                                    IRInstOperator::IRINST_OP_MUL_I,
+                                                                    offset,
+                                                                    word_size,
+                                                                    IntegerType::getTypeInt());
+
+            BinaryInstruction * addr_inst = new BinaryInstruction(module->getCurrentFunction(),
+                                                                  IRInstOperator::IRINST_OP_ADD_I,
+                                                                  offset_inst,
+                                                                  array_val,
+                                                                  array_val->getType());
+
+            MoveInstruction * move_inst = new MoveInstruction(module->getCurrentFunction(), addr_inst, init_node->val);
+
+            // 将生成的指令添加到当前的指令块
+            node->blockInsts.addInst(offset_inst);
+            node->blockInsts.addInst(addr_inst);
+            node->blockInsts.addInst(move_inst);
+        }
+
+        // 最后为数组节点赋值
+        node->val = array_val;
+    }
+
+    return true;
+}
+
+/*
 void IRGenerator::flatten_array_init(ast_node * node, std::vector<ast_node *> & flat_init_list)
 {
     if (!node) {
@@ -1429,17 +1664,24 @@ bool IRGenerator::ir_array_var_def_declare(ast_node * node)
         _dimensions.push_back(static_cast<int32_t>(temp));
     }
 
+    // 提取所有维度
+    for (auto dim_node: dim_length->sons) {
+        int temp = ir_const_exp(dim_node);
+        _dimensions.push_back(temp);
+    }
+
     // Function * func = module->getCurrentFunction();
     // const Type * baseType = dim_length->sons[0]->type; // 这是基础类型
     PointerType * pointerType = PointerType::getNonConstPointerType(node->parent->sons[0]->type);
     node->val = module->newArrayValue(pointerType, var_name, _dimensions);
+
 
     if (node->sons.size() > 2) {
         // sons[0]: 变量名节点
         // sons[1]: 数组维度信息
         // sons[2]: 初始化值节点（AST_ARRAY_INIT 类型）
 
-        std::string var_name = node->sons[0]->name;
+        //std::string var_name = node->sons[0]->name;
         Value * array_val = module->findVarValue(var_name);
 
         // 获取数组维度
@@ -1457,12 +1699,7 @@ bool IRGenerator::ir_array_var_def_declare(ast_node * node)
 
         printf("flatten_nodes size: %zu\n", flatten_nodes.size());
 
-        /*
-        if ((int) flatten_nodes.size() != total_size) {
-            std::cerr << "Error: array initializer size mismatch" << std::endl;
-            return false;
-        }
-        */
+
         // 检查初始化个数
         int init_count = flatten_nodes.size();
         if (init_count > total_size) {
@@ -1470,6 +1707,7 @@ bool IRGenerator::ir_array_var_def_declare(ast_node * node)
                       << "Expected at most " << total_size << ", but got " << init_count << "." << std::endl;
             return false;
         }
+
 
         // 为每个常量生成 IR 并保存为 Value*
         std::vector<Value *> init_val_vector;
@@ -1535,93 +1773,8 @@ bool IRGenerator::ir_array_var_def_declare(ast_node * node)
 
     return true;
 }
-
-/*
-
-if (node->sons.size() > 2) {
-    ast_node * init_node = node->sons[2]; // 对应 " = "
-    std::vector<int32_t> flat_values;
-
-    // 递归展开 = 结构，提取所有 exp 值
-    std::function<void(ast_node *)> flatten_init = [&](ast_node * n) {
-        if (!n)
-            return;
-        if (n->node_type == ast_operator_type::AST_OP_ASSIGN && !n->sons.empty()) {
-            for (auto & child: n->sons) {
-                flatten_init(child);
-            }
-        } else if (n->node_type == ast_operator_type::AST_OP_EXP ||
-                   n->node_type == ast_operator_type::AST_OP_CONST) {
-            int32_t val = ir_const_exp(n);
-            flat_values.push_back(val);
-        }
-    };
-    flatten_init(init_node);
-
-    // 计算每个元素的 IR 写入
-    Value * array_val = node->val;
-    std::vector<int32_t> & dims = array_val->arraydimensionVector;
-    size_t total_elements = 1;
-    for (auto d: dims)
-        total_elements *= d;
-
-    for (size_t flat_idx = 0; flat_idx < flat_values.size(); ++flat_idx) {
-        int32_t val = flat_values[flat_idx];
-
-        // 假设数组以 row-major（行优先）存储
-        ConstInt * offset_bytes = module->newConstInt(flat_idx * 4);
-        BinaryInstruction * addr_inst = new BinaryInstruction(module->getCurrentFunction(),
-                                                              IRInstOperator::IRINST_OP_ADD_I,
-                                                              array_val,
-                                                              offset_bytes,
-                                                              array_val->getType());
-        node->blockInsts.addInst(addr_inst);
-
-        ConstInt * value_to_store = module->newConstInt(val);
-        StoreInstruction * store_inst =
-            new StoreInstruction(module->getCurrentFunction(), value_to_store, addr_inst);
-        node->blockInsts.addInst(store_inst);
-    }
-}
 */
-//数组初始化不会写，先空了
-// func->newLocalVarValue(dim_length->sons[0]->type, var_name, func->getScopeLevel(), _dimensions);
-//如果有第三个儿子，说明变量再声明的时候同时初始化。AST_OP_ARRAY_INIT_VAL
-// if (node->sons.size() > 2) {
-//     ast_node * initi = node->sons[2]; //转到初始化
 
-//     for (auto * init_node: initi->sons) {
-// 计算当前初始化值
-// Value * initVal = module->newConstInt(ir_const_exp(init_node));
-// 生成乘法指令
-// Value * mulResult = module->newTempVar(IntegerType::getTypeInt());
-// node->blockInsts.addInst(new BinaryInstruction(BinaryOp::Mul, mulResult, currentVal, initVal));
-
-// // 生成加法指令
-// Value * addResult = module->newTempVar(IntegerType::getTypeInt());
-// node->blockInsts.addInst(new BinaryInstruction(BinaryOp::Add, addResult, mulResult, initVal));
-
-// // 更新当前值
-// currentVal = addResult;
-// }
-
-// if (node->sons.size() > 2) {
-//     ast_node * initi = node->sons[2];
-//     int idx = 0;
-//     if (initi->node_type == ast_operator_type::AST_OP_ARRAY_INIT_VAL) {
-//         //依次遍历每一个赋值语句
-//         for (pIter = initi->sons.begin(); pIter != initi->sons.end(); ++pIter) {
-//             ast_node * assign_op = (*pIter)->sons[0];
-//             // 遍历Block的每个语句，进行显示或者运算
-//             ast_node * right = ir_visit_ast_node(assign_op);
-//             // Value * element = module->newArrayElement(array_value, index);
-//             std::string indexed_name = var_name + "[" + std::to_string(idx) + "]";
-//             Value * val = module->newVarValue(right->type, indexed_name);
-//             idx++;
-//             node->blockInsts.addInst(new MoveInstruction(func, val, right->val));
-//         }
-//     }
-// }
 //数组访问节点，有点冗余，可删减
 bool IRGenerator::ir_array_acess(ast_node * node)
 {

@@ -121,8 +121,6 @@ protected:
     // const常量的定义
     bool ir_const_def(ast_node * node);
 
-    //新增数组初始化展平操作
-    void flatten_array_init(ast_node * node, std::vector<ast_node *> & flat_init_list);
     ast_node * ir_global(ast_node * node);
     bool ir_global_variable_declare(ast_node * node);
     bool ir_global_var_def(ast_node * node);
@@ -130,6 +128,22 @@ protected:
     bool ir_global_array_var_def_declare(ast_node * node);
     bool ir_global_const_declare(ast_node * node);
     bool ir_global_const_def(ast_node * node);
+    struct InitElement {
+        ast_node * node;
+        int linear_index;
+    };
+
+    //新增数组初始化展平操作
+    // void flatten_array_init(ast_node * node, std::vector<ast_node *> & flat_init_list);
+    // void flatten_array_init(ast_node * node, std::vector<ast_node *> & flat_list, int & curr_index, int total_size);
+    void flatten_array_init(ast_node * node,
+                            std::vector<InitElement> & flat_init_list,
+                            std::vector<int> & index_counters,
+                            std::vector<int> & dimensions,
+                            int & now_rank,
+                            int & large_rank,
+                            int & level);
+
     /// @brief AST节点运算符与动作函数关联的映射表
     std::unordered_map<ast_operator_type, ast2ir_handler_t> ast2ir_handlers;
 

@@ -1,0 +1,60 @@
+define i32 @main()
+{
+	declare i32 %l0
+	declare f32* %l1[3][2] ; 1:a
+	declare i32 %t2
+	declare f32* %t3
+	declare i32 %t4
+	declare f32* %t5
+	declare i32 %t6
+	declare f32* %t7
+	declare i32 %t8
+	declare f32* %t9
+	declare i32 %t10
+	declare f32* %t11
+	declare i32 %t12
+	declare f32* %t13
+	declare i32 %t14
+	declare f32* %t15
+	declare i32 %t16
+	declare f32* %t17
+	declare i32 %t18
+	declare f32* %t19
+	declare i32 %t20
+	declare f32* %t21
+	entry
+	%t2 = mul 0,4
+	%t3 = add %t2,%l1
+	*%t3 = 0
+	%t4 = mul 1,4
+	%t5 = add %t4,%l1
+	*%t5 = 0
+	%t6 = mul 2,4
+	%t7 = add %t6,%l1
+	*%t7 = 0
+	%t8 = mul 3,4
+	%t9 = add %t8,%l1
+	*%t9 = 0
+	%t10 = mul 4,4
+	%t11 = add %t10,%l1
+	*%t11 = 0
+	%t12 = mul 5,4
+	%t13 = add %t12,%l1
+	*%t13 = 0
+	%t14 = mul 0,4
+	%t15 = add %t14,%l1
+	*%t15 = 1.100000
+	%t16 = mul 2,4
+	%t17 = add %t16,%l1
+	*%t17 = 2.200000
+	%t18 = mul 3,4
+	%t19 = add %t18,%l1
+	*%t19 = 3.300000
+	%t20 = mul 4,4
+	%t21 = add %t20,%l1
+	*%t21 = 5.500000
+	%l0 = 0
+	br label .L22
+.L22:
+	exit %l0
+}

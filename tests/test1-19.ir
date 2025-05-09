@@ -1,0 +1,185 @@
+define i32 @main()
+{
+	declare i32 %l0
+	declare i32* %l1[3][3][3] ; 1:A
+	declare i32 %t2
+	declare i32* %t3
+	declare i32 %t4
+	declare i32* %t5
+	declare i32 %t6
+	declare i32* %t7
+	declare i32 %t8
+	declare i32* %t9
+	declare i32 %t10
+	declare i32* %t11
+	declare i32 %t12
+	declare i32* %t13
+	declare i32 %t14
+	declare i32* %t15
+	declare i32 %t16
+	declare i32* %t17
+	declare i32 %t18
+	declare i32* %t19
+	declare i32 %t20
+	declare i32* %t21
+	declare i32 %t22
+	declare i32* %t23
+	declare i32 %t24
+	declare i32* %t25
+	declare i32 %t26
+	declare i32* %t27
+	declare i32 %t28
+	declare i32* %t29
+	declare i32 %t30
+	declare i32* %t31
+	declare i32 %t32
+	declare i32* %t33
+	declare i32 %t34
+	declare i32* %t35
+	declare i32 %t36
+	declare i32* %t37
+	declare i32 %t38
+	declare i32* %t39
+	declare i32 %t40
+	declare i32* %t41
+	declare i32 %t42
+	declare i32* %t43
+	declare i32 %t44
+	declare i32* %t45
+	declare i32 %t46
+	declare i32* %t47
+	declare i32 %t48
+	declare i32* %t49
+	declare i32 %t50
+	declare i32* %t51
+	declare i32 %t52
+	declare i32* %t53
+	declare i32 %t54
+	declare i32* %t55
+	declare i32 %t56
+	declare i32* %t57
+	declare i32 %t58
+	declare i32* %t59
+	declare i32 %t60
+	declare i32* %t61
+	declare i32 %t62
+	declare i32* %t63
+	declare i32 %t64
+	declare i32* %t65
+	declare i32 %t66
+	declare i32* %t67
+	declare i32 %t68
+	declare i32* %t69
+	declare i32 %t70
+	declare i32* %t71
+	entry
+	%t2 = mul 0,4
+	%t3 = add %t2,%l1
+	*%t3 = 0
+	%t4 = mul 1,4
+	%t5 = add %t4,%l1
+	*%t5 = 0
+	%t6 = mul 2,4
+	%t7 = add %t6,%l1
+	*%t7 = 0
+	%t8 = mul 3,4
+	%t9 = add %t8,%l1
+	*%t9 = 0
+	%t10 = mul 4,4
+	%t11 = add %t10,%l1
+	*%t11 = 0
+	%t12 = mul 5,4
+	%t13 = add %t12,%l1
+	*%t13 = 0
+	%t14 = mul 6,4
+	%t15 = add %t14,%l1
+	*%t15 = 0
+	%t16 = mul 7,4
+	%t17 = add %t16,%l1
+	*%t17 = 0
+	%t18 = mul 8,4
+	%t19 = add %t18,%l1
+	*%t19 = 0
+	%t20 = mul 9,4
+	%t21 = add %t20,%l1
+	*%t21 = 0
+	%t22 = mul 10,4
+	%t23 = add %t22,%l1
+	*%t23 = 0
+	%t24 = mul 11,4
+	%t25 = add %t24,%l1
+	*%t25 = 0
+	%t26 = mul 12,4
+	%t27 = add %t26,%l1
+	*%t27 = 0
+	%t28 = mul 13,4
+	%t29 = add %t28,%l1
+	*%t29 = 0
+	%t30 = mul 14,4
+	%t31 = add %t30,%l1
+	*%t31 = 0
+	%t32 = mul 15,4
+	%t33 = add %t32,%l1
+	*%t33 = 0
+	%t34 = mul 16,4
+	%t35 = add %t34,%l1
+	*%t35 = 0
+	%t36 = mul 17,4
+	%t37 = add %t36,%l1
+	*%t37 = 0
+	%t38 = mul 18,4
+	%t39 = add %t38,%l1
+	*%t39 = 0
+	%t40 = mul 19,4
+	%t41 = add %t40,%l1
+	*%t41 = 0
+	%t42 = mul 20,4
+	%t43 = add %t42,%l1
+	*%t43 = 0
+	%t44 = mul 21,4
+	%t45 = add %t44,%l1
+	*%t45 = 0
+	%t46 = mul 22,4
+	%t47 = add %t46,%l1
+	*%t47 = 0
+	%t48 = mul 23,4
+	%t49 = add %t48,%l1
+	*%t49 = 0
+	%t50 = mul 24,4
+	%t51 = add %t50,%l1
+	*%t51 = 0
+	%t52 = mul 25,4
+	%t53 = add %t52,%l1
+	*%t53 = 0
+	%t54 = mul 26,4
+	%t55 = add %t54,%l1
+	*%t55 = 0
+	%t56 = mul 0,4
+	%t57 = add %t56,%l1
+	*%t57 = 1
+	%t58 = mul 1,4
+	%t59 = add %t58,%l1
+	*%t59 = 2
+	%t60 = mul 9,4
+	%t61 = add %t60,%l1
+	*%t61 = 3
+	%t62 = mul 12,4
+	%t63 = add %t62,%l1
+	*%t63 = 4
+	%t64 = mul 13,4
+	%t65 = add %t64,%l1
+	*%t65 = 5
+	%t66 = mul 15,4
+	%t67 = add %t66,%l1
+	*%t67 = 6
+	%t68 = mul 18,4
+	%t69 = add %t68,%l1
+	*%t69 = 7
+	%t70 = mul 19,4
+	%t71 = add %t70,%l1
+	*%t71 = 8
+	%l0 = 0
+	br label .L72
+.L72:
+	exit %l0
+}
