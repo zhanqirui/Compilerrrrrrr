@@ -1,5 +1,4 @@
 // test domain of global var define and local define
-
 int main()
 {
     int a = -1;

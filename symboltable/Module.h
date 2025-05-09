@@ -140,7 +140,7 @@ public:
     /// @param name 常量ID
     /// @param type 常量类型
     Value * newConstValue(Type * type, std::string name);
-    GlobalVariable * newGlobalVariable(Type * type, std::string name);
+    GlobalVariable * newGlobalVariable(Type * type, std::string name, bool inBSS=false);
     GlobalVariable * findGlobalVariable(std::string name);
     Value * findVar(std::string name);
 

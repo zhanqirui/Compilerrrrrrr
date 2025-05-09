@@ -324,9 +324,11 @@ Value * Module::findVarValue(std::string name)
 /// @param name 名字
 /// @return Value* 全局变量
 ///
-GlobalVariable * Module::newGlobalVariable(Type * type, std::string name)
+GlobalVariable * Module::newGlobalVariable(Type * type, std::string name, bool inBSS)
 {
     GlobalVariable * val = new GlobalVariable(type, name);
+
+	val->setInBSSSection(inBSS);
 
     insertGlobalValueDirectly(val);
 

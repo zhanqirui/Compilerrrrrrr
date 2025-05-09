@@ -1909,8 +1909,9 @@ bool IRGenerator::ir_global_var_def(ast_node * node)
         return false;
     }
     bool result = false;
-    node->val = module->newGlobalVariable(node->parent->sons[0]->type, node->sons[0]->name);
-    if (node->sons.size() > 1) {
+    bool is_bss = !(node->sons.size() > 1);
+    node->val = module->newGlobalVariable(node->parent->sons[0]->type, node->sons[0]->name, is_bss);
+    if (! is_bss) {
         ast_node * node_son = node->sons[1];
         result = ir_global_scalar_init(node_son);
 

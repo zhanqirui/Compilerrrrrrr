@@ -56,6 +56,11 @@ public:
         return this->inBSSSection;
     }
 
+	void setInBSSSection(bool inBSS)
+	{
+		this->inBSSSection = inBSS;
+	}
+
     ///
     /// @brief 取得变量所在的作用域层级
     /// @return int32_t 层级
