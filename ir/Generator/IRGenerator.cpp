@@ -563,95 +563,6 @@ bool IRGenerator::ir_add(ast_node * node)
     Op op = node->op_type;
     ast_node * src1_node = node->sons[0];
     ast_node * src2_node = node->sons[1];
-    float op1 = src1_node->type->isFloatType() ? src1_node->float_val : src1_node->integer_val;
-    float op2 = src2_node->type->isFloatType() ? src2_node->float_val : src2_node->integer_val;
-    // 优化x=2+3变成x=5
-    if (src1_node->node_type == ast_operator_type::AST_OP_LEAF_LITERAL_UINT &&
-        src2_node->node_type == ast_operator_type::AST_OP_LEAF_LITERAL_UINT) {
-        if (src1_node->type->isFloatType() || src2_node->type->isFloatType()) {
-            ConstFloat * val = module->newConstFloat((op == Op::ADD) ? (op1 + op2) : (op1 - op2));
-            node->val = val;
-            node->type = src1_node->type->isFloatType() ? src1_node->type : src2_node->type;
-            return true;
-        } else {
-            ConstInt * val = module->newConstInt((op == Op::ADD) ? ((int) op1 + (int) op2) : ((int) op1 - (int) op2));
-            node->val = val;
-            node->type = src1_node->type;
-            return true;
-        }
-    }
-    // 针对const进行优化
-    Value * Var1 = nullptr;
-    Value * Var2 = nullptr;
-    float leftV;
-    float rightV;
-    if (!src1_node->name.empty()) {
-        Var1 = module->findVar(src1_node->name);
-        if (Var1->isConst()) {
-            if (Var1->type->isIntegerType())
-                leftV = Var1->real_int;
-            else {
-                leftV = Var1->real_float;
-            }
-        }
-    }
-    if (!src2_node->name.empty()) {
-        Var2 = module->findVar(src2_node->name);
-        if (Var2->isConst()) {
-            if (Var2->type->isIntegerType())
-                rightV = Var2->real_int;
-            else {
-                rightV = Var2->real_float;
-            }
-        }
-    }
-    if (Var1 && Var1->isConst() && Var2 && Var2->isConst()) {
-        if (Var1->type->isFloatType() || Var2->type->isFloatType()) {
-            ConstFloat * val = module->newConstFloat((op == Op::ADD) ? leftV + rightV : leftV - rightV);
-            node->val = val;
-            node->type = src1_node->type->isFloatType() ? src1_node->type : src2_node->type;
-            return true;
-        } else {
-            ConstInt * val =
-                module->newConstInt((op == Op::ADD) ? (int) leftV + (int) rightV : (int) leftV - (int) rightV);
-            node->val = val;
-            node->type = src1_node->type;
-            return true;
-        }
-        return true;
-    }
-    if (src1_node->node_type == ast_operator_type::AST_OP_LEAF_LITERAL_UINT ||
-        src2_node->node_type == ast_operator_type::AST_OP_LEAF_LITERAL_UINT) {
-        if (Var1 && Var1->isConst()) {
-            if (Var1->type->isFloatType() || src1_node->type->isFloatType()) {
-                ConstFloat * val = module->newConstFloat((op == Op::ADD) ? (leftV + op2) : (leftV - op2));
-                node->val = val;
-                node->type = src1_node->type->isFloatType() ? src1_node->type : src2_node->type;
-                return true;
-            } else {
-                ConstInt * val =
-                    module->newConstInt((op == Op::ADD) ? ((int) leftV + (int) op2) : ((int) leftV - (int) op2));
-                node->val = val;
-                node->type = src1_node->type;
-                return true;
-            }
-            return true;
-        } else if (Var2 && Var2->isConst()) {
-            if (src1_node->type->isFloatType() || Var2->type->isFloatType()) {
-                ConstFloat * val = module->newConstFloat((op == Op::ADD) ? (op1 + rightV) : (op1 - rightV));
-                node->val = val;
-                node->type = src1_node->type->isFloatType() ? src1_node->type : src2_node->type;
-                return true;
-            } else {
-                ConstInt * val =
-                    module->newConstInt((op == Op::ADD) ? ((int) op1 + (int) rightV) : ((int) op1 - (int) rightV));
-                node->val = val;
-                node->type = src1_node->type;
-                return true;
-            }
-            return true;
-        }
-    }
 
     // 加法节点，左结合，先计算左节点，后计算右节点
 
@@ -701,6 +612,7 @@ bool IRGenerator::ir_add(ast_node * node)
 
     return true;
 }
+
 /// @brief 整数乘 除法AST节点翻译成线性中间IR,要根据op来判断乘除
 /// @param node AST节点
 /// @return 翻译是否成功，true：成功，false：失败

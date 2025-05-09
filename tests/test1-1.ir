@@ -1,29 +1,17 @@
-declare i32 @a=1432946832
-define i32 @func(i32 %t0)
-{
-	declare i32 %l1 ; 1:p
-	declare i32 %l2
-	declare i32 %t3
-	entry
-	%l1 = %t0
-	%t3 = sub %l1,1
-	%l1 = %t3
-	%l2 = %l1
-	br label .L4
-.L4:
-	exit %l2
-}
 define i32 @main()
 {
 	declare i32 %l0
 	declare i32 %l1 ; 1:b
-	declare i32 %t2
+	declare i32 %l2 ; 1:a
+	declare i32 %l3 ; 1:c
+	declare i32 %t4
 	entry
-	@a = 10
-	i32 %t2 = call i32 @func(i32 @a)
-	%l1 = %t2
+	%l1 = 3
+	%l2 = 10
+	%t4 = add %l1,%l2
+	%l3 = %t4
 	%l0 = %l1
-	br label .L3
-.L3:
+	br label .L5
+.L5:
 	exit %l0
 }
