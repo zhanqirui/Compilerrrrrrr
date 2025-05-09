@@ -142,7 +142,8 @@ ConstFloat * Module::newConstFloat(float floatVal)
     if (!val) {
         // 不存在，则创建浮点常量Value
         val = new ConstFloat(floatVal);
-
+        val->real_float = floatVal;
+        val->real_int = floatVal;
         // 插入到符号表中
         insertConstFloatDirectly(val);
     }
@@ -192,7 +193,8 @@ ConstInt * Module::newConstInt(int32_t intVal)
 
         // 不存在，则创建整数常量Value
         val = new ConstInt(intVal);
-
+        val->real_int = intVal;
+        val->real_float = intVal;
         insertConstIntDirectly(val);
     }
 
@@ -348,7 +350,21 @@ GlobalVariable * Module::findGlobalVariable(std::string name)
 
     return temp;
 }
+Value * Module::findVar(std::string name)
+{
+    // 逐层级作用域查找
+    Value * tempValue = scopeStack->findAllScope(name);
+    if (tempValue)
+        return tempValue;
+    GlobalVariable * temp = nullptr;
 
+    auto pIter = globalVariableMap.find(name);
+    if (pIter != globalVariableMap.end()) {
+        // 查找到
+        temp = pIter->second;
+    }
+    return temp;
+}
 /// @brief 清理注册的所有Value资源
 void Module::Delete()
 {

@@ -90,6 +90,18 @@ public:
     void toDeclareString(std::string & str)
     {
         str = "declare " + getType()->toString() + " " + getIRName();
+        if (this->type->isIntegerType()) {
+            str += "=" + std::to_string(this->real_int); // 转换为字符串
+        } else if (this->type->isFloatType()) {
+            str += "=" + std::to_string(this->real_float); // 同理
+        } else {
+            const std::vector<int32_t> dims = this->arraydimensionVector;
+            if (!dims.empty()) {
+                for (auto dim: dims) {
+                    str += "[" + std::to_string(dim) + "]";
+                }
+            }
+        }
     }
 
 private:
