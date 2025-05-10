@@ -427,3 +427,20 @@ void Function::realArgCountReset()
 {
     this->realArgCount = 0;
 }
+
+void Function::set_block_entry_Lable(LabelInstruction * entryLabelInst)
+{
+    block_entry_Lable = entryLabelInst;
+}
+void Function::set_block_exit_Lable(LabelInstruction * exitLabelInst)
+{
+    block_exit_Lable = exitLabelInst;
+}
+LabelInstruction * Function::getblock_entry_Lable()
+{
+    return block_entry_Lable;
+}
+LabelInstruction * Function::getblock_exit_Lable()
+{
+    return block_exit_Lable;
+}

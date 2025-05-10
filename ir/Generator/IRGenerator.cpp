@@ -66,6 +66,8 @@ IRGenerator::IRGenerator(ast_node * _root, Module * _module) : root(_root), modu
     /* 语句 */
     ast2ir_handlers[ast_operator_type::AST_OP_ASSIGN_STMT] = &IRGenerator::ir_assign;
     ast2ir_handlers[ast_operator_type::AST_OP_RETURN] = &IRGenerator::ir_return;
+    ast2ir_handlers[ast_operator_type::AST_OP_BREAK] = &IRGenerator::ir_break;
+    ast2ir_handlers[ast_operator_type::AST_OP_CONTINUE] = &IRGenerator::ir_continue;
     /* 变量定义语句 */
 
     ast2ir_handlers[ast_operator_type::AST_OP_VAR_DECL] = &IRGenerator::ir_variable_declare;
@@ -438,6 +440,8 @@ bool IRGenerator::ir_while(ast_node * node)
     Function * currentFunc = module->getCurrentFunction();
     LabelInstruction * entryLabelInst = new LabelInstruction(currentFunc);
     LabelInstruction * exitLabelInst = new LabelInstruction(currentFunc);
+    currentFunc->set_block_entry_Lable(entryLabelInst);
+    currentFunc->set_block_exit_Lable(exitLabelInst);
     node->blockInsts.addInst(entryLabelInst);
 
     ast_node * cond = ir_visit_ast_node(node->sons[0]);
@@ -508,7 +512,20 @@ bool IRGenerator::ir_return(ast_node * node)
 
     return true;
 }
+bool IRGenerator::ir_break(ast_node * node)
+{
 
+    Function * currentFunc = module->getCurrentFunction();
+    node->blockInsts.addInst(new GotoInstruction(currentFunc, currentFunc->getblock_exit_Lable()));
+    return true;
+}
+bool IRGenerator::ir_continue(ast_node * node)
+{
+
+    Function * currentFunc = module->getCurrentFunction();
+    node->blockInsts.addInst(new GotoInstruction(currentFunc, currentFunc->getblock_entry_Lable()));
+    return true;
+}
 /// @brief 类型叶子节点翻译成线性中间IR
 /// @param node AST节点
 /// @return 翻译是否成功，true：成功，false：失败

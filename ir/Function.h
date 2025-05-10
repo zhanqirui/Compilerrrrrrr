@@ -24,7 +24,7 @@
 #include "LocalVariable.h"
 #include "MemVariable.h"
 #include "IRCode.h"
-
+#include "LabelInstruction.h"
 ///
 /// @brief 描述函数信息的类，是全局静态存储，其Value的类型为FunctionType
 ///
@@ -83,7 +83,12 @@ public:
     /// @brief 获取函数返回值变量
     /// @return 返回值变量
     LocalVariable * getReturnValue();
-
+    void set_block_entry_Lable(LabelInstruction * entryLabelInst);
+    void set_block_exit_Lable(LabelInstruction * exitLabelInst);
+    LabelInstruction * getblock_entry_Lable();
+    LabelInstruction * getblock_exit_Lable();
+    /// @brief 获取函数返回值变量
+    /// @return 返回值变量
     /// @brief 获取函数内变量清单
     /// @return 函数内变量清单
     std::vector<LocalVariable *> & getVarValues()
@@ -182,6 +187,8 @@ public:
     {
         params.insert(params.end(), paramList.begin(), paramList.end());
     }
+    LabelInstruction * block_entry_Lable = nullptr;
+    LabelInstruction * block_exit_Lable = nullptr;
 
 private:
     ///
