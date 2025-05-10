@@ -21,7 +21,11 @@
 
 #include "Use.h"
 #include "Type.h"
-
+struct FlattenedArrayElement {
+    int32_t flatIndex; // 展平后的索引
+    int32_t intValue;  // 整数值
+    float floatValue;  // 浮点值
+};
 ///
 /// @brief 值类，每个值都要有一个类型，全局变量和局部变量可以有名字，
 /// 但通过运算得到的指令类值没有名字，只有在需要输出时给定名字即可
@@ -47,8 +51,8 @@ protected:
     ///
     std::vector<Use *> uses;
 
-	int liveStart;  // 活跃起始位置（如指令编号）
-    int liveEnd;    // 活跃结束位置
+    int liveStart; // 活跃起始位置（如指令编号）
+    int liveEnd;   // 活跃结束位置
 
     ///
     /// @brief 判断是否是const型变量
@@ -132,7 +136,7 @@ public:
     ///
     virtual void setLoadRegId(int32_t regId);
 
-	///
+    ///
     /// @brief 获取活跃结束位置
     /// @return int32_t 结束位置指令编号
     ///
@@ -141,6 +145,12 @@ public:
     /// @brief 作为数组的下标集合
     std::vector<int32_t> arrayIndexVector;
     std::vector<int32_t> arraydimensionVector;
+    std::vector<FlattenedArrayElement> flattenedArray;
+
+    void addElement(int32_t flatIndex, int32_t intValue, float floatValue)
+    {
+        flattenedArray.push_back({flatIndex, intValue, floatValue});
+    }
 
     /// @brief 设置是否为常量
     /// @param value
@@ -148,7 +158,10 @@ public:
     {
         is_constant = value;
     }
-
+    bool isArray() const
+    {
+        return !arraydimensionVector.empty();
+    }
     /// @brief 判断该值是否为常量
     /// @return 是否是const，默认返回false
     bool isConst()

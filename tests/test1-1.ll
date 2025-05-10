@@ -1,25 +1,27 @@
-; ModuleID = 'test1-1.c'
-source_filename = "test1-1.c"
+; ModuleID = 'tests/test1-1.c'
+source_filename = "tests/test1-1.c"
 target datalayout = "e-m:e-p270:32:32-p271:32:32-p272:64:64-i64:64-f80:128-n8:16:32:64-S128"
 target triple = "x86_64-pc-linux-gnu"
 
-@a = dso_local global i32 10, align 4
+@__const.main.c = private unnamed_addr constant [2 x [2 x i32]] [[2 x i32] [i32 231, i32 23], [2 x i32] [i32 123, i32 12312]], align 16
 
 ; Function Attrs: noinline nounwind optnone uwtable
 define dso_local i32 @main() #0 {
   %1 = alloca i32, align 4
   %2 = alloca i32, align 4
-  %3 = alloca i32, align 4
+  %3 = alloca [2 x [2 x i32]], align 16
   store i32 0, i32* %1, align 4
-  store i32 -1, i32* %2, align 4
-  store i32 5, i32* %3, align 4
-  %4 = load i32, i32* %2, align 4
-  %5 = load i32, i32* %3, align 4
-  %6 = add nsw i32 %4, %5
-  ret i32 %6
+  store i32 1, i32* %2, align 4
+  %4 = bitcast [2 x [2 x i32]]* %3 to i8*
+  call void @llvm.memcpy.p0i8.p0i8.i64(i8* align 16 %4, i8* align 16 bitcast ([2 x [2 x i32]]* @__const.main.c to i8*), i64 16, i1 false)
+  ret i32 10
 }
 
+; Function Attrs: argmemonly nofree nounwind willreturn
+declare void @llvm.memcpy.p0i8.p0i8.i64(i8* noalias nocapture writeonly, i8* noalias nocapture readonly, i64, i1 immarg) #1
+
 attributes #0 = { noinline nounwind optnone uwtable "frame-pointer"="all" "min-legal-vector-width"="0" "no-trapping-math"="true" "stack-protector-buffer-size"="8" "target-cpu"="x86-64" "target-features"="+cx8,+fxsr,+mmx,+sse,+sse2,+x87" "tune-cpu"="generic" }
+attributes #1 = { argmemonly nofree nounwind willreturn }
 
 !llvm.module.flags = !{!0, !1, !2, !3, !4}
 !llvm.ident = !{!5}

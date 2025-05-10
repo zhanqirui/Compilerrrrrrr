@@ -43,6 +43,11 @@ public:
     /// @brief 注意：IR指令代码并未释放，需要手动释放
     ~Function();
 
+    std::string processMultiDimArray(Value * Var,
+                                     const std::vector<int32_t> & dims,
+                                     const std::vector<FlattenedArrayElement> & flattenedArray,
+                                     size_t currentIndex,
+                                     int32_t flatOffset);
     /// @brief 获取函数返回类型
     /// @return 返回类型
     Type * getReturnType();
@@ -173,7 +178,8 @@ public:
     ///
     void realArgCountReset();
 
-    void addParams(const std::vector<FormalParam*>& paramList) {
+    void addParams(const std::vector<FormalParam *> & paramList)
+    {
         params.insert(params.end(), paramList.begin(), paramList.end());
     }
 

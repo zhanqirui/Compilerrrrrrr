@@ -328,7 +328,7 @@ GlobalVariable * Module::newGlobalVariable(Type * type, std::string name, bool i
 {
     GlobalVariable * val = new GlobalVariable(type, name);
 
-	val->setInBSSSection(inBSS);
+    val->setInBSSSection(inBSS);
 
     insertGlobalValueDirectly(val);
 
@@ -465,5 +465,43 @@ Value * Module::newConstValue(Type * type, std::string name)
     retVal->setConst(true);
 
     scopeStack->insertValue(retVal);
+    return retVal;
+}
+Value * Module::newconstArray(Type * type, std::string name, std::vector<int32_t> index)
+{
+    Value * retVal = nullptr;
+    if (!name.empty()) {
+        Value * tempValue = scopeStack->findCurrentScope(name);
+        if (tempValue) {
+            // 变量存在，语义错误
+            minic_log(LOG_ERROR, "变量(%s)已经存在", name.c_str());
+            return nullptr;
+        }
+    } else if (!currentFunc) {
+        // 全局变量要求name不能为空串，必须有效
+        minic_log(LOG_ERROR, "变量名为空");
+        return nullptr;
+    }
+    if (currentFunc) {
+        // 获取变量作用域的层级
+        int32_t scope_level;
+        if (name.empty()) {
+            scope_level = 1;
+        } else {
+            scope_level = scopeStack->getCurrentScopeLevel();
+        }
+
+        retVal = currentFunc->newLocalVarValue(type, name, scope_level);
+
+    } else {
+        retVal = newGlobalVariable(type, name);
+    }
+
+    //更新下标表
+    for (auto x: index) {
+        retVal->arraydimensionVector.push_back(x);
+    }
+    scopeStack->insertValue(retVal);
+    retVal->setConst(true);
     return retVal;
 }
