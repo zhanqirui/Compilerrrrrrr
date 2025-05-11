@@ -183,6 +183,7 @@ bool IRGenerator::ir_function_define(ast_node * node)
     if (module->getCurrentFunction()) {
         // 函数中嵌套定义函数，这是不允许的，错误退出
         // TODO 自行追加语义错误处理
+        printf("Error: function define in function\n");
         return false;
     }
 
@@ -216,6 +217,7 @@ bool IRGenerator::ir_function_define(ast_node * node)
     // 这里也可增加一个函数入口Label指令，便于后续基本块划分
 
     // 创建并加入Entry入口指令
+    // LLVM IR没有入口指令，所以直接把入口指令先注释掉，或者我看到有些地方有有些地方没有，可以存疑
     irCode.addInst(new EntryInstruction(newFunc));
 
     // 创建出口指令并不加入出口指令，等函数内的指令处理完毕后加入出口指令
