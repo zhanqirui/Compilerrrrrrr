@@ -1,19 +1,3 @@
-///
-/// @file MoveInstruction.h
-/// @brief 为了处理这种情况专门设计的指令。%t31 = *%t30
-///
-/// @author zenglj (zenglj@live.com)
-/// @version 1.0
-/// @date 2024-09-29
-///
-/// @copyright Copyright (c) 2024
-///
-/// @par 修改日志:
-/// <table>
-/// <tr><th>Date       <th>Version <th>Author  <th>Description
-/// <tr><td>2024-09-29 <td>1.0     <td>zenglj  <td>新建
-/// </table>
-///
 #pragma once
 
 #include <string>

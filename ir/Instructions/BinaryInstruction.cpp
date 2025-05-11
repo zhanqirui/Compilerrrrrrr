@@ -38,12 +38,20 @@ void BinaryInstruction::toString(std::string & str)
 {
 
     Value *src1 = getOperand(0), *src2 = getOperand(1);
-
+    std::string type_str = " ";
+    if (src1->isConst()) {
+        if (src1->type->isIntegerType())
+            type_str = "i32 ";
+        else if (src1->type->isFloatType())
+            type_str = "float "; // LLVM IR 中是 "float"，不是 "f32"
+    }
     switch (op) {
         case IRInstOperator::IRINST_OP_ADD_I:
 
             // 加法指令，二元运算
-            str = getIRName() + " = add " + src1->getIRName() + "," + src2->getIRName();
+
+            str = getIRName() + " = add nsw " + type_str + src1->getIRName() + ", " + src2->getIRName();
+
             break;
         case IRInstOperator::IRINST_OP_SUB_I:
 

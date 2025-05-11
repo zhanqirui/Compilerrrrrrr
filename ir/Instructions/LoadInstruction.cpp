@@ -1,12 +1,21 @@
 ///
-/// @file LoadInstruction.cpp
-/// @brief Load 指令，也就是 DragonIR 中的从内存加载指令（类似 LLVM 的 load）
+/// @file MoveInstruction.cpp
+/// @brief Move指令，也就是DragonIR的Asssign指令
 ///
-/// @author ...
+/// @author zenglj (zenglj@live.com)
 /// @version 1.0
 /// @date 2024-09-29
 ///
-#include "Instruction.h"
+/// @copyright Copyright (c) 2024
+///
+/// @par 修改日志:
+/// <table>
+/// <tr><th>Date       <th>Version <th>Author  <th>Description
+/// <tr><td>2024-09-29 <td>1.0     <td>zenglj  <td>新建
+/// </table>
+///
+
+#include "IntegerType.h"
 #include "FloatType.h"
 
 #include "LoadInstruction.h"
@@ -14,29 +23,26 @@
 ///
 /// @brief 构造函数
 /// @param _func 所属的函数
-/// @param result 加载目标
-/// @param srcPtr 内存地址源
+/// @param result 结构操作数
+/// @param srcVal1 源操作数
 ///
-LoadInstruction::LoadInstruction(Function * _func, Value * result, Value * srcPtr)
-    : Instruction(_func,
-                  IRInstOperator::IRINST_OP_LOAD,
-                  result->getType() // 加载类型与目标相同
-      )
+LoadInstruction::LoadInstruction(Function * _func, Value * srcVal1, bool is_int)
+    : Instruction(
+          _func,
+          IRInstOperator::IRINST_OP_ASSIGN,
+          (is_int ? static_cast<Type *>(IntegerType::getTypeInt()) : static_cast<Type *>(FloatType::getTypeFloat())))
 {
-    addOperand(result); // 第一个操作数是目的变量
-    addOperand(srcPtr); // 第二个是地址源（指针）
+    addOperand(srcVal1);
 }
 
-///
-/// @brief 转换成字符串
-/// @param str 输出字符串
-///
+/// @brief 转换成字符串显示
+/// @param str 转换后的字符串
 void LoadInstruction::toString(std::string & str)
 {
-    Value * result = getOperand(0);
-    Value * srcPtr = getOperand(1);
 
-    // 类似 LLVM IR: %result = load i32, i32* %srcPtr, align 4
-    str = result->getIRName() + " = load " + result->getType()->toString() + ", " + result->getType()->toString() +
-          "* " + srcPtr->getIRName() + ", align 4";
+    Value * srcVal1 = getOperand(0);
+    str = getIRName() + " =  Load " + getType()->toString() + ", " + getType()->toString() + "* " +
+          srcVal1->getIRName() + ", align4";
+    //根据LLVM的要求，store指令的格式为
+    // str = "store " + srcVal1->getType()->toString() + "* " + srcVal1->getIRName() + ", align 4";
 }

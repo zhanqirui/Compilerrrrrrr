@@ -163,7 +163,7 @@ void Function::toString(std::string & str)
 
     // 输出局部变量的名字与IR名字
     for (auto & var: this->varsVector) {
-        str += "\t";
+        // str += "\t";
 
         if (var->isConst()) {
             // 判断是否为 ConstVariable 类型并强转（前提是你确认变量来自该类）
@@ -174,6 +174,10 @@ void Function::toString(std::string & str)
         // 局部变量和临时变量需要输出declare语句
         // str += "declare " + var->getType()->toString() + " " + var->getIRName();
         //修改为LLVM的alloca语句
+        if ((var->name.empty())) {
+            continue;
+        }
+        str += "\t";
         str += var->getIRName() + " = alloca " + var->getType()->toString() + ", " + "align 4";
 
         const std::vector<int32_t> dims = var->arraydimensionVector;
@@ -223,7 +227,7 @@ void Function::toString(std::string & str)
 
             // 局部变量和临时变量需要输出declare语句
             // str += "\tdeclare " + inst->getType()->toString() + " " + inst->getIRName() + "\n";
-            str += "\t" + inst->getIRName() + " = alloca " + inst->getType()->toString() + ", " + "align 4" + "\n";
+            // str += "\t" + inst->getIRName() + " = alloca " + inst->getType()->toString() + ", " + "align 4" + "\n";
         }
     }
 
@@ -264,14 +268,14 @@ Instruction * Function::getExitLabel()
 
 /// @brief 设置函数返回值变量
 /// @param val 返回值变量，要求必须是局部变量，不能是临时变量
-void Function::setReturnValue(LocalVariable * val)
+void Function::setReturnValue(Value * val)
 {
     returnValue = val;
 }
 
 /// @brief 获取函数返回值变量
 /// @return 返回值变量
-LocalVariable * Function::getReturnValue()
+Value * Function::getReturnValue()
 {
     return returnValue;
 }
@@ -388,25 +392,29 @@ void Function::renameIR()
         return;
     }
 
-    int32_t nameIndex = 0;
+    int32_t nameIndex = 1;
 
     // 形式参数重命名
     for (auto & param: this->params) {
-        param->setIRName(IR_TEMP_VARNAME_PREFIX + std::to_string(nameIndex++));
+        param->setIRName("%" + std::to_string(nameIndex++));
+        // param->setIRName(IR_TEMP_VARNAME_PREFIX + std::to_string(nameIndex++));
     }
 
     // 局部变量重命名
     for (auto & var: this->varsVector) {
 
-        var->setIRName(IR_LOCAL_VARNAME_PREFIX + std::to_string(nameIndex++));
+        // var->setIRName(IR_LOCAL_VARNAME_PREFIX + std::to_string(nameIndex++));
+        var->setIRName("%" + std::to_string(nameIndex++));
     }
 
     // 遍历所有的指令进行命名
     for (auto inst: this->getInterCode().getInsts()) {
         if (inst->getOp() == IRInstOperator::IRINST_OP_LABEL) {
-            inst->setIRName(IR_LABEL_PREFIX + std::to_string(nameIndex++));
+            // inst->setIRName(IR_LABEL_PREFIX + std::to_string(nameIndex++));
+            inst->setIRName("%" + std::to_string(nameIndex++));
         } else if (inst->hasResultValue()) {
-            inst->setIRName(IR_TEMP_VARNAME_PREFIX + std::to_string(nameIndex++));
+            // inst->setIRName(IR_TEMP_VARNAME_PREFIX + std::to_string(nameIndex++));
+            inst->setIRName("%" + std::to_string(nameIndex++));
         }
     }
 }
