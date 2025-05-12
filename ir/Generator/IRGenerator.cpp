@@ -408,15 +408,19 @@ bool IRGenerator::ir_if_else(ast_node * node)
         module->enterScope();
     }
     Function * currentFunc = module->getCurrentFunction();
-    LabelInstruction * entryLabelInst = new LabelInstruction(currentFunc);
-    node->blockInsts.addInst(entryLabelInst);
+
+    LabelInstruction * exitLabelInst = new LabelInstruction(currentFunc);
+    LabelInstruction * entryLabelInst;
+    if (!(node->parent->node_type == ast_operator_type::AST_OP_BLOCK)) {
+        entryLabelInst = new LabelInstruction(currentFunc);
+        node->blockInsts.addInst(entryLabelInst);
+    }
     ast_node * cond = ir_visit_ast_node(node->sons[0]);
     // cond->blocks是放的最后计算的变量，%t2= icmp gt %l1,100中的t2.
     node->blockInsts.addInst(cond->blockInsts);
 
     ast_node * branch1 = ir_visit_ast_node(node->sons[1]);
     ast_node * branch2;
-    LabelInstruction * exitLabelInst;
     BranchifCondition * branch_Inst;
     // 可能不存在else分支，只有单if
     if (node->sons[2]) {
@@ -424,15 +428,18 @@ bool IRGenerator::ir_if_else(ast_node * node)
         branch_Inst = new BranchifCondition(module->getCurrentFunction(), cond->val, branch1->val, branch2->val);
         node->blockInsts.addInst(branch_Inst);
         node->blockInsts.addInst(branch1->blockInsts);
+        node->blockInsts.addInst(new GotoInstruction(currentFunc, exitLabelInst));
         node->blockInsts.addInst(branch2->blockInsts);
+        node->blockInsts.addInst(new GotoInstruction(currentFunc, exitLabelInst));
     } else {
-        exitLabelInst = new LabelInstruction(currentFunc);
+        // exitLabelInst = new LabelInstruction(currentFunc);
         branch_Inst = new BranchifCondition(module->getCurrentFunction(), cond->val, branch1->val, exitLabelInst);
         node->blockInsts.addInst(branch_Inst);
         node->blockInsts.addInst(branch1->blockInsts);
-        node->blockInsts.addInst(exitLabelInst);
+        node->blockInsts.addInst(new GotoInstruction(currentFunc, exitLabelInst));
 
     } // branch1->val是一个label指令
+    node->blockInsts.addInst(exitLabelInst);
     node->val = entryLabelInst;
     // 离开作用域
     if (node->needScope) {
@@ -1298,6 +1305,11 @@ bool IRGenerator::ir_variable_declare(ast_node * node)
 // #赋值语句
 bool IRGenerator::ir_assign(ast_node * node)
 {
+    LabelInstruction * labelInst = nullptr;
+    if (node->parent->node_type == ast_operator_type::AST_OP_IF_ELSE_STMT) {
+        labelInst = new LabelInstruction(module->getCurrentFunction());
+        node->blockInsts.addInst(labelInst);
+    }
     ast_node * son1_node = node->sons[0];
     ast_node * son2_node = node->sons[1];
 
@@ -1331,8 +1343,11 @@ bool IRGenerator::ir_assign(ast_node * node)
     node->blockInsts.addInst(movInst);
 
     // 这里假定赋值的类型是一致的
-
-    node->val = movInst;
+    if (node->parent->node_type == ast_operator_type::AST_OP_IF_ELSE_STMT) {
+        node->val = labelInst;
+    } else {
+        node->val = movInst;
+    }
 
     return true;
 }

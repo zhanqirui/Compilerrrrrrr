@@ -82,7 +82,7 @@ void FuncCallInstruction::toString(std::string & str)
 
             auto operand = getOperand(k);
 
-            str += operand->getType()->toString() + " noundef " + operand->getIRName();
+            str += operand->getType()->toString() + " " + operand->getIRName();
 
             if (k != (argCount - 1)) {
                 str += ", ";

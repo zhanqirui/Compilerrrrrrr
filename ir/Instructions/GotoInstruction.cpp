@@ -33,7 +33,7 @@ GotoInstruction::GotoInstruction(Function * _func, Instruction * _target)
 /// @brief 转换成IR指令文本
 void GotoInstruction::toString(std::string & str)
 {
-    str = "br label " + target->getIRName();
+    str = "br label %" + target->getIRName();
 }
 
 ///

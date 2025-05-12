@@ -80,7 +80,11 @@ public:
     /// @brief 获取函数出口指令
     /// @return 出口Label指令
     Instruction * getExitLabel();
+    void setBlockExitLabel(Instruction * inst);
 
+    /// @brief 获取函数出口指令
+    /// @return 出口Label指令
+    Instruction * getBlockExitLabel();
     /// @brief 设置函数返回值变量
     /// @param val 返回值变量，要求必须是局部变量，不能是临时变量
     void setReturnValue(Value * val);
@@ -88,6 +92,7 @@ public:
     /// @brief 获取函数返回值变量
     /// @return 返回值变量
     Value * getReturnValue();
+
     void set_block_entry_Lable(LabelInstruction * entryLabelInst);
     void set_block_exit_Lable(LabelInstruction * exitLabelInst);
     LabelInstruction * getblock_entry_Lable();
@@ -230,6 +235,7 @@ private:
     /// @brief 函数出口Label指令
     ///
     Instruction * exitLabel = nullptr;
+    Instruction * BlockExitLabel = nullptr;
 
     ///
     /// @brief 函数返回值变量，不能是临时变量，必须是局部变量

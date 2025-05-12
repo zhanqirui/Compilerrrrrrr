@@ -69,7 +69,17 @@ bool Function::isBuiltin()
 {
     return builtIn;
 }
+void Function::setBlockExitLabel(Instruction * inst)
+{
+    BlockExitLabel = inst;
+}
 
+/// @brief 获取函数出口指令
+/// @return 出口Label指令
+Instruction * Function::getBlockExitLabel()
+{
+    return BlockExitLabel;
+}
 int Function::getStride(const std::vector<int> & dims, int index)
 {
     int stride = 1;
@@ -161,7 +171,7 @@ void Function::toString(std::string & str)
         }
 
         //先不考虑有默认值
-        std::string param_str = param->getType()->toString() + " noundef " + param->getIRName();
+        std::string param_str = param->getType()->toString() + " " + param->getIRName();
 
         str += param_str;
     }
@@ -422,7 +432,7 @@ void Function::renameIR()
     for (auto inst: this->getInterCode().getInsts()) {
         if (inst->getOp() == IRInstOperator::IRINST_OP_LABEL) {
             // inst->setIRName(IR_LABEL_PREFIX + std::to_string(nameIndex++));
-            inst->setIRName("%" + std::to_string(nameIndex++));
+            inst->setIRName(std::to_string(nameIndex++));
         } else if (inst->hasResultValue()) {
             // inst->setIRName(IR_TEMP_VARNAME_PREFIX + std::to_string(nameIndex++));
             inst->setIRName("%" + std::to_string(nameIndex++));
