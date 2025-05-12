@@ -157,7 +157,7 @@ void Function::toString(std::string & str)
         str += param_str;
     }
 
-    str += ") #0\n";
+    str += ") #0 ";
 
     str += "{\n";
 
@@ -174,9 +174,6 @@ void Function::toString(std::string & str)
         // 局部变量和临时变量需要输出declare语句
         // str += "declare " + var->getType()->toString() + " " + var->getIRName();
         //修改为LLVM的alloca语句
-        if ((var->name.empty())) {
-            continue;
-        }
         str += "\t";
         str += var->getIRName() + " = alloca " + var->getType()->toString() + ", " + "align 4";
 

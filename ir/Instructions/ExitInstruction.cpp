@@ -37,6 +37,6 @@ void ExitInstruction::toString(std::string & str)
         str = "ret void";
     } else {
         Value * src1 = getOperand(0);
-        str = "ret " + src1->getIRName();
+        str = "ret " + src1->getType()->toString() + " " + src1->getIRName();
     }
 }

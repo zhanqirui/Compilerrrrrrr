@@ -219,7 +219,7 @@ bool IRGenerator::ir_function_define(ast_node * node)
 
     // 创建并加入Entry入口指令
     // LLVM IR没有入口指令，所以直接把入口指令先注释掉，或者我看到有些地方有有些地方没有，可以存疑
-    irCode.addInst(new EntryInstruction(newFunc));
+    // irCode.addInst(new EntryInstruction(newFunc));
 
     // 创建出口指令并不加入出口指令，等函数内的指令处理完毕后加入出口指令
     LabelInstruction * entryLabelInst = new LabelInstruction(newFunc);
@@ -259,13 +259,16 @@ bool IRGenerator::ir_function_define(ast_node * node)
     // --- 新增结束 ---
 
     // 新建一个Value，用于保存函数的返回值，如果没有返回值可不用申请
-    // LocalVariable * retValue = nullptr;
-    // if (!type_node->type->isVoidType()) {
+    LocalVariable * retValue = nullptr;
+    if (!type_node->type->isVoidType()) {
 
-    //     // 保存函数返回值变量到函数信息中，在return语句翻译时需要设置值到这个变量中
-    //     retValue = static_cast<LocalVariable *>(module->newVarValue(type_node->type));
-    // }
-    // newFunc->setReturnValue(retValue);
+        // 保存函数返回值变量到函数信息中，在return语句翻译时需要设置值到这个变量中
+        retValue = static_cast<LocalVariable *>(module->newVarValue(type_node->type));
+        MoveInstruction * movInst =
+            new MoveInstruction(module->getCurrentFunction(), retValue, module->newConstInt((int32_t) 0));
+        irCode.addInst(movInst);
+    }
+    newFunc->setReturnValue(retValue);
 
     // 函数内已经进入作用域，内部不再需要做变量的作用域管理
     block_node->needScope = false;
@@ -287,11 +290,12 @@ bool IRGenerator::ir_function_define(ast_node * node)
     irCode.addInst(node->blockInsts);
 
     // 添加函数出口Label指令，主要用于return语句跳转到这里进行函数的退出
-    irCode.addInst(entryLabelInst);
-
-    // 函数出口指令
-    // irCode.addInst(new ExitInstruction(newFunc, retValue));
-    irCode.addInst(new ExitInstruction(newFunc, newFunc->getReturnValue()));
+    // irCode.addInst(entryLabelInst);
+    if (retValue == newFunc->getReturnValue()) {
+        irCode.addInst(new ExitInstruction(newFunc, newFunc->getReturnValue()));
+    } else {
+        irCode.addInst(new ExitInstruction(newFunc, newFunc->getReturnValue()));
+    }
 
     // 恢复成外部函数
     module->setCurrentFunction(nullptr);
@@ -509,7 +513,7 @@ bool IRGenerator::ir_return(ast_node * node)
     }
 
     // 跳转到函数的尾部出口指令上
-    node->blockInsts.addInst(new GotoInstruction(currentFunc, currentFunc->getExitLabel()));
+    // node->blockInsts.addInst(new GotoInstruction(currentFunc, currentFunc->getExitLabel()));
 
     node->val = right->val;
 

@@ -41,8 +41,8 @@ void LoadInstruction::toString(std::string & str)
 {
 
     Value * srcVal1 = getOperand(0);
-    str = getIRName() + " =  Load " + getType()->toString() + ", " + getType()->toString() + "* " +
-          srcVal1->getIRName() + ", align4";
+    str = getIRName() + " = load " + getType()->toString() + ", " + getType()->toString() + "* " +
+          srcVal1->getIRName() + ", align 4";
     //根据LLVM的要求，store指令的格式为
     // str = "store " + srcVal1->getType()->toString() + "* " + srcVal1->getIRName() + ", align 4";
 }

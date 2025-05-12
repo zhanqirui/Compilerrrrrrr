@@ -39,7 +39,7 @@ void BinaryInstruction::toString(std::string & str)
 
     Value *src1 = getOperand(0), *src2 = getOperand(1);
     std::string type_str = " ";
-    if (src1->isConst()) {
+    {
         if (src1->type->isIntegerType())
             type_str = "i32 ";
         else if (src1->type->isFloatType())
