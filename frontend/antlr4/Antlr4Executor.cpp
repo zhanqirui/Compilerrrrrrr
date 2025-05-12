@@ -59,3 +59,42 @@ bool Antlr4Executor::run()
 
     return true;
 }
+
+bool Antlr4Executor::run(std::map<std::string, int>& NameToReturnNum)
+{
+	std::ifstream ifs;
+    ifs.open(filename);
+    if (!ifs.is_open()) {
+        minic_log(LOG_ERROR, "文件(%s)不能打开，可能不存在", filename.c_str());
+        return false;
+    }
+
+    // antlr4的输入流类实例
+    antlr4::ANTLRInputStream input{ifs};
+
+    // 词法分析器实例
+    MiniCLexer lexer{&input};
+
+    // 词法分析器实例转化成记号(Token)流
+    antlr4::CommonTokenStream tokenStream{&lexer};
+
+    // 利用antlr4进行分析，从compileUnit开始分析输入字符串
+    MiniCParser parser{&tokenStream};
+
+    // 从具体语法树的根结点进行深度优先遍历，生成抽象语法树
+    auto cstRoot = parser.compUnit();
+    if (!cstRoot) {
+        minic_log(LOG_ERROR, "Antlr4的词语与语法分析错误");
+        return false;
+    }
+
+    /// 新建遍历器对具体语法树进行分析，产生抽象语法树
+    MiniCCSTVisitor visitor;
+
+    // 遍历产生抽象语法树
+    astRoot = visitor.run(cstRoot);
+
+	NameToReturnNum = visitor.getReturnNum();
+
+    return true;
+}

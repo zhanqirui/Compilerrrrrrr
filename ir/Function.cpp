@@ -174,7 +174,7 @@ void Function::toString(std::string & str)
         // 局部变量和临时变量需要输出declare语句
         // str += "declare " + var->getType()->toString() + " " + var->getIRName();
         //修改为LLVM的alloca语句
-        str += "\t";
+        str += "  ";
         str += var->getIRName() + " = alloca " + var->getType()->toString() + ", " + "align 4";
 
         const std::vector<int32_t> dims = var->arraydimensionVector;
@@ -240,7 +240,7 @@ void Function::toString(std::string & str)
             if (inst->getOp() == IRInstOperator::IRINST_OP_LABEL) {
                 str += instStr + "\n";
             } else {
-                str += "\t" + instStr + "\n";
+                str += "  " + instStr + "\n";
             }
         }
     }
@@ -389,14 +389,19 @@ void Function::renameIR()
         return;
     }
 
-    int32_t nameIndex = 1;
+    int32_t nameIndex = 0;
 
     // 形式参数重命名
     for (auto & param: this->params) {
         param->setIRName("%" + std::to_string(nameIndex++));
         // param->setIRName(IR_TEMP_VARNAME_PREFIX + std::to_string(nameIndex++));
     }
-
+    for (auto inst: this->getInterCode().getInsts()) {
+        if (inst->getOp() == IRInstOperator::IRINST_OP_ENTRY) {
+            // inst->setIRName(IR_LABEL_PREFIX + std::to_string(nameIndex++));
+            inst->setIRName("entry" + std::to_string(nameIndex++));
+        }
+    }
     // 局部变量重命名
     for (auto & var: this->varsVector) {
 

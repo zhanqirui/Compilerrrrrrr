@@ -272,20 +272,14 @@ static int compile(std::string inputFile, std::string outputFile)
         // 4) 把线性IR转换成汇编
 
         // 创建词法语法分析器
-        FrontEndExecutor * frontEndExecutor;
-        if (gFrontEndAntlr4) {
-            // Antlr4
-            frontEndExecutor = new Antlr4Executor(inputFile);
-        } else if (gFrontEndRecursiveDescentParsing) {
-            // 递归下降分析法
-            frontEndExecutor = new RecursiveDescentExecutor(inputFile);
-        } else {
-            // 默认为Flex+Bison
-            frontEndExecutor = new FlexBisonExecutor(inputFile);
-        }
+        Antlr4Executor * frontEndExecutor;
+
+        // Antlr4
+        frontEndExecutor = new Antlr4Executor(inputFile);
 
         // 前端执行：词法分析、语法分析后产生抽象语法树，其root为全局变量ast_root
-        subResult = frontEndExecutor->run();
+        std::map<std::string, int> NameToReturnNum;
+        subResult = frontEndExecutor->run(NameToReturnNum);
         if (!subResult) {
 
             minic_log(LOG_ERROR, "前端分析错误");

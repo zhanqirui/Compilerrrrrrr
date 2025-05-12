@@ -56,17 +56,17 @@ void BinaryInstruction::toString(std::string & str)
         case IRInstOperator::IRINST_OP_SUB_I:
 
             // 减法指令，二元运算
-            str = getIRName() + " = sub " + src1->getIRName() + "," + src2->getIRName();
+            str = getIRName() + " = sub nsw " + type_str + src1->getIRName() + ", " + src2->getIRName();
             break;
         case IRInstOperator::IRINST_OP_MUL_I:
 
             // 减法指令，二元运算
-            str = getIRName() + " = mul " + src1->getIRName() + "," + src2->getIRName();
+            str = getIRName() + " = mul nsw " + type_str + src1->getIRName() + ", " + src2->getIRName();
             break;
         case IRInstOperator::IRINST_OP_DIV_I:
 
             // 减法指令，二元运算
-            str = getIRName() + " = div " + src1->getIRName() + "," + src2->getIRName();
+            str = getIRName() + " = div nsw " + type_str + src1->getIRName() + ", " + src2->getIRName();
             break;
         case IRInstOperator::IRINST_OP_GT_I:
 

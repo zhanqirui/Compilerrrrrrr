@@ -15,6 +15,7 @@
 ///
 
 #include "FrontEndExecutor.h"
+#include <map>
 
 class Antlr4Executor : public FrontEndExecutor {
 public:
@@ -26,4 +27,6 @@ public:
     /// @brief 前端词法与语法解析生成AST
     /// @return true: 成功 false：错误
     bool run() override;
+
+    bool run(std::map<std::string, int>& NameToReturnNum);
 };

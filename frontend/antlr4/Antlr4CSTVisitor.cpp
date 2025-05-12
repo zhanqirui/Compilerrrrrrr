@@ -205,11 +205,23 @@ std::any MiniCCSTVisitor::visitArrayInitVal(MiniCParser::ArrayInitValContext *ct
 std::any MiniCCSTVisitor::visitFuncDef(MiniCParser::FuncDefContext *ctx) {
 	// funcDef : funcType Ident '(' funcFParams? ')' block
 	type_attr funcReturnType;
-	funcReturnType.type = BasicType::TYPE_INT;
+	std::string return_type = ctx->funcType()->getText();
+	if (return_type == "void") {
+		funcReturnType.type = BasicType::TYPE_VOID;
+	} else if (return_type == "int") {
+		funcReturnType.type = BasicType::TYPE_INT;
+	} else if (return_type == "float") {
+		funcReturnType.type = BasicType::TYPE_FLOAT;
+	} else {
+		funcReturnType.type = BasicType::TYPE_MAX;
+	}
 	funcReturnType.lineno = ctx->getStart()->getLine();
 	var_id_attr funcId;
 	funcId.id = strdup(ctx->Ident()->getText().c_str());
 	funcId.lineno = ctx->Ident()->getSymbol()->getLine();
+
+	this->CurrentFunctionName = funcId.id;
+
 	ast_node *formalParamsNode = nullptr;
 	if (ctx->funcFParams()) {
 		formalParamsNode = std::any_cast<ast_node *>(visit(ctx->funcFParams()));
@@ -291,6 +303,16 @@ std::any MiniCCSTVisitor::visitBlockDeclaration(MiniCParser::BlockDeclarationCon
 }
 std::any MiniCCSTVisitor::visitBlockStatement(MiniCParser::BlockStatementContext *ctx) {
 	// blockStatement : stmt
+	std::string stmt_string = ctx->getText();
+	if (stmt_string.find("return") != std::string::npos) {
+		// 处理函数返回语句并计算函数返回值个数
+		Instanceof(returnStmtCtx, MiniCParser::ReturnStmtContext *, ctx->stmt());
+		if (returnStmtCtx) {
+			// 处理函数返回语句
+			return visitReturnStmtWithReturnNum(returnStmtCtx, this->CurrentFunctionName);
+		}
+        return nullptr;
+    }
 	return visit(ctx->stmt());
 }
 std::any MiniCCSTVisitor::visitAssignmentStatement(MiniCParser::AssignmentStatementContext *ctx) {
@@ -299,6 +321,21 @@ std::any MiniCCSTVisitor::visitAssignmentStatement(MiniCParser::AssignmentStatem
 	auto expr = std::any_cast<ast_node *>(visit(ctx->exp()));
 	return create_assign_stmt_node(lval, expr);
 }
+
+std::any MiniCCSTVisitor::visitReturnStmtWithReturnNum(MiniCParser::ReturnStmtContext * ctx, std::string FunctionName)
+{
+	if(this->NameToReturnNum.find(FunctionName) == this->NameToReturnNum.end())
+	{
+		this->NameToReturnNum[FunctionName] = 1;
+	}
+	else
+	{
+		this->NameToReturnNum[FunctionName]++;
+	}
+
+	return visitReturnStmt(ctx);
+}
+
 // !一定要带前缀：MiniCCSTVisitor
 std::any MiniCCSTVisitor::visitReturnStmt(MiniCParser::ReturnStmtContext * ctx){
 	// returnStmt : 'return' exp? ';'
@@ -610,3 +647,5 @@ std::any MiniCCSTVisitor::visitConstExp(MiniCParser::ConstExpContext *ctx) {
 	return create_const_exp_node(expr);
 
 }
+
+

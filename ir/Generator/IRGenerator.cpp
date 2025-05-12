@@ -219,7 +219,7 @@ bool IRGenerator::ir_function_define(ast_node * node)
 
     // 创建并加入Entry入口指令
     // LLVM IR没有入口指令，所以直接把入口指令先注释掉，或者我看到有些地方有有些地方没有，可以存疑
-    // irCode.addInst(new EntryInstruction(newFunc));
+    irCode.addInst(new EntryInstruction(newFunc));
 
     // 创建出口指令并不加入出口指令，等函数内的指令处理完毕后加入出口指令
     LabelInstruction * entryLabelInst = new LabelInstruction(newFunc);
@@ -260,7 +260,7 @@ bool IRGenerator::ir_function_define(ast_node * node)
 
     // 新建一个Value，用于保存函数的返回值，如果没有返回值可不用申请
     LocalVariable * retValue = nullptr;
-    if (!type_node->type->isVoidType()) {
+    if (!type_node->type->isVoidType()&&name_node->name=="main") {
 
         // 保存函数返回值变量到函数信息中，在return语句翻译时需要设置值到这个变量中
         retValue = static_cast<LocalVariable *>(module->newVarValue(type_node->type));
