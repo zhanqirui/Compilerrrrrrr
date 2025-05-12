@@ -1,21 +1,41 @@
-@a = dso_local global i32 0, align 4
-define dso_local i32 @func(i32 noundef %0) #0 {
-  %2 = alloca i32, align 4
-  store i32 %0, i32* %2, align 4
-  %3 = load i32, i32* %2, align 4
-  %4 = sub nsw i32 %3, 1
-  store i32 %4, i32* %2, align 4
-  %5 = load i32, i32* %2, align 4
-  ret i32 %5
-}
 define dso_local i32 @main() #0 {
   %1 = alloca i32, align 4
-  %2 = alloca i32, align 4
+  %2 = alloca i32*, align 4[4][2] = {{0, 0}, {0, 0}, {0, 0}, {0, 0}}
+  %3 = alloca i32*, align 4[4][2] = {{1.000000, 2.000000}, {3.000000, 4.000000}, {5.000000, 6.000000}, {7.000000, 8.000000}}
+  %4 = alloca i32*, align 4[4][2] = {{1.000000, 2.000000}, {3.000000, 4.000000}, {5.000000, 6.000000}, {7.000000, 8.000000}}
+  %5 = alloca i32*, align 4[4][2] = {{1.000000, 2.000000}, {3.000000, 0}, {5.000000, 0}, {7.000000, 8.000000}}
+  %6 = alloca i32*, align 4[4][2] = {{0.000000, 0.000000}, {3.000000, 4.000000}, {5.000000, 6.000000}, {7.000000, 8.000000}}
   store i32 0, i32* %1, align 4
-  store i32 10, i32* @a, align 4
-  %3 = load i32, i32* @a, align 4
-  %4 = call i32 @func(i32 noundef %3)
-  store i32 %4, i32* %2, align 4
-  %5 = load i32, i32* %2, align 4
-  ret i32 %5
+  %7 = mul nsw i32 2, 2
+  %8 = add nsw i32 %7, 1
+  %9 = mul nsw i32 %8, 4
+  %10 = add nsw i32 %9, %5
+  %11 = mul nsw i32 2, 2
+  %12 = add nsw i32 %11, 1
+  %13 = mul nsw i32 %12, 4
+  %14 = add nsw i32 %13, %4
+  %15 = mul nsw i32 3, 2
+  %16 = add nsw i32 %15, 1
+  %17 = mul nsw i32 %16, 4
+  %18 = add nsw i32 %17, %6
+  %19 = *%18
+  %20 = mul nsw i32 0, 2
+  %21 = add nsw i32 %20, 0
+  %22 = mul nsw i32 %21, 4
+  %23 = add nsw i32 %22, %6
+  %24 = *%23
+  %25 = add nsw i32 %19, %24
+  %26 = mul nsw i32 0, 2
+  %27 = add nsw i32 %26, 1
+  %28 = mul nsw i32 %27, 4
+  %29 = add nsw i32 %28, %6
+  %30 = *%29
+  %31 = add nsw i32 %25, %30
+  %32 = mul nsw i32 2, 2
+  %33 = add nsw i32 %32, 0
+  %34 = mul nsw i32 %33, 4
+  %35 = add nsw i32 %34, %2
+  %36 = *%35
+  %37 = add nsw i32 %31, %36
+  ret i32 %37
 }

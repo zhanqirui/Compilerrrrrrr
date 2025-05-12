@@ -43,6 +43,11 @@ public:
     /// @brief 注意：IR指令代码并未释放，需要手动释放
     ~Function();
 
+    /// @brief 处理数组的维度跨度
+    /// @param dims
+    /// @param index
+    /// @return
+    int getStride(const std::vector<int> & dims, int index);
     std::string processMultiDimArray(Value * Var,
                                      const std::vector<int32_t> & dims,
                                      const std::vector<FlattenedArrayElement> & flattenedArray,

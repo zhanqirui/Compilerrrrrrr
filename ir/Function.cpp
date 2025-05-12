@@ -69,6 +69,15 @@ bool Function::isBuiltin()
 {
     return builtIn;
 }
+
+int Function::getStride(const std::vector<int> & dims, int index)
+{
+    int stride = 1;
+    for (int i = index + 1; i < dims.size(); ++i) {
+        stride *= dims[i];
+    }
+    return stride;
+}
 /// @brief 递归处理多维数组
 /// @param dims 当前维度信息
 /// @param flattenedArray 展平后的数组
@@ -118,7 +127,7 @@ std::string Function::processMultiDimArray(Value * Var,
                                            dims,
                                            flattenedArray,
                                            currentIndex + 1,
-                                           flatOffset + i * dims[currentIndex + 1]);
+                                           flatOffset + i * getStride(dims, currentIndex));
 
             // 添加逗号分隔符，最后一个元素不加逗号
             if (i < dims[currentIndex] - 1) {

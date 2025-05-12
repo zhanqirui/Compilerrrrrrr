@@ -260,7 +260,7 @@ bool IRGenerator::ir_function_define(ast_node * node)
 
     // 新建一个Value，用于保存函数的返回值，如果没有返回值可不用申请
     LocalVariable * retValue = nullptr;
-    if (!type_node->type->isVoidType()&&name_node->name=="main") {
+    if (!type_node->type->isVoidType() && name_node->name == "main") {
 
         // 保存函数返回值变量到函数信息中，在return语句翻译时需要设置值到这个变量中
         retValue = static_cast<LocalVariable *>(module->newVarValue(type_node->type));
@@ -356,8 +356,10 @@ bool IRGenerator::ir_block(ast_node * node)
         if (!temp) {
             return false;
         }
-
         node->blockInsts.addInst(temp->blockInsts);
+        if ((*pIter)->node_type == ast_operator_type::AST_OP_RETURN) {
+            break;
+        }
     }
 
     // 离开作用域
@@ -1437,22 +1439,7 @@ void IRGenerator::flatten_array_init(std::string name,
                 }
             }
         }
-        /*
-        if (node->parent->sons[now_rank + 1] &&
-            (node->parent->sons[now_rank + 1]->node_type == ast_operator_type::AST_OP_SCALAR_CONST_INIT ||
-             node->parent->sons[now_rank + 1]->node_type == ast_operator_type::AST_OP_SCALAR_INIT)) {
-            int i = index_counters.size() - 1;
-            if (index_counters[i] == dimensions[i] - 1) {
-                while (index_counters[i] == dimensions[i] - 1 && i > 0) {
-                    index_counters[i] = 0;
-                    index_counters[i - 1] += 1;
-                    i--;
-                }
-            } else {
-                index_counters[i] += 1;
-            }
-        }
-        */
+
         return;
     }
 
@@ -1463,7 +1450,10 @@ void IRGenerator::flatten_array_init(std::string name,
         if (level > -1) {
             // level = -1,说明是最开始的初始化根节点，那就没必要做了
             //初始化的具体做法是当前维度直接进1，后续维度清零
-            index_counters[level] += 1;
+            //如果是后续的第一个根节点那也不需要进位
+            if (now_rank > 0) {
+                index_counters[level] += 1;
+            }
             for (int i = level + 1; i < index_counters.size(); i++) {
                 index_counters[i] = 0;
             }
