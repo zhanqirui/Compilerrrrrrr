@@ -216,24 +216,10 @@ std::any MiniCCSTVisitor::visitFuncDef(MiniCParser::FuncDefContext *ctx) {
 	} else {
 		funcReturnType.type = BasicType::TYPE_MAX;
 	}
-	std::string return_type = ctx->funcType()->getText();
-	if (return_type == "void") {
-		funcReturnType.type = BasicType::TYPE_VOID;
-	} else if (return_type == "int") {
-		funcReturnType.type = BasicType::TYPE_INT;
-	} else if (return_type == "float") {
-		funcReturnType.type = BasicType::TYPE_FLOAT;
-	} else {
-		funcReturnType.type = BasicType::TYPE_MAX;
-	}
 	funcReturnType.lineno = ctx->getStart()->getLine();
 	var_id_attr funcId;
 	funcId.id = strdup(ctx->Ident()->getText().c_str());
 	funcId.lineno = ctx->Ident()->getSymbol()->getLine();
-
-	this->CurrentFunctionName = funcId.id;
-
-
 	this->CurrentFunctionName = funcId.id;
 
 	ast_node *formalParamsNode = nullptr;
@@ -351,22 +337,6 @@ std::any MiniCCSTVisitor::visitReturnStmtWithReturnNum(MiniCParser::ReturnStmtCo
 
 	return visitReturnStmt(ctx);
 }
-
-
-std::any MiniCCSTVisitor::visitReturnStmtWithReturnNum(MiniCParser::ReturnStmtContext * ctx, std::string FunctionName)
-{
-	if(this->NameToReturnNum.find(FunctionName) == this->NameToReturnNum.end())
-	{
-		this->NameToReturnNum[FunctionName] = 1;
-	}
-	else
-	{
-		this->NameToReturnNum[FunctionName]++;
-	}
-
-	return visitReturnStmt(ctx);
-}
-
 // !一定要带前缀：MiniCCSTVisitor
 std::any MiniCCSTVisitor::visitReturnStmt(MiniCParser::ReturnStmtContext * ctx){
 	// returnStmt : 'return' exp? ';'
