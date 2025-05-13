@@ -1508,6 +1508,9 @@ void IRGenerator::flatten_array_init(std::string name,
                     while (index_counters[i] == dimensions[i] - 1 && i > 0) {
                         index_counters[i] = 0;
                         index_counters[i - 1] += 1;
+                        if (index_counters[i - 1] < dimensions[i - 1]) {
+                            break;
+                        }
                         i--;
                     }
                 } else {
@@ -1721,7 +1724,12 @@ int IRGenerator::ir_const_exp(ast_node * node)
         val = module->findVar(node->sons[0]->name);
         return val->real_int;
     }
-    return node->integer_val;
+    ast_node * temp = ir_visit_ast_node(node->sons[0]);
+    // 如果当前节点是叶子节点，直接生成IR
+    node->val = temp->val;
+    node->blockInsts.addInst(temp->blockInsts);
+    // return node->integer_val;
+    return node->val->real_int;
 }
 
 /// @brief 标识符叶子节点翻译成线性中间IR，变量声明的不走这个语句
@@ -2025,11 +2033,16 @@ bool IRGenerator::ir_const_array_var_def_declare(ast_node * node)
     int total_size = 1;
     for (auto d: dimensions)
         total_size *= d;
-
     // 获取数组变量的实际值
     Value * array_val = module->findVarValue(var_name);
+    BitcastInstruction * bitcatinst;
+
     // Step 4: 处理显式初始化
-    if (node->sons.size() > 2) {
+    if (node->sons.size() > 2 && node->sons[2]->sons.size() > 0) {
+        bitcatinst = new BitcastInstruction(module->getCurrentFunction(), array_val, 8);
+        node->blockInsts.addInst(bitcatinst);
+        MemsetInstruction * memsetInst = new MemsetInstruction(module->getCurrentFunction(), bitcatinst, 0, 32, 16);
+        node->blockInsts.addInst(memsetInst);
         std::vector<InitElement> flatten_nodes;
         // int linear_index = 0;
         std::vector<int> index_counters(dimensions.size(), 0); // 初始化index_counters
@@ -2045,9 +2058,34 @@ bool IRGenerator::ir_const_array_var_def_declare(ast_node * node)
                            large_rank,
                            level);
         node->blockInsts.addInst(node->sons[2]->blockInsts);
-        node->val = array_val;
+        bitcatinst = new BitcastInstruction(module->getCurrentFunction(), array_val, 32);
+        node->blockInsts.addInst(bitcatinst);
+        for (FlattenedArrayElement & elem: array_val->flattenedArray) {
+            GetElementPtrInstruction * gepInst;
+            MoveInstruction * movInst;
+            std::vector<int> indices = {elem.flatIndex};
+            if (elem.is_use_val) {
+                gepInst = new GetElementPtrInstruction(module->getCurrentFunction(), bitcatinst, indices);
+                node->blockInsts.addInst(gepInst);
+                movInst = new MoveInstruction(module->getCurrentFunction(), gepInst, elem.val);
+                node->blockInsts.addInst(movInst);
+            } else {
+                //得到要初始化的坐标的位置
+                gepInst = new GetElementPtrInstruction(module->getCurrentFunction(), bitcatinst, indices);
+                node->blockInsts.addInst(gepInst);
+                movInst = new MoveInstruction(module->getCurrentFunction(),
+                                              gepInst,
+                                              module->newConstInt((int32_t) elem.intValue));
+                node->blockInsts.addInst(movInst);
+            }
+        }
+        // }
+    } else if (node->sons.size() > 2 && node->sons[2]->sons.size() == 0) {
+        bitcatinst = new BitcastInstruction(module->getCurrentFunction(), array_val, 8);
+        node->blockInsts.addInst(bitcatinst);
+        MemsetInstruction * memsetInst = new MemsetInstruction(module->getCurrentFunction(), bitcatinst, 0, 32, 16);
+        node->blockInsts.addInst(memsetInst);
     }
-
     return true;
 }
 
