@@ -1623,42 +1623,28 @@ bool IRGenerator::ir_array_var_def_declare(ast_node * node)
                            large_rank,
                            level);
         node->blockInsts.addInst(node->sons[2]->blockInsts);
-        // 最后为数组节点赋值
-        if (module->getCurrentFunction()->is_const_func_var == true) {
-            PointerType * pointerType = PointerType::getNonConstPointerType(node->parent->sons[0]->type);
-            Value * val = module->newglobalconstArray(pointerType, var_name, dimensions);
-            val->ReplaceElement(array_val->flattenedArray);
-            // module->getCurrentFunction()->removeLocalVarByName(var_name);
-            val->const_func_name = module->getCurrentFunction()->getName();
-            array_val = module->findGlobalVariable(var_name);
-            MemcpyInstruction * memcpyInst =
-                new MemcpyInstruction(module->getCurrentFunction(), bitcatinst, array_val, 32, 16);
-            node->blockInsts.addInst(memcpyInst);
-            node->val = array_val;
-        } else {
-            //赋值
-            bitcatinst = new BitcastInstruction(module->getCurrentFunction(), array_val, 32);
-            node->blockInsts.addInst(bitcatinst);
-            for (FlattenedArrayElement & elem: array_val->flattenedArray) {
-                GetElementPtrInstruction * gepInst;
-                MoveInstruction * movInst;
-                std::vector<int> indices = {elem.flatIndex};
-                if (elem.is_use_val) {
-                    gepInst = new GetElementPtrInstruction(module->getCurrentFunction(), bitcatinst, indices);
-                    node->blockInsts.addInst(gepInst);
-                    movInst = new MoveInstruction(module->getCurrentFunction(), gepInst, elem.val);
-                    node->blockInsts.addInst(movInst);
-                } else {
-                    //得到要初始化的坐标的位置
-                    gepInst = new GetElementPtrInstruction(module->getCurrentFunction(), bitcatinst, indices);
-                    node->blockInsts.addInst(gepInst);
-                    movInst = new MoveInstruction(module->getCurrentFunction(),
-                                                  gepInst,
-                                                  module->newConstInt((int32_t) elem.intValue));
-                    node->blockInsts.addInst(movInst);
-                }
+        bitcatinst = new BitcastInstruction(module->getCurrentFunction(), array_val, 32);
+        node->blockInsts.addInst(bitcatinst);
+        for (FlattenedArrayElement & elem: array_val->flattenedArray) {
+            GetElementPtrInstruction * gepInst;
+            MoveInstruction * movInst;
+            std::vector<int> indices = {elem.flatIndex};
+            if (elem.is_use_val) {
+                gepInst = new GetElementPtrInstruction(module->getCurrentFunction(), bitcatinst, indices);
+                node->blockInsts.addInst(gepInst);
+                movInst = new MoveInstruction(module->getCurrentFunction(), gepInst, elem.val);
+                node->blockInsts.addInst(movInst);
+            } else {
+                //得到要初始化的坐标的位置
+                gepInst = new GetElementPtrInstruction(module->getCurrentFunction(), bitcatinst, indices);
+                node->blockInsts.addInst(gepInst);
+                movInst = new MoveInstruction(module->getCurrentFunction(),
+                                              gepInst,
+                                              module->newConstInt((int32_t) elem.intValue));
+                node->blockInsts.addInst(movInst);
             }
         }
+        // }
     } else if (node->sons.size() > 2 && node->sons[2]->sons.size() == 0) {
         bitcatinst = new BitcastInstruction(module->getCurrentFunction(), array_val, 8);
         node->blockInsts.addInst(bitcatinst);
@@ -1698,11 +1684,18 @@ bool IRGenerator::ir_array_acess(ast_node * node)
     Value * currentVal = nullptr; // 当前累积的值
     int nowdim = 1;
     GetElementPtrInstruction * gepInst = nullptr;
-    std::vector<int> indices;
-    for (int idx: index) {
-        indices.push_back(idx);
+    int flatindex = 0;
+    int mul = 1;
+    for (int i = index.size() - 1; i >= 0; --i) {
+        flatindex += index[i] * mul;
+        mul *= dim[i];
     }
-    gepInst = new GetElementPtrInstruction(module->getCurrentFunction(), array_Value, indices);
+    //展平成为一维度
+    BitcastInstruction * bitcatinst = new BitcastInstruction(module->getCurrentFunction(), array_Value, 32);
+    node->blockInsts.addInst(bitcatinst);
+    // gep指令遍历一维数组
+    std::vector<int> indices = {flatindex};
+    gepInst = new GetElementPtrInstruction(module->getCurrentFunction(), bitcatinst, indices);
     node->blockInsts.addInst(gepInst);
     LoadInstruction * LoadInst = new LoadInstruction(module->getCurrentFunction(), gepInst, true);
     node->blockInsts.addInst(LoadInst);

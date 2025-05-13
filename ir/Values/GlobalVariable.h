@@ -159,54 +159,50 @@ public:
                                      size_t currentIndex,
                                      int32_t flatOffset)
     {
-        std::string result = "";
+        std::string result;
+        int dim = dims[currentIndex];
 
-        // 如果已经处理到最后一维
+        // 递归到最后一维
         if (currentIndex == dims.size() - 1) {
-            result += "[";
-            for (int32_t i = 0; i < dims[currentIndex]; ++i) {
-                int32_t flatIndex = flatOffset + i;
+            result += "[" + std::to_string(dim) + " x i32] [";
+            for (int i = 0; i < dim; ++i) {
+                int flatIndex = flatOffset + i;
                 bool found = false;
-
-                // 查找展平数组中的值
                 for (const auto & element: flattenedArray) {
                     if (element.flatIndex == flatIndex) {
-                        result += "i32 " + std::to_string(element.intValue); // 找到值
+                        result += "i32 " + std::to_string(element.intValue);
                         found = true;
                         break;
                     }
                 }
-
-                // 如果找不到值，使用默认值 0
-                if (!found) {
+                if (!found)
                     result += "i32 0";
-                }
-
-                // 添加逗号分隔符，最后一个元素不加逗号
-                if (i < dims[currentIndex] - 1) {
+                if (i < dim - 1)
                     result += ", ";
-                }
             }
             result += "]";
-        } else {
-            // 递归处理下一维
-            result += "[";
-            for (int32_t i = 0; i < dims[currentIndex]; ++i) {
-                result += "[" + std::to_string(dims[currentIndex + 1]) + " x i32] ";
-                result += processMultiDimArray(Var,
-                                               dims,
-                                               flattenedArray,
-                                               currentIndex + 1,
-                                               flatOffset + i * dims[currentIndex + 1]);
-
-                // 添加逗号分隔符，最后一个元素不加逗号
-                if (i < dims[currentIndex] - 1) {
-                    result += ", ";
-                }
-            }
-            result += "]";
+            return result;
         }
 
+        // 递归处理高维
+        result += "[" + std::to_string(dim) + " x ";
+        // 类型说明
+        result += processMultiDimArray(Var, dims, flattenedArray, currentIndex + 1, flatOffset);
+        result += "] [";
+        int nextDimSize = 1;
+        for (size_t i = currentIndex + 1; i < dims.size(); ++i)
+            nextDimSize *= dims[i];
+        for (int i = 0; i < dim; ++i) {
+            // 每个元素前加类型
+            result += "[" + std::to_string(dims[currentIndex + 1]);
+            for (size_t j = currentIndex + 2; j < dims.size(); ++j)
+                result += " x " + std::to_string(dims[j]);
+            result += " x i32] ";
+            result += processMultiDimArray(Var, dims, flattenedArray, currentIndex + 1, flatOffset + i * nextDimSize);
+            if (i < dim - 1)
+                result += ", ";
+        }
+        result += "]";
         return result;
     }
 
