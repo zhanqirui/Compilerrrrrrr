@@ -69,6 +69,25 @@ bool Function::isBuiltin()
 {
     return builtIn;
 }
+void Function::setBlockExitLabel(Instruction * inst)
+{
+    BlockExitLabel = inst;
+}
+
+/// @brief 获取函数出口指令
+/// @return 出口Label指令
+Instruction * Function::getBlockExitLabel()
+{
+    return BlockExitLabel;
+}
+int Function::getStride(const std::vector<int> & dims, int index)
+{
+    int stride = 1;
+    for (int i = index + 1; i < dims.size(); ++i) {
+        stride *= dims[i];
+    }
+    return stride;
+}
 /// @brief 递归处理多维数组
 /// @param dims 当前维度信息
 /// @param flattenedArray 展平后的数组
@@ -92,10 +111,11 @@ std::string Function::processMultiDimArray(Value * Var,
             // 查找展平数组中的值
             for (const auto & element: flattenedArray) {
                 if (element.flatIndex == flatIndex) {
-                    result +=
-                        std::to_string(static_cast<const PointerType *>(Var->getType())->getRootType()->isIntegerType()
-                                           ? element.intValue
-                                           : element.floatValue); // 找到值
+
+                    std::string x = (static_cast<const PointerType *>(Var->getType())->getRootType()->isIntegerType()
+                                         ? std::to_string((int32_t) element.intValue)
+                                         : std::to_string(element.floatValue)); // 找到值
+                    result += x;
                     found = true;
                     break;
                 }
@@ -118,7 +138,7 @@ std::string Function::processMultiDimArray(Value * Var,
                                            dims,
                                            flattenedArray,
                                            currentIndex + 1,
-                                           flatOffset + i * dims[currentIndex + 1]);
+                                           flatOffset + i * getStride(dims, currentIndex));
 
             // 添加逗号分隔符，最后一个元素不加逗号
             if (i < dims[currentIndex] - 1) {
@@ -152,7 +172,7 @@ void Function::toString(std::string & str)
         }
 
         //先不考虑有默认值
-        std::string param_str = param->getType()->toString() + " noundef " + param->getIRName();
+        std::string param_str = param->getType()->toString() + " " + param->getIRName();
 
         str += param_str;
     }
@@ -175,32 +195,21 @@ void Function::toString(std::string & str)
         // str += "declare " + var->getType()->toString() + " " + var->getIRName();
         //修改为LLVM的alloca语句
         str += "  ";
-        str += var->getIRName() + " = alloca " + var->getType()->toString() + ", " + "align 4";
-
         const std::vector<int32_t> dims = var->arraydimensionVector;
         if (!dims.empty()) {
-            for (auto dim: dims) {
-                str += "[" + std::to_string(dim) + "]";
+            std::string arrayType = "";
+            for (auto it = dims.begin(); it != dims.end(); ++it) {
+                arrayType += "[" + std::to_string(*it) + " x ";
             }
-        }
-        // if (var->isConst()) {
-        {
-            if (var->isArray()) {
-                // 获取数组的维度信息和展平数组
-                const std::vector<int32_t> & dims = var->arraydimensionVector;
-                const std::vector<FlattenedArrayElement> & flattenedArray = var->flattenedArray;
-
-                // 处理多维数组
-                if (!dims.empty()) {
-                    str += " = ";
-                    str += processMultiDimArray(var, dims, flattenedArray, 0, 0);
-                }
+            Type * baseType = var->getType(); // 获取类型
+            PointerType * pointerType = dynamic_cast<PointerType *>(baseType);
+            arrayType += pointerType->getRootType()->toString();
+            for (size_t i = 0; i < dims.size(); ++i) {
+                arrayType += "]";
             }
-            // 判断是否为 ConstVariable 类型并强转（前提是你确认变量来自该类）
-            else {
-                // str += var->type->isIntegerType() ? ("=" + std::to_string(var->real_int)) : ("=" +
-                // std::to_string(var->real_float));
-            }
+            str += var->getIRName() + " = alloca " + arrayType + ", align 16";
+        } else {
+            str += var->getIRName() + " = alloca " + var->getType()->toString() + ", " + "align 4";
         }
         std::string extraStr;
         std::string realName = var->getName();
@@ -351,6 +360,17 @@ Function::newLocalVarValue(Type * type, std::string name, int32_t scope_level, s
 
     return varValue;
 }
+void Function::removeLocalVarByName(const std::string & name)
+{
+    for (auto it = varsVector.begin(); it != varsVector.end();) {
+        if ((*it)->getName() == name) {
+            delete *it;                // 如果你是 new 出来的对象，记得释放内存
+            it = varsVector.erase(it); // 删除后返回下一个迭代器
+        } else {
+            ++it;
+        }
+    }
+}
 
 /// @brief 新建一个内存型的Value，并加入到符号表，用于后续释放空间
 /// \param type 变量类型
@@ -413,7 +433,7 @@ void Function::renameIR()
     for (auto inst: this->getInterCode().getInsts()) {
         if (inst->getOp() == IRInstOperator::IRINST_OP_LABEL) {
             // inst->setIRName(IR_LABEL_PREFIX + std::to_string(nameIndex++));
-            inst->setIRName("%" + std::to_string(nameIndex++));
+            inst->setIRName(std::to_string(nameIndex++));
         } else if (inst->hasResultValue()) {
             // inst->setIRName(IR_TEMP_VARNAME_PREFIX + std::to_string(nameIndex++));
             inst->setIRName("%" + std::to_string(nameIndex++));

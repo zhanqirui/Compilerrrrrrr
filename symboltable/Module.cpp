@@ -505,3 +505,17 @@ Value * Module::newconstArray(Type * type, std::string name, std::vector<int32_t
     retVal->setConst(true);
     return retVal;
 }
+
+Value * Module::newglobalconstArray(Type * type, std::string name, std::vector<int32_t> index)
+{
+    Value * retVal = nullptr;
+    retVal = newGlobalVariable(type, name);
+
+    //更新下标表
+    for (auto x: index) {
+        retVal->arraydimensionVector.push_back(x);
+    }
+    scopeStack->insertValue(retVal);
+    retVal->setConst(true);
+    return retVal;
+}

@@ -147,7 +147,7 @@ protected:
                             int & now_rank,
                             int & large_rank,
                             int & level);
-
+    bool isReturnInIfElse(ast_node * node);
     /// @brief AST节点运算符与动作函数关联的映射表
     std::unordered_map<ast_operator_type, ast2ir_handler_t> ast2ir_handlers;
     bool ir_global_const_array_def(ast_node * node);

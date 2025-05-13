@@ -40,10 +40,10 @@ void BinaryInstruction::toString(std::string & str)
     Value *src1 = getOperand(0), *src2 = getOperand(1);
     std::string type_str = " ";
     {
-        if (src1->type->isIntegerType())
-            type_str = "i32 ";
-        else if (src1->type->isFloatType())
-            type_str = "float "; // LLVM IR 中是 "float"，不是 "f32"
+        if (src1->type->isFloatType() || src2->type->isFloatType())
+            type_str = "float ";
+        else
+            type_str = "i32 "; // LLVM IR 中是 "float"，不是 "f32"
     }
     switch (op) {
         case IRInstOperator::IRINST_OP_ADD_I:
@@ -66,38 +66,35 @@ void BinaryInstruction::toString(std::string & str)
         case IRInstOperator::IRINST_OP_DIV_I:
 
             // 减法指令，二元运算
-            str = getIRName() + " = div nsw " + type_str + src1->getIRName() + ", " + src2->getIRName();
+            str = getIRName() + " = sdiv " + type_str + src1->getIRName() + ", " + src2->getIRName();
             break;
         case IRInstOperator::IRINST_OP_GT_I:
-
-            str = getIRName() + " = icmp gt " + src1->getIRName() + "," + src2->getIRName();
-            break;
-
+            str = getIRName() + " = icmp gt " + type_str + src1->getIRName() + ", " + src2->getIRName();
             break;
         case IRInstOperator::IRINST_OP_GE_I:
 
             // 减法指令，二元运算
-            str = getIRName() + " = icmp ge " + src1->getIRName() + "," + src2->getIRName();
+            str = getIRName() + " = icmp ge " + type_str + src1->getIRName() + ", " + src2->getIRName();
             break;
         case IRInstOperator::IRINST_OP_LT_I:
 
             // 减法指令，二元运算
-            str = getIRName() + " = icmp lt " + src1->getIRName() + "," + src2->getIRName();
+            str = getIRName() + " = icmp lt " + type_str + src1->getIRName() + ", " + src2->getIRName();
             break;
         case IRInstOperator::IRINST_OP_LE_I:
 
             // 减法指令，二元运算
-            str = getIRName() + " = icmp le " + src1->getIRName() + "," + src2->getIRName();
+            str = getIRName() + " = icmp le " + type_str + src1->getIRName() + ", " + src2->getIRName();
             break;
         case IRInstOperator::IRINST_OP_EQ_I:
 
             // 减法指令，二元运算
-            str = getIRName() + " = icmp eq " + src1->getIRName() + "," + src2->getIRName();
+            str = getIRName() + " = icmp eq " + type_str + src1->getIRName() + ", " + src2->getIRName();
             break;
         case IRInstOperator::IRINST_OP_NE_I:
 
             // 减法指令，二元运算
-            str = getIRName() + " = icmp ne " + src1->getIRName() + "," + src2->getIRName();
+            str = getIRName() + " = icmp ne " + type_str + src1->getIRName() + ", " + src2->getIRName();
             break;
         case IRInstOperator::IRINST_OP_AND_I:
 
@@ -112,7 +109,7 @@ void BinaryInstruction::toString(std::string & str)
         case IRInstOperator::IRINST_OP_MOD_I:
 
             // 减法指令，二元运算
-            str = getIRName() + " = mod " + src1->getIRName() + "," + src2->getIRName();
+            str = getIRName() + " = srem " + type_str + src1->getIRName() + ", " + src2->getIRName();
             break;
         default:
             // 未知指令

@@ -1,7 +1,7 @@
 // test if-{if}-else
 int if_if_Else() {
   int a;
-  a = 5;
+  a = 4;
   int b;
   b = 10;
   if(a == 5){

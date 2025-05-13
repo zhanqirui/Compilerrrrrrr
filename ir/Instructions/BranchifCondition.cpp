@@ -35,7 +35,9 @@ BranchifCondition::BranchifCondition(Function * _func, Value * cond, Value * lab
 void BranchifCondition::toString(std::string & str)
 {
 
-    Value *condition = getOperand(0), *l1 = getOperand(1), *l2 = getOperand(2);
-
-    str = "bc " + condition->getIRName() + ",  " + " label " + l1->getIRName() + +"  label " + l2->getIRName();
+    Value * condition = getOperand(0);
+    Instruction * l1 = static_cast<Instruction *>(getOperand(1));
+    Instruction * l2 = static_cast<Instruction *>(getOperand(2));
+    str =
+        "br i1 " + condition->getIRName() + ", " + " label %" + l1->getIRName() + ", " + "  label %" + l2->getIRName();
 }

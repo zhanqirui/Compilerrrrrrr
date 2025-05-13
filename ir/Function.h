@@ -43,6 +43,11 @@ public:
     /// @brief 注意：IR指令代码并未释放，需要手动释放
     ~Function();
 
+    /// @brief 处理数组的维度跨度
+    /// @param dims
+    /// @param index
+    /// @return
+    int getStride(const std::vector<int> & dims, int index);
     std::string processMultiDimArray(Value * Var,
                                      const std::vector<int32_t> & dims,
                                      const std::vector<FlattenedArrayElement> & flattenedArray,
@@ -75,7 +80,11 @@ public:
     /// @brief 获取函数出口指令
     /// @return 出口Label指令
     Instruction * getExitLabel();
+    void setBlockExitLabel(Instruction * inst);
 
+    /// @brief 获取函数出口指令
+    /// @return 出口Label指令
+    Instruction * getBlockExitLabel();
     /// @brief 设置函数返回值变量
     /// @param val 返回值变量，要求必须是局部变量，不能是临时变量
     void setReturnValue(Value * val);
@@ -83,6 +92,7 @@ public:
     /// @brief 获取函数返回值变量
     /// @return 返回值变量
     Value * getReturnValue();
+
     void set_block_entry_Lable(LabelInstruction * entryLabelInst);
     void set_block_exit_Lable(LabelInstruction * exitLabelInst);
     LabelInstruction * getblock_entry_Lable();
@@ -189,6 +199,9 @@ public:
     }
     LabelInstruction * block_entry_Lable = nullptr;
     LabelInstruction * block_exit_Lable = nullptr;
+    bool is_const_func_var = true; //表示函数内的数组是否放到函数外定义为const
+    bool is_real_return = false;
+    void removeLocalVarByName(const std::string & name);
 
 private:
     ///
@@ -225,6 +238,7 @@ private:
     /// @brief 函数出口Label指令
     ///
     Instruction * exitLabel = nullptr;
+    Instruction * BlockExitLabel = nullptr;
 
     ///
     /// @brief 函数返回值变量，不能是临时变量，必须是局部变量
