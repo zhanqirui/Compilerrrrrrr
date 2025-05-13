@@ -385,6 +385,10 @@ bool IRGenerator::ir_block(ast_node * node)
         if (!temp) {
             return false;
         }
+        if ((*pIter)->node_type == ast_operator_type::AST_OP_WHILE) {
+            node->blockInsts.addInst(
+                new GotoInstruction(module->getCurrentFunction(), static_cast<Instruction *>(temp->val)));
+        }
         node->blockInsts.addInst(temp->blockInsts);
         if (module->getCurrentFunction()->is_real_return == true) {
             break;
@@ -654,6 +658,19 @@ bool IRGenerator::ir_add(ast_node * node)
     ast_node * src1_node = node->sons[0];
     ast_node * src2_node = node->sons[1];
     ConstInt * ZERO = module->newConstInt(0);
+    if (node->node_type == ast_operator_type::AST_OP_UNARY_EXP && src1_node->op_type == Op::NOT) {
+
+        ast_node * right = ir_visit_ast_node(src2_node);
+        node->blockInsts.addInst(right->blockInsts);
+        BinaryInstruction * EQ_ZERO_Inst = new BinaryInstruction(module->getCurrentFunction(),
+                                                                 IRInstOperator::IRINST_OP_NE_I,
+                                                                 right->val,
+                                                                 ZERO,
+                                                                 IntegerType::getTypeBool());
+        node->blockInsts.addInst(EQ_ZERO_Inst);
+        node->val = EQ_ZERO_Inst;
+        return true;
+    }
     float op1 = src1_node->type->isFloatType() ? src1_node->float_val : src1_node->integer_val;
     float op2 = src2_node->type->isFloatType() ? src2_node->float_val : src2_node->integer_val;
     // 优化x=2+3变成x=5
@@ -792,6 +809,7 @@ bool IRGenerator::ir_add(ast_node * node)
                                             IntegerType::getTypeInt());
         }
     } else {
+		
         addInst = new BinaryInstruction(module->getCurrentFunction(),
                                         irOp,
                                         LstoInst ? LstoInst : left->val,
@@ -1132,11 +1150,23 @@ bool IRGenerator::ir_visitLogitExp(ast_node * node)
     }
     IRInstOperator irOp = (node->node_type == ast_operator_type::AST_OP_LAND_EXP) ? IRInstOperator::IRINST_OP_AND_I
                                                                                   : IRInstOperator::IRINST_OP_OR_I;
+    ConstInt * ZERO = module->newConstInt(0);
+    BinaryInstruction * LEQ_ZERO_Inst = new BinaryInstruction(module->getCurrentFunction(),
+                                                              IRInstOperator::IRINST_OP_NE_I,
+                                                              LstoInst ? LstoInst : left->val,
+                                                              ZERO,
+                                                              IntegerType::getTypeBool());
+
+    BinaryInstruction * REQ_ZERO_Inst = new BinaryInstruction(module->getCurrentFunction(),
+                                                              IRInstOperator::IRINST_OP_NE_I,
+                                                              RstoInst ? RstoInst : right->val,
+                                                              ZERO,
+                                                              IntegerType::getTypeBool());
 
     mulInst = new BinaryInstruction(module->getCurrentFunction(),
                                     irOp,
-                                    LstoInst ? LstoInst : left->val,
-                                    RstoInst ? RstoInst : right->val,
+                                    LEQ_ZERO_Inst,
+                                    REQ_ZERO_Inst,
                                     IntegerType::getTypeInt());
 
     node->blockInsts.addInst(left->blockInsts);
@@ -1147,8 +1177,9 @@ bool IRGenerator::ir_visitLogitExp(ast_node * node)
     if (RstoInst) {
         node->blockInsts.addInst(RstoInst);
     }
+    node->blockInsts.addInst(LEQ_ZERO_Inst);
+    node->blockInsts.addInst(REQ_ZERO_Inst);
     node->blockInsts.addInst(mulInst);
-
     node->val = mulInst;
     return true;
 }
@@ -1166,15 +1197,15 @@ bool IRGenerator::ir_visitConfExp(ast_node * node)
     // 优化x=2+3变成x=5
     if (src1_node->node_type == ast_operator_type::AST_OP_LEAF_LITERAL_UINT &&
         src2_node->node_type == ast_operator_type::AST_OP_LEAF_LITERAL_UINT) {
-        ConstFloat * val = module->newConstFloat((op == Op::GT)    ? (op1 > op2)
-                                                 : (op == Op::LT)  ? (op1 < op2)
-                                                 : (op == Op::EQ)  ? (op1 == op2)
-                                                 : (op == Op::NE)  ? (op1 != op2)
-                                                 : (op == Op::GE)  ? (op1 >= op2)
-                                                 : (op == Op::LE)  ? (op1 <= op2)
-                                                 : (op == Op::AND) ? (op1 && op2)
-                                                 : (op == Op::OR)  ? (op1 || op2)
-                                                                   : 0.0f);
+        ConstInt * val = module->newConstInt((op == Op::GT)    ? (op1 > op2)
+                                             : (op == Op::LT)  ? (op1 < op2)
+                                             : (op == Op::EQ)  ? (op1 == op2)
+                                             : (op == Op::NE)  ? (op1 != op2)
+                                             : (op == Op::GE)  ? (op1 >= op2)
+                                             : (op == Op::LE)  ? (op1 <= op2)
+                                             : (op == Op::AND) ? (op1 && op2)
+                                             : (op == Op::OR)  ? (op1 || op2)
+                                                               : 0);
         node->val = val;
         node->type = src1_node->type->isFloatType() ? src1_node->type : src2_node->type;
         return true;
@@ -1278,7 +1309,7 @@ bool IRGenerator::ir_visitConfExp(ast_node * node)
                                     irOp,
                                     LstoInst ? LstoInst : left->val,
                                     RstoInst ? RstoInst : right->val,
-                                    IntegerType::getTypeInt());
+                                    IntegerType::getTypeBool());
 
     node->blockInsts.addInst(left->blockInsts);
     if (LstoInst) {
