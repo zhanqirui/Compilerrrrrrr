@@ -144,6 +144,7 @@ public:
     GlobalVariable * findGlobalVariable(std::string name);
     Value * findVar(std::string name);
     Value * newconstArray(Type * type, std::string name, std::vector<int32_t> index);
+    Value * newglobalconstArray(Type * type, std::string name, std::vector<int32_t> index);
 
 protected:
     /// @brief 根据整数值获取当前符号

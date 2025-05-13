@@ -104,9 +104,8 @@ public:
             const std::vector<int32_t> & dims = this->arraydimensionVector;
 
             if (!dims.empty()) {
-                // 构造数组类型
                 std::string arrayType = "";
-                for (auto it = dims.rbegin(); it != dims.rend(); ++it) {
+                for (auto it = dims.begin(); it != dims.end(); ++it) {
                     arrayType += "[" + std::to_string(*it) + " x ";
                 }
                 Type * baseType = getType(); // 获取类型
@@ -115,29 +114,30 @@ public:
                 for (size_t i = 0; i < dims.size(); ++i) {
                     arrayType += "]";
                 }
+                if (this->const_func_name == "null") {
+                    str += " = dso_local global " + arrayType;
 
-                // 添加数组声明
-                str += " = dso_local global " + arrayType + " zeroinitializer, align 16";
+                    // 添加数组声明
+                    str += " zeroinitializer, align 16";
+                } else {
+
+                    str += " = private unnamed_addr constant " + arrayType;
+                    const std::vector<int32_t> dims = this->arraydimensionVector;
+                    if (!dims.empty()) {
+
+                        // 获取数组的维度信息和展平数组
+                        const std::vector<int32_t> & dims = this->arraydimensionVector;
+                        const std::vector<FlattenedArrayElement> & flattenedArray = this->flattenedArray;
+
+                        // 处理多维数组
+                        if (!dims.empty()) {
+                            str += processMultiDimArray(this, dims, flattenedArray, 0, 0);
+                            str += ", align 16";
+                        }
+                    }
+                }
             }
         }
-        // } else {
-        //     const std::vector<int32_t> dims = this->arraydimensionVector;
-        //     if (!dims.empty()) {
-        //         for (auto dim: dims) {
-        //             str += "[" + std::to_string(dim) + "]";
-        //         }
-
-        //         // 获取数组的维度信息和展平数组
-        //         const std::vector<int32_t> & dims = this->arraydimensionVector;
-        //         const std::vector<FlattenedArrayElement> & flattenedArray = this->flattenedArray;
-
-        //         // 处理多维数组
-        //         if (!dims.empty()) {
-        //             str += " = ";
-        //             str += processMultiDimArray(dims, flattenedArray, 0, 0);
-        //         }
-        //     }
-        // }
     }
     /// @brief 递归处理多维数组
     /// @param dims 当前维度信息
@@ -145,15 +145,17 @@ public:
     /// @param currentIndex 当前处理的维度索引
     /// @param flatOffset 当前展平数组的偏移量
     /// @return 返回多维数组的字符串表示
-    std::string processMultiDimArray(const std::vector<int32_t> & dims,
+    std::string processMultiDimArray(Value * Var,
+                                     const std::vector<int32_t> & dims,
                                      const std::vector<FlattenedArrayElement> & flattenedArray,
                                      size_t currentIndex,
                                      int32_t flatOffset)
     {
-        std::string result = "{";
+        std::string result = "";
 
         // 如果已经处理到最后一维
         if (currentIndex == dims.size() - 1) {
+            result += "[";
             for (int32_t i = 0; i < dims[currentIndex]; ++i) {
                 int32_t flatIndex = flatOffset + i;
                 bool found = false;
@@ -161,10 +163,7 @@ public:
                 // 查找展平数组中的值
                 for (const auto & element: flattenedArray) {
                     if (element.flatIndex == flatIndex) {
-                        result += std::to_string(
-                            static_cast<const PointerType *>(this->getType())->getRootType()->isIntegerType()
-                                ? element.intValue
-                                : element.floatValue); // 找到值
+                        result += "i32 " + std::to_string(element.intValue); // 找到值
                         found = true;
                         break;
                     }
@@ -172,7 +171,7 @@ public:
 
                 // 如果找不到值，使用默认值 0
                 if (!found) {
-                    result += "0";
+                    result += "i32 0";
                 }
 
                 // 添加逗号分隔符，最后一个元素不加逗号
@@ -180,10 +179,14 @@ public:
                     result += ", ";
                 }
             }
+            result += "]";
         } else {
             // 递归处理下一维
+            result += "[";
             for (int32_t i = 0; i < dims[currentIndex]; ++i) {
-                result += processMultiDimArray(dims,
+                result += "[" + std::to_string(dims[currentIndex + 1]) + " x i32] ";
+                result += processMultiDimArray(Var,
+                                               dims,
                                                flattenedArray,
                                                currentIndex + 1,
                                                flatOffset + i * dims[currentIndex + 1]);
@@ -193,9 +196,9 @@ public:
                     result += ", ";
                 }
             }
+            result += "]";
         }
 
-        result += "}";
         return result;
     }
 

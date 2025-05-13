@@ -60,6 +60,7 @@ protected:
     bool is_constant = false;
 
 public:
+    std::string const_func_name = "null";
     /// @brief 构造函数
     /// @param _type
     explicit Value(Type * _type);
@@ -150,6 +151,14 @@ public:
     void addElement(int32_t flatIndex, int32_t intValue, float floatValue)
     {
         flattenedArray.push_back({flatIndex, intValue, floatValue});
+    }
+    std::vector<FlattenedArrayElement> getElement()
+    {
+        return flattenedArray;
+    }
+    void ReplaceElement(const std::vector<FlattenedArrayElement> & b)
+    {
+        flattenedArray = b;
     }
 
     /// @brief 设置是否为常量

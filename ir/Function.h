@@ -199,6 +199,8 @@ public:
     }
     LabelInstruction * block_entry_Lable = nullptr;
     LabelInstruction * block_exit_Lable = nullptr;
+    bool is_const_func_var = true;
+    void removeLocalVarByName(const std::string & name);
 
 private:
     ///

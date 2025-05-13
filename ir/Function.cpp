@@ -111,10 +111,11 @@ std::string Function::processMultiDimArray(Value * Var,
             // 查找展平数组中的值
             for (const auto & element: flattenedArray) {
                 if (element.flatIndex == flatIndex) {
-                    result +=
-                        std::to_string(static_cast<const PointerType *>(Var->getType())->getRootType()->isIntegerType()
-                                           ? element.intValue
-                                           : element.floatValue); // 找到值
+
+                    std::string x = (static_cast<const PointerType *>(Var->getType())->getRootType()->isIntegerType()
+                                         ? std::to_string((int32_t) element.intValue)
+                                         : std::to_string(element.floatValue)); // 找到值
+                    result += x;
                     found = true;
                     break;
                 }
@@ -369,6 +370,17 @@ Function::newLocalVarValue(Type * type, std::string name, int32_t scope_level, s
     varsVector.push_back(varValue);
 
     return varValue;
+}
+void Function::removeLocalVarByName(const std::string & name)
+{
+    for (auto it = varsVector.begin(); it != varsVector.end();) {
+        if ((*it)->getName() == name) {
+            delete *it;                // 如果你是 new 出来的对象，记得释放内存
+            it = varsVector.erase(it); // 删除后返回下一个迭代器
+        } else {
+            ++it;
+        }
+    }
 }
 
 /// @brief 新建一个内存型的Value，并加入到符号表，用于后续释放空间
