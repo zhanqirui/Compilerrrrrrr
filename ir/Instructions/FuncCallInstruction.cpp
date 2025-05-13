@@ -60,7 +60,7 @@ void FuncCallInstruction::toString(std::string & str)
     } else {
 
         // 函数有返回值要设置到结果变量中
-        str = type->toString() + " " + getIRName() + " = call i32 " + calledFunction->getIRName() + "(";
+        str = getIRName() + " = call i32 " + calledFunction->getIRName() + "(";
     }
 
     if (argCount == 0) {
@@ -76,21 +76,19 @@ void FuncCallInstruction::toString(std::string & str)
                 str += ", ";
             }
         }
+    } else {
+        // 如果有arg指令，则输出函数的实参
+        for (int32_t k = 0; k < argCount; ++k) {
+
+            auto operand = getOperand(k);
+
+            str += operand->getType()->toString() + " noundef " + operand->getIRName();
+
+            if (k != (argCount - 1)) {
+                str += ", ";
+            }
+        }
     }
-	else
-	{
-		// 如果有arg指令，则输出函数的实参
-		for (int32_t k = 0; k < argCount; ++k) {
-
-			auto operand = getOperand(k);
-
-			str += operand->getType()->toString() + " " + operand->getIRName();
-
-			if (k != (argCount - 1)) {
-				str += ", ";
-			}
-		}
-	}
 
     str += ")";
 

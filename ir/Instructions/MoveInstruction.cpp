@@ -19,6 +19,8 @@
 
 #include "MoveInstruction.h"
 
+/// MOVE指令需要按照LLVM的要求改写为Store指令，现在函数头都还未调整，只让打印出来的结果跟LLVM一致
+
 ///
 /// @brief 构造函数
 /// @param _func 所属的函数
@@ -39,12 +41,18 @@ void MoveInstruction::toString(std::string & str)
 
     Value *dstVal = getOperand(0), *srcVal = getOperand(1);
     if (dstVal->getType() && dstVal->getType()->isPointerType()) {
-        str = '*' + dstVal->getIRName() + " = " + srcVal->getIRName();
+        // str = '*' + dstVal->getIRName() + " = " + srcVal->getIRName();
+        str = "store " + srcVal->getType()->toString() + " " + srcVal->getIRName() + ", " +
+              dstVal->getType()->toString() + '*' + " " + dstVal->getIRName() + ", align 4";
         return;
     }
     if (srcVal->getType() && srcVal->getType()->isPointerType()) {
-        str = dstVal->getIRName() + " = " + '*' + srcVal->getIRName();
+        // str = dstVal->getIRName() + " = " + '*' + srcVal->getIRName();
+        str = "store " + srcVal->getType()->toString() + '*' + " " + srcVal->getIRName() + ", " +
+              dstVal->getType()->toString() + " " + dstVal->getIRName() + ", align 4";
         return;
     }
-    str = dstVal->getIRName() + " = " + srcVal->getIRName();
+    // str = dstVal->getIRName() + " = " + srcVal->getIRName();
+    str = "store " + srcVal->getType()->toString() + " " + srcVal->getIRName() + ", " + dstVal->getType()->toString() +
+          "*" + " " + dstVal->getIRName() + ", align 4";
 }

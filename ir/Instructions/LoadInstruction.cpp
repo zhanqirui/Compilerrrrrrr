@@ -18,7 +18,7 @@
 #include "IntegerType.h"
 #include "FloatType.h"
 
-#include "StoreInstruction.h"
+#include "LoadInstruction.h"
 
 ///
 /// @brief 构造函数
@@ -26,7 +26,7 @@
 /// @param result 结构操作数
 /// @param srcVal1 源操作数
 ///
-StoreInstruction::StoreInstruction(Function * _func, Value * srcVal1, bool is_int)
+LoadInstruction::LoadInstruction(Function * _func, Value * srcVal1, bool is_int)
     : Instruction(
           _func,
           IRInstOperator::IRINST_OP_ASSIGN,
@@ -37,11 +37,12 @@ StoreInstruction::StoreInstruction(Function * _func, Value * srcVal1, bool is_in
 
 /// @brief 转换成字符串显示
 /// @param str 转换后的字符串
-void StoreInstruction::toString(std::string & str)
+void LoadInstruction::toString(std::string & str)
 {
 
     Value * srcVal1 = getOperand(0);
-    str = getIRName() + " = " + "*" + srcVal1->getIRName();
+    str = getIRName() + " = load " + getType()->toString() + ", " + getType()->toString() + "* " +
+          srcVal1->getIRName() + ", align 4";
     //根据LLVM的要求，store指令的格式为
     // str = "store " + srcVal1->getType()->toString() + "* " + srcVal1->getIRName() + ", align 4";
 }

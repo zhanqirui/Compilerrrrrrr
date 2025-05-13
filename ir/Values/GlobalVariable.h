@@ -94,29 +94,50 @@ public:
     ///
     void toDeclareString(std::string & str)
     {
-        str = "declare " + getType()->toString() + " " + getIRName();
+        str = getIRName();
         if (this->type->isIntegerType()) {
-            str += "=" + std::to_string(this->real_int); // 转换为字符串
+            str += " = dso_local global " + getType()->toString() + " " + std::to_string(this->real_int) + ", align 4";
         } else if (this->type->isFloatType()) {
-            str += "=" + std::to_string(this->real_float); // 同理
+            str +=
+                " = dso_local global " + getType()->toString() + " " + std::to_string(this->real_float) + ", align 4";
         } else {
-            const std::vector<int32_t> dims = this->arraydimensionVector;
+            const std::vector<int32_t> & dims = this->arraydimensionVector;
+
             if (!dims.empty()) {
-                for (auto dim: dims) {
-                    str += "[" + std::to_string(dim) + "]";
+                // 构造数组类型
+                std::string arrayType = "";
+                for (auto it = dims.rbegin(); it != dims.rend(); ++it) {
+                    arrayType += "[" + std::to_string(*it) + " x ";
+                }
+                Type * baseType = getType(); // 获取类型
+                PointerType * pointerType = dynamic_cast<PointerType *>(baseType);
+                arrayType += pointerType->getreferencetype()->toString();
+                for (size_t i = 0; i < dims.size(); ++i) {
+                    arrayType += "]";
                 }
 
-                // 获取数组的维度信息和展平数组
-                const std::vector<int32_t> & dims = this->arraydimensionVector;
-                const std::vector<FlattenedArrayElement> & flattenedArray = this->flattenedArray;
-
-                // 处理多维数组
-                if (!dims.empty()) {
-                    str += " = ";
-                    str += processMultiDimArray(dims, flattenedArray, 0, 0);
-                }
+                // 添加数组声明
+                str += " = dso_local global " + arrayType + " zeroinitializer, align 16";
             }
         }
+        // } else {
+        //     const std::vector<int32_t> dims = this->arraydimensionVector;
+        //     if (!dims.empty()) {
+        //         for (auto dim: dims) {
+        //             str += "[" + std::to_string(dim) + "]";
+        //         }
+
+        //         // 获取数组的维度信息和展平数组
+        //         const std::vector<int32_t> & dims = this->arraydimensionVector;
+        //         const std::vector<FlattenedArrayElement> & flattenedArray = this->flattenedArray;
+
+        //         // 处理多维数组
+        //         if (!dims.empty()) {
+        //             str += " = ";
+        //             str += processMultiDimArray(dims, flattenedArray, 0, 0);
+        //         }
+        //     }
+        // }
     }
     /// @brief 递归处理多维数组
     /// @param dims 当前维度信息

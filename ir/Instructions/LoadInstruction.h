@@ -10,7 +10,7 @@ class Function;
 ///
 /// @brief 复制指令
 ///
-class StoreInstruction : public Instruction {
+class LoadInstruction : public Instruction {
 
 public:
     ///
@@ -19,7 +19,7 @@ public:
     /// @param result 结构操作数
     /// @param srcVal1 源操作数
     ///
-    StoreInstruction(Function * _func, Value * srcVal1, bool is_int);
+    LoadInstruction(Function * _func, Value * srcVal1, bool is_int);
 
     /// @brief 转换成字符串
     void toString(std::string & str) override;

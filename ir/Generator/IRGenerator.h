@@ -128,6 +128,8 @@ protected:
     bool ir_global_array_var_def_declare(ast_node * node);
     bool ir_global_const_declare(ast_node * node);
     bool ir_global_const_def(ast_node * node);
+    bool ir_break(ast_node * node);
+    bool ir_continue(ast_node * node);
     struct InitElement {
         ast_node * node;
         int linear_index;
