@@ -27,7 +27,7 @@ FuncCallInstruction::FuncCallInstruction(Function * _func,
                                          Type * _type)
     : Instruction(_func, IRInstOperator::IRINST_OP_FUNC_CALL, _type), calledFunction(calledFunc)
 {
-    name = calledFunc->getName();
+    IRName = calledFunc->getName();
 
     // 实参拷贝
     for (auto & val: _srcVal) {

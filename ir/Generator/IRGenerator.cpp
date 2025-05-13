@@ -291,11 +291,9 @@ bool IRGenerator::ir_function_define(ast_node * node)
 
     // 添加函数出口Label指令，主要用于return语句跳转到这里进行函数的退出
     // irCode.addInst(entryLabelInst);
-    if (retValue == newFunc->getReturnValue()) {
-        irCode.addInst(new ExitInstruction(newFunc, newFunc->getReturnValue()));
-    } else {
-        irCode.addInst(new ExitInstruction(newFunc, newFunc->getReturnValue()));
-    }
+    LoadInstruction * Dereference = new LoadInstruction(module->getCurrentFunction(), newFunc->getReturnValue(), true);
+    irCode.addInst(Dereference);
+    irCode.addInst(new ExitInstruction(newFunc, Dereference));
 
     // 恢复成外部函数
     module->setCurrentFunction(nullptr);
@@ -338,6 +336,32 @@ bool IRGenerator::ir_function_formal_params(ast_node * node)
     return true;
 }
 
+/// @brief 判断 return 语句是否位于 if-else 块中
+/// @param node 当前的 return 语句节点
+/// @return 如果位于 if-else 块中返回 true，否则返回 false
+bool IRGenerator::isReturnInIfElse(ast_node * node)
+{
+
+    // 不断访问 parent 节点
+    while (node) {
+        // 如果遇到 if-else 块，返回 true
+        if (node->node_type == ast_operator_type::AST_OP_IF_ELSE_STMT) {
+            return true;
+        }
+
+        // 如果遇到函数定义块，停止搜索
+        if (node->node_type == ast_operator_type::AST_OP_FUNC_DEF) {
+            break;
+        }
+
+        // 继续访问 parent 节点
+        node = node->parent;
+    }
+
+    // 如果未找到 if-else 块，返回 false
+    return false;
+}
+
 /// @brief 语句块（含函数体）AST节点翻译成线性中间IR
 /// @param node AST节点
 /// @return 翻译是否成功，true：成功，false：失败
@@ -357,9 +381,12 @@ bool IRGenerator::ir_block(ast_node * node)
             return false;
         }
         node->blockInsts.addInst(temp->blockInsts);
-        if ((*pIter)->node_type == ast_operator_type::AST_OP_RETURN) {
+        if (module->getCurrentFunction()->is_real_return == true) {
             break;
         }
+        // if ((*pIter)->node_type == ast_operator_type::AST_OP_RETURN) {
+        //     break;
+        // }
     }
 
     // 离开作用域
@@ -378,9 +405,12 @@ bool IRGenerator::ir_nested_block(ast_node * node)
     if (node->needScope) {
         module->enterScope();
     }
+    LabelInstruction * entryLabelInst;
     Function * currentFunc = module->getCurrentFunction();
-    LabelInstruction * entryLabelInst = new LabelInstruction(currentFunc);
-    node->blockInsts.addInst(entryLabelInst);
+    if (!(node->parent->node_type == ast_operator_type::AST_OP_BLOCK)) {
+        entryLabelInst = new LabelInstruction(currentFunc);
+        node->blockInsts.addInst(entryLabelInst);
+    }
 
     std::vector<ast_node *>::iterator pIter;
     for (pIter = node->sons.begin(); pIter != node->sons.end(); ++pIter) {
@@ -392,8 +422,17 @@ bool IRGenerator::ir_nested_block(ast_node * node)
         }
 
         node->blockInsts.addInst(temp->blockInsts);
+        if (module->getCurrentFunction()->is_real_return == true) {
+            break;
+        }
+        // if ((*pIter)->node_type == ast_operator_type::AST_OP_BLOCK) {
+        //     break;
+        // }
     }
-    node->val = entryLabelInst;
+    if (!(node->parent->node_type == ast_operator_type::AST_OP_BLOCK)) {
+        node->val = entryLabelInst;
+    }
+
     // 离开作用域
     if (node->needScope) {
         module->leaveScope();
@@ -489,6 +528,11 @@ bool IRGenerator::ir_return(ast_node * node)
 {
     ast_node * right = nullptr;
     ast_node * son_node;
+    LabelInstruction * labelInst;
+    if (node->parent->node_type == ast_operator_type::AST_OP_IF_ELSE_STMT) {
+        labelInst = new LabelInstruction(module->getCurrentFunction());
+        node->blockInsts.addInst(labelInst);
+    }
     // return语句可能没有没有表达式，也可能有，因此这里必须进行区分判断
     if (!node->sons.empty()) {
 
@@ -523,8 +567,12 @@ bool IRGenerator::ir_return(ast_node * node)
 
     // 跳转到函数的尾部出口指令上
     // node->blockInsts.addInst(new GotoInstruction(currentFunc, currentFunc->getExitLabel()));
-
-    node->val = right->val;
+    if (node->parent->node_type == ast_operator_type::AST_OP_IF_ELSE_STMT) {
+        node->val = labelInst;
+    } else {
+        node->val = right->val;
+    }
+    module->getCurrentFunction()->is_real_return = !(isReturnInIfElse(node));
 
     // TODO 设置类型
 
@@ -765,6 +813,7 @@ bool IRGenerator::ir_add(ast_node * node)
 
     return true;
 }
+
 /// @brief 整数乘 除法AST节点翻译成线性中间IR,要根据op来判断乘除
 /// @param node AST节点
 /// @return 翻译是否成功，true：成功，false：失败
@@ -1726,6 +1775,11 @@ bool IRGenerator::ir_func_call(ast_node * node)
     // node->sons[0] 是函数名节点，node->sons[1] 可能是参数节点(AST_OP_FUNC_RPARAMS)
     std::string func_name = node->sons[0]->name;
     Function * callee = module->findFunction(func_name);
+    Function * curren_function = module->getCurrentFunction();
+    if (!curren_function->getExistFuncCall()) {
+        curren_function->setExistFuncCall(true);
+    }
+
     if (!callee) {
         std::cerr << "Error: function not found: " << func_name << std::endl;
         return false;

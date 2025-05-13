@@ -27,6 +27,7 @@ void CodeGeneratorAsm::genCodeSection()
 {
     // 重新设置为0
     labelIndex = 0;
+	fprintf(fp, ".text\n");
 
     // 遍历所有的函数，以函数为单位，产生指令
     for (auto func: module->getFunctionList()) {

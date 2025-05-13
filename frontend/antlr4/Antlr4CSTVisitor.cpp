@@ -15,6 +15,7 @@
 	///
 
 	#include <string>
+	#include <sstream>
 
 	#include "Antlr4CSTVisitor.h"
 	#include "AST.h"
@@ -219,7 +220,6 @@ std::any MiniCCSTVisitor::visitFuncDef(MiniCParser::FuncDefContext *ctx) {
 	var_id_attr funcId;
 	funcId.id = strdup(ctx->Ident()->getText().c_str());
 	funcId.lineno = ctx->Ident()->getSymbol()->getLine();
-
 	this->CurrentFunctionName = funcId.id;
 
 	ast_node *formalParamsNode = nullptr;
@@ -304,14 +304,16 @@ std::any MiniCCSTVisitor::visitBlockDeclaration(MiniCParser::BlockDeclarationCon
 std::any MiniCCSTVisitor::visitBlockStatement(MiniCParser::BlockStatementContext *ctx) {
 	// blockStatement : stmt
 	std::string stmt_string = ctx->getText();
-	if (stmt_string.find("return") != std::string::npos) {
+	bool is_return = false;
+    is_return = stmt_string.rfind("return", 0) == 0;
+	if (is_return) {
 		// 处理函数返回语句并计算函数返回值个数
 		Instanceof(returnStmtCtx, MiniCParser::ReturnStmtContext *, ctx->stmt());
 		if (returnStmtCtx) {
 			// 处理函数返回语句
 			return visitReturnStmtWithReturnNum(returnStmtCtx, this->CurrentFunctionName);
 		}
-        return nullptr;
+        return nullptr;	
     }
 	return visit(ctx->stmt());
 }
@@ -335,7 +337,6 @@ std::any MiniCCSTVisitor::visitReturnStmtWithReturnNum(MiniCParser::ReturnStmtCo
 
 	return visitReturnStmt(ctx);
 }
-
 // !一定要带前缀：MiniCCSTVisitor
 std::any MiniCCSTVisitor::visitReturnStmt(MiniCParser::ReturnStmtContext * ctx){
 	// returnStmt : 'return' exp? ';'

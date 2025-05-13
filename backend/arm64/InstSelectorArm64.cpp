@@ -97,17 +97,47 @@ void InstSelectorArm64::translate_entry(Instruction * inst) {
         if (first) {
             protectedRegStr = PlatformArm64::regName[regno];
             first = false;
-        } else if (!first) {
+        } else {
             protectedRegStr += "," + PlatformArm64::regName[regno];
         }
     }
-    // 修改stp格式
+
+    // 计算总栈帧大小（含保护寄存器空间，保证16字节对齐）
+    int funcCallArgCnt = func->getMaxFuncCallArgCnt() - 8;
+    funcCallArgCnt = std::max(funcCallArgCnt, 0);
+    int off = func->getMaxDep();
+    off += funcCallArgCnt * 8;
+    int save_size = 0;
+    if (protectedRegNo.size() == 2) save_size = 16;
+    else if (protectedRegNo.size() == 1) save_size = 8;
+    int frame_size = off + save_size;
+    if (frame_size % 16 != 0) frame_size += 16 - (frame_size % 16);
+
+    // 保存fp/lr并分配栈帧
     if (protectedRegNo.size() == 2) {
-        iloc.inst("stp", PlatformArm64::regName[protectedRegNo[0]], PlatformArm64::regName[protectedRegNo[1]], "[sp, #-16]!");
+        iloc.inst("stp", PlatformArm64::regName[protectedRegNo[0]], PlatformArm64::regName[protectedRegNo[1]], "[sp, #-" + iloc.toStr(frame_size, false) + "]!");
     } else if (protectedRegNo.size() == 1) {
-        iloc.inst("str", PlatformArm64::regName[protectedRegNo[0]], "[sp, #-8]!");
+        iloc.inst("str", PlatformArm64::regName[protectedRegNo[0]], "[sp, #-" + iloc.toStr(frame_size, false) + "]!");
     }
-    iloc.allocStack(func, ARM64_TMP_REG_NO);
+
+    // 设置fp = sp
+    iloc.inst("mov", PlatformArm64::regName[ARM64_FP_REG_NO], PlatformArm64::regName[ARM64_SP_REG_NO]);
+
+	int paramsNum = inst->getOperandsNum();
+	if (paramsNum) {
+		for (int i = 0; i < paramsNum; ++i) {
+			Value * arg = inst->getOperand(i);
+			int32_t arg_regId = arg->getRegId();
+			if (arg_regId != -1) {
+				iloc.store_var(arg_regId, arg, ARM64_TMP_REG_NO);
+			} else {
+				int32_t temp_regno = simpleRegisterAllocator.Allocate();
+				iloc.load_var(temp_regno, arg);
+				iloc.store_var(temp_regno, arg, ARM64_TMP_REG_NO);
+				simpleRegisterAllocator.free(temp_regno);
+			}
+		}
+	}
 }
 
 void InstSelectorArm64::translate_exit(Instruction * inst) {
@@ -115,15 +145,23 @@ void InstSelectorArm64::translate_exit(Instruction * inst) {
         Value * retVal = inst->getOperand(0);
         iloc.load_var(0, retVal);
     }
-    auto & protectedRegStr = func->getProtectedRegStr();
-    iloc.inst("add", PlatformArm64::regName[ARM64_FP_REG_NO], PlatformArm64::regName[ARM64_FP_REG_NO], iloc.toStr(func->getMaxDep()));
-    iloc.inst("mov", "sp", PlatformArm64::regName[ARM64_FP_REG_NO]);
-    // 修改ldp格式
     auto & protectedRegNo = func->getProtectedReg();
+
+    int funcCallArgCnt = func->getMaxFuncCallArgCnt() - 8;
+    funcCallArgCnt = std::max(funcCallArgCnt, 0);
+    int off = func->getMaxDep();
+    off += funcCallArgCnt * 8;
+    int save_size = 0;
+    if (protectedRegNo.size() == 2) save_size = 16;
+    else if (protectedRegNo.size() == 1) save_size = 8;
+    int frame_size = off + save_size;
+    if (frame_size % 16 != 0) frame_size += 16 - (frame_size % 16);
+
+    // 恢复fp/lr并回收栈帧
     if (protectedRegNo.size() == 2) {
-        iloc.inst("ldp", PlatformArm64::regName[protectedRegNo[0]], PlatformArm64::regName[protectedRegNo[1]], "[sp], #16");
+        iloc.inst("ldp", PlatformArm64::regName[protectedRegNo[0]], PlatformArm64::regName[protectedRegNo[1]], "[sp], #" + iloc.toStr(frame_size, false));
     } else if (protectedRegNo.size() == 1) {
-        iloc.inst("ldr", PlatformArm64::regName[protectedRegNo[0]], "[sp], #8");
+        iloc.inst("ldr", PlatformArm64::regName[protectedRegNo[0]], "[sp], #" + iloc.toStr(frame_size, false));
     }
     iloc.inst("ret", "");
 }
@@ -149,7 +187,7 @@ void InstSelectorArm64::translate_assign(Instruction * inst) {
 void InstSelectorArm64::translate_add(Instruction * inst) {
     Value * lhs = inst->getOperand(0);
     Value * rhs = inst->getOperand(1);
-	Value * dst = inst->getOperand(2);
+	Value * dst = inst;
     int32_t dst_reg = dst->getRegId();
     int32_t lhs_reg = lhs->getRegId();
     int32_t rhs_reg = rhs->getRegId();
@@ -172,7 +210,7 @@ void InstSelectorArm64::translate_add(Instruction * inst) {
 void InstSelectorArm64::translate_sub(Instruction * inst) {
     Value * lhs = inst->getOperand(0);
     Value * rhs = inst->getOperand(1);
-	Value * dst = inst->getOperand(2);
+	Value * dst = inst;
     int32_t dst_reg = dst->getRegId();
     int32_t lhs_reg = lhs->getRegId();
     int32_t rhs_reg = rhs->getRegId();
@@ -195,7 +233,7 @@ void InstSelectorArm64::translate_sub(Instruction * inst) {
 void InstSelectorArm64::translate_mul(Instruction * inst) {
     Value * lhs = inst->getOperand(0);
     Value * rhs = inst->getOperand(1);
-	Value * dst = inst->getOperand(2);
+	Value * dst = inst;
     int32_t dst_reg = dst->getRegId();
     int32_t lhs_reg = lhs->getRegId();
     int32_t rhs_reg = rhs->getRegId();
@@ -218,7 +256,7 @@ void InstSelectorArm64::translate_mul(Instruction * inst) {
 void InstSelectorArm64::translate_div(Instruction * inst) {
     Value * lhs = inst->getOperand(0);
     Value * rhs = inst->getOperand(1);
-	Value * dst = inst->getOperand(2);
+	Value * dst = inst;
     int32_t dst_reg = dst->getRegId();
     int32_t lhs_reg = lhs->getRegId();
     int32_t rhs_reg = rhs->getRegId();
@@ -242,7 +280,7 @@ void InstSelectorArm64::translate_mod(Instruction * inst) {
     // a % b = a - (a / b) * b
     Value * lhs = inst->getOperand(0);
     Value * rhs = inst->getOperand(1);
-	Value * dst = inst->getOperand(2);
+	Value * dst = inst;
     int32_t dst_reg = dst->getRegId();
     int32_t lhs_reg = lhs->getRegId();
     int32_t rhs_reg = rhs->getRegId();
@@ -285,7 +323,7 @@ static const char* getA64Cond(IRInstOperator op) {
 void InstSelectorArm64::translate_cmp(Instruction * inst, IRInstOperator op) {
     Value * lhs = inst->getOperand(0);
     Value * rhs = inst->getOperand(1);
-	Value * dst = inst->getOperand(2);
+	Value * dst = inst;
     int32_t dst_reg = dst->getRegId();
     int32_t lhs_reg = lhs->getRegId();
     int32_t rhs_reg = rhs->getRegId();
@@ -332,7 +370,7 @@ void InstSelectorArm64::translate_branch(Instruction * inst) {
 void InstSelectorArm64::translate_and(Instruction * inst) {
     Value * lhs = inst->getOperand(0);
     Value * rhs = inst->getOperand(1);
-	Value * dst = inst->getOperand(2);
+	Value * dst = inst;
     int32_t dst_reg = dst->getRegId();
     int32_t lhs_reg = lhs->getRegId();
     int32_t rhs_reg = rhs->getRegId();
@@ -355,7 +393,7 @@ void InstSelectorArm64::translate_and(Instruction * inst) {
 void InstSelectorArm64::translate_or(Instruction * inst) {
     Value * lhs = inst->getOperand(0);
     Value * rhs = inst->getOperand(1);
-	Value * dst = inst->getOperand(2);
+	Value * dst = inst;
     int32_t dst_reg = dst->getRegId();
     int32_t lhs_reg = lhs->getRegId();
     int32_t rhs_reg = rhs->getRegId();
@@ -394,23 +432,23 @@ void InstSelectorArm64::translate_not(Instruction * inst) {
 // 函数调用
 void InstSelectorArm64::translate_func_call(Instruction * inst) {
     // 假设操作数0为函数名，1~n为参数
-    Value * funcVal = inst->getOperand(0);
+    Value * funcVal = inst;
     int n = inst->getOperandsNum();
-    for (int i = 1; i < n; ++i) {
+    for (int i = 0; i < n; ++i) {
         Value * arg = inst->getOperand(i);
         int32_t reg = arg->getRegId();
         if (reg == -1) {
             reg = simpleRegisterAllocator.Allocate();
             iloc.load_var(reg, arg);
         }
-        // ARM64前8个参数寄存器x0-x7
-        if (i - 1 < 8) {
-            iloc.inst("mov", PlatformArm64::regName[i - 1], PlatformArm64::regName[reg], "");
-        } else {
-            // 超过8个参数，按ABI入栈
-            // 这里只做注释，实际实现需完善
-            iloc.comment("TODO: 参数" + std::to_string(i) + "入栈");
-        }
+        // // ARM64前8个参数寄存器x0-x7
+        // if (i < 8) {
+        //     iloc.inst("mov", PlatformArm64::regName[i], PlatformArm64::regName[reg], "");
+        // } else {
+        //     // 超过8个参数，按ABI入栈
+        //     // 这里只做注释，实际实现需完善
+        //     iloc.comment("TODO: 参数" + std::to_string(i) + "入栈");
+        // }
         if (arg->getRegId() == -1) simpleRegisterAllocator.free(reg);
     }
     iloc.inst("bl", funcVal->getIRName());

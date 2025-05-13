@@ -59,22 +59,25 @@ void CodeGeneratorArm64::genDataSection()
     // 全局变量分两种情况：初始化的全局变量和未初始化的全局变量
     // TODO 这里先处理未初始化的全局变量
     for (auto var: module->getGlobalVariables()) {
-
-        if (var->isInBSSSection()) {
-
-            // 在BSS段的全局变量，可以包含初值全是0的变量
-            fprintf(fp, ".comm %s, %d, %d\n", var->getName().c_str(), var->getType()->getSize(), var->getAlignment());
-        } else {
-
-            // 有初值的全局变量
-            fprintf(fp, ".global %s\n", var->getName().c_str());
-            fprintf(fp, ".data\n");
-            fprintf(fp, ".align %d\n", var->getAlignment());
-            fprintf(fp, ".type %s, %%object\n", var->getName().c_str());
-            fprintf(fp, "%s\n", var->getName().c_str());
-            // TODO 后面设置初始化的值，具体请参考ARM的汇编
-        }
-    }
+		fprintf(fp, ".type %s, @object\n", var->getName().c_str());
+		fprintf(fp, ".data\n");
+		fprintf(fp, ".global %s\n", var->getName().c_str());
+		fprintf(fp, ".align %d\n", var->getAlignment());
+		fprintf(fp, "%s:\n", var->getName().c_str());
+		// TODO 后面设置初始化的值，具体请参考ARM的汇编
+		Type* type = var->getType();
+		if(type->isIntegerType()) {
+			fprintf(fp, "    .word %d\n", (var->isInBSSSection() ? 0: var->real_int));
+			fprintf(fp, "    .size %s, %d\n\n", var->getName().c_str(), type->getSize());
+		}
+		else if(type->isFloatType()) {
+			fprintf(fp, "    .float %f\n", (var->isInBSSSection() ? 0.0 : var->real_float));
+			fprintf(fp, "    .size %s, %d\n\n", var->getName().c_str(), type->getSize());
+		}
+		else{
+			printf("unsupport type in  global variable\n");
+		}
+	}
 }
 
 ///
@@ -138,7 +141,7 @@ void CodeGeneratorArm64::genCodeSection(Function * func)
     iloc.deleteUsedLabel();
 
     // ILOC代码输出为汇编代码
-    fprintf(fp, ".align %d\n", func->getAlignment());
+    fprintf(fp, "\n.align %d\n", func->getAlignment());
     fprintf(fp, ".global %s\n", func->getName().c_str());
     fprintf(fp, ".type %s, %%function\n", func->getName().c_str());
     fprintf(fp, "%s:\n", func->getName().c_str());
@@ -189,7 +192,7 @@ void CodeGeneratorArm64::registerAllocation(Function * func)
     //  (3) R10寄存器用于立即数过大时要通过寄存器寻址，这里简化处理进行预留
 
     std::vector<int32_t> & protectedRegNo = func->getProtectedReg();
-    protectedRegNo.push_back(ARM64_TMP_REG_NO);
+    protectedRegNo.clear();
     protectedRegNo.push_back(ARM64_FP_REG_NO);
     if (func->getExistFuncCall()) {
         protectedRegNo.push_back(ARM64_LR_REG_NO);
@@ -395,7 +398,7 @@ void CodeGeneratorArm64::stackAlloc(Function * func)
             int32_t size = inst->getType()->getSize();
 
             // 32位ARM平台按照4字节的大小整数倍分配局部变量
-            size += (4 - size % 4) % 4;
+            size += (8 - size % 8) % 8;
 
             // 这里要注意检查变量栈的偏移范围。一般采用机制寄存器+立即数方式间接寻址
             // 若立即数满足要求，可采用基址寄存器+立即数变量的方式访问变量
@@ -412,5 +415,9 @@ void CodeGeneratorArm64::stackAlloc(Function * func)
 
     // 设置函数的最大栈帧深度，在加上实参内存传值的空间
     // 请注意若支持浮点数，则必须保持栈内空间8字节对齐
+    // --- 保证16字节对齐 ---
+    if (sp_esp % 16 != 0) {
+        sp_esp += 16 - (sp_esp % 16);
+    }
     func->setMaxDep(sp_esp);
 }

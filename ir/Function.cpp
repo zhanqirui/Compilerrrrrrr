@@ -195,32 +195,21 @@ void Function::toString(std::string & str)
         // str += "declare " + var->getType()->toString() + " " + var->getIRName();
         //修改为LLVM的alloca语句
         str += "  ";
-        str += var->getIRName() + " = alloca " + var->getType()->toString() + ", " + "align 4";
-
         const std::vector<int32_t> dims = var->arraydimensionVector;
         if (!dims.empty()) {
-            for (auto dim: dims) {
-                str += "[" + std::to_string(dim) + "]";
+            std::string arrayType = "";
+            for (auto it = dims.begin(); it != dims.end(); ++it) {
+                arrayType += "[" + std::to_string(*it) + " x ";
             }
-        }
-        // if (var->isConst()) {
-        {
-            if (var->isArray()) {
-                // 获取数组的维度信息和展平数组
-                const std::vector<int32_t> & dims = var->arraydimensionVector;
-                const std::vector<FlattenedArrayElement> & flattenedArray = var->flattenedArray;
-
-                // 处理多维数组
-                if (!dims.empty()) {
-                    str += " = ";
-                    str += processMultiDimArray(var, dims, flattenedArray, 0, 0);
-                }
+            Type * baseType = var->getType(); // 获取类型
+            PointerType * pointerType = dynamic_cast<PointerType *>(baseType);
+            arrayType += pointerType->getRootType()->toString();
+            for (size_t i = 0; i < dims.size(); ++i) {
+                arrayType += "]";
             }
-            // 判断是否为 ConstVariable 类型并强转（前提是你确认变量来自该类）
-            else {
-                // str += var->type->isIntegerType() ? ("=" + std::to_string(var->real_int)) : ("=" +
-                // std::to_string(var->real_float));
-            }
+            str += var->getIRName() + " = alloca " + arrayType + ", align 16";
+        } else {
+            str += var->getIRName() + " = alloca " + var->getType()->toString() + ", " + "align 4";
         }
         std::string extraStr;
         std::string realName = var->getName();

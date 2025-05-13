@@ -199,7 +199,8 @@ public:
     }
     LabelInstruction * block_entry_Lable = nullptr;
     LabelInstruction * block_exit_Lable = nullptr;
-    bool is_const_func_var = true;
+    bool is_const_func_var = true; //表示函数内的数组是否放到函数外定义为const
+    bool is_real_return = false;
     void removeLocalVarByName(const std::string & name);
 
 private:

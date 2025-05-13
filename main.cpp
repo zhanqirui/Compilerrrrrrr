@@ -273,11 +273,10 @@ static int compile(std::string inputFile, std::string outputFile)
 
         // 创建词法语法分析器
         Antlr4Executor * frontEndExecutor;
-
-        // Antlr4
-        frontEndExecutor = new Antlr4Executor(inputFile);
+		frontEndExecutor = new Antlr4Executor(inputFile);
 
         // 前端执行：词法分析、语法分析后产生抽象语法树，其root为全局变量ast_root
+        // subResult = frontEndExecutor->run();
         std::map<std::string, int> NameToReturnNum;
         subResult = frontEndExecutor->run(NameToReturnNum);
         if (!subResult) {

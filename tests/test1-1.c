@@ -1,23 +1,7 @@
-// test if-if-else
-// int ififElse() {
-//   int a;
-//   a = 5;
-//   int b;
-//   b = 10;
-//   if(a == 5)
-//     if (b == 10) 
-//       a = 25;
-//     else 
-//       a = a + 15;
-    
-//   return (a);
-// }
-
+//test array define
 int main(){
-//   return (ififElse());
-int x = 1;
-	if(x==1)
-		return 10;
-	else
-	    return 10;
+    int a[4][2] = {};
+    int b[4][2] = {1, 2, 3, 4, 5, 6, 7, 8};
+    int e[4][2] = {{b[2][1], 12}, {3, 4}, {5, 6}, {7, 8}};
+    return e[3][1];
 }
