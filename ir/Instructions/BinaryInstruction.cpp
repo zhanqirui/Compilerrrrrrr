@@ -99,12 +99,12 @@ void BinaryInstruction::toString(std::string & str)
         case IRInstOperator::IRINST_OP_AND_I:
 
             // 减法指令，二元运算
-            str = getIRName() + " = icmp and " + src1->getIRName() + "," + src2->getIRName();
+            str = getIRName() + " = and " + src1->getIRName() + "," + src2->getIRName();
             break;
         case IRInstOperator::IRINST_OP_OR_I:
 
             // 减法指令，二元运算
-            str = getIRName() + " = icmp or " + src1->getIRName() + "," + src2->getIRName();
+            str = getIRName() + " = or " + src1->getIRName() + "," + src2->getIRName();
             break;
         case IRInstOperator::IRINST_OP_MOD_I:
 

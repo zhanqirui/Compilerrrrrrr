@@ -47,8 +47,8 @@ enum class IRInstOperator : std::int8_t {
     IRINST_OP_GE_I,  //>=
     IRINST_OP_EQ_I,  //==
     IRINST_OP_NE_I,  //!=
-    IRINST_OP_AND_I, //&&
-    IRINST_OP_OR_I,  //||
+    IRINST_OP_AND_I, //& or &&
+    IRINST_OP_OR_I,  //| or ||
     IRINST_OP_NOT_I, //!
     IRINST_OP_MOD_I, //%
     IRINST_OP_BRANCH_I,
