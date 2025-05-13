@@ -121,7 +121,7 @@
 			// "preLaunchTask": "CMake: build"
 		},
 		{
-			"name": "Qemu Debug ARM32",
+			"name": "Qemu Debug ARM64",
 			"type": "cppdbg",
 			"request": "launch",
 			"program": "${workspaceFolder}/tests/test1-1",

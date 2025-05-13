@@ -17,6 +17,8 @@
 
 #include "AST.h"
 #include "MiniCBaseVisitor.h"
+#include <map>
+#include <string>
 
 /// @brief 遍历具体语法树产生抽象语法树
 class MiniCCSTVisitor : public MiniCBaseVisitor {
@@ -31,6 +33,10 @@ public:
     /// @param root CST语法树的根结点
     /// @return AST的根节点
     ast_node * run(MiniCParser::CompUnitContext * root);
+
+	std::map<std::string, int> getReturnNum() {
+		return NameToReturnNum;
+	}
 
 protected:
     /* 下面的函数都是从MiniCBaseVisitor继承下来的虚拟函数，需要重载实现 */
@@ -65,6 +71,7 @@ protected:
     std::any visitBlockDeclaration(MiniCParser::BlockDeclarationContext *ctx) override;
     std::any visitBlockStatement(MiniCParser::BlockStatementContext *ctx) override;
     std::any visitAssignmentStatement(MiniCParser::AssignmentStatementContext *ctx) override;
+    std::any visitReturnStmtWithReturnNum(MiniCParser::ReturnStmtContext * ctx, std::string FunctionName);
     std::any visitReturnStmt(MiniCParser::ReturnStmtContext * ctx) override;
     std::any visitExpressionStatement(MiniCParser::ExpressionStatementContext * ctx) override;
     std::any visitNestedBlockStatement(MiniCParser::NestedBlockStatementContext *ctx) override;
@@ -91,4 +98,11 @@ protected:
     std::any visitLAndExp(MiniCParser::LAndExpContext *ctx) override;
     std::any visitLOrExp(MiniCParser::LOrExpContext *ctx) override;
     std::any visitConstExp(MiniCParser::ConstExpContext *ctx) override;
+
+	private:
+		//记录return语句的个数
+		std::map<std::string, int> NameToReturnNum;
+
+		//记录当前函数名
+		std::string CurrentFunctionName;
 };

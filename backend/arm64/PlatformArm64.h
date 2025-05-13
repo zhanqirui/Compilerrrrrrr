@@ -12,6 +12,9 @@
 #include <string>
 #include "RegVariable.h"
 
+#define ARM64_SAVED_REG1  19
+#define ARM64_SAVED_REG2  20
+
 // 临时寄存器
 #define ARM64_TMP_REG_NO 16
 

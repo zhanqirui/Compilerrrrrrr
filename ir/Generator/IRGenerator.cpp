@@ -66,6 +66,7 @@ IRGenerator::IRGenerator(ast_node * _root, Module * _module) : root(_root), modu
     /* 语句 */
     ast2ir_handlers[ast_operator_type::AST_OP_ASSIGN_STMT] = &IRGenerator::ir_assign;
     ast2ir_handlers[ast_operator_type::AST_OP_RETURN] = &IRGenerator::ir_return;
+	ast2ir_handlers[ast_operator_type::AST_OP_BREAK] = &IRGenerator::ir_return;
     /* 变量定义语句 */
 
     ast2ir_handlers[ast_operator_type::AST_OP_VAR_DECL] = &IRGenerator::ir_variable_declare;
@@ -1852,6 +1853,12 @@ bool IRGenerator::ir_func_call(ast_node * node)
     // node->sons[0] 是函数名节点，node->sons[1] 可能是参数节点(AST_OP_FUNC_RPARAMS)
     std::string func_name = node->sons[0]->name;
     Function * callee = module->findFunction(func_name);
+	Function* curren_function = module->getCurrentFunction();
+	if(!curren_function->getExistFuncCall())
+	{
+		curren_function->setExistFuncCall(true);
+	}
+
     if (!callee) {
         std::cerr << "Error: function not found: " << func_name << std::endl;
         return false;
