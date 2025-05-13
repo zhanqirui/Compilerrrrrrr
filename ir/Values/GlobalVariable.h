@@ -51,6 +51,13 @@ public:
     /// @return true
     /// @return false
     ///
+    void renameIR()
+    {
+        if (this->const_func_name != "null") {
+            IRName = "@__const." + this->const_func_name + "." + name;
+        }
+    }
+
     [[nodiscard]] bool isInBSSSection() const
     {
         return this->inBSSSection;
@@ -114,6 +121,7 @@ public:
                 for (size_t i = 0; i < dims.size(); ++i) {
                     arrayType += "]";
                 }
+                arrayType += " ";
                 if (this->const_func_name == "null") {
                     str += " = dso_local global " + arrayType;
 

@@ -63,6 +63,7 @@ public:
     ///
     /// 该构造函数将Type的ID设置为PointerTypeID，并且
     /// 保存pointeeType的指针到pointeeType成员变量
+
     explicit PointerType(const Type * pointeeType) : Type(PointerTyID)
     {
         this->pointeeType = pointeeType;
