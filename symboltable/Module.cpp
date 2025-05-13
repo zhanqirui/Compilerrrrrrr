@@ -394,7 +394,10 @@ void Module::renameIR()
 {
     // 全局变量目前都有名字，目前不存在没有名字的变量，因此
     // 对于全局变量的线性IR名称，只是在原来的名称前追加@即可
+    for (auto var: globalVariableVector) {
 
+        var->renameIR();
+    }
     // 遍历所有的函数，含局部变量名、形参、Label名、指令变量重命名
     for (auto func: funcVector) {
         func->renameIR();
@@ -406,7 +409,7 @@ void Module::renameIR()
 void Module::outputIR(const std::string & filePath)
 {
     // 这里使用C的文件操作，也可以使用C++的文件操作
-
+    bool is_use_memset, is_use_memcpy = false;
     FILE * fp = fopen(filePath.c_str(), "w");
     if (nullptr == fp) {
         printf("fopen() failed\n");
@@ -426,8 +429,19 @@ void Module::outputIR(const std::string & filePath)
 
         std::string instStr;
         func->toString(instStr);
+        if (func->is_use_memcpy == true)
+            is_use_memcpy = true;
+        if (func->is_use_memset == true)
+            is_use_memset = true;
         fprintf(fp, "%s", instStr.c_str());
     }
+    if (is_use_memset)
+        fprintf(fp, "\ndeclare void @llvm.memset.p0i8.i64(i8* nocapture writeonly, i8, i64, i1 immarg) #1\n");
+    if (is_use_memcpy)
+        fprintf(
+            fp,
+            "declare void @llvm.memcpy.p0i8.p0i8.i64(i8* noalias nocapture writeonly, i8* noalias nocapture readonly, "
+            "i64, i1 immarg) #2\n");
 
     fclose(fp);
 }

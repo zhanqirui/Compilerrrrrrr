@@ -25,6 +25,8 @@ struct FlattenedArrayElement {
     int32_t flatIndex; // 展平后的索引
     int32_t intValue;  // 整数值
     float floatValue;  // 浮点值
+    Value * val;
+    bool is_use_val;
 };
 ///
 /// @brief 值类，每个值都要有一个类型，全局变量和局部变量可以有名字，
@@ -148,9 +150,9 @@ public:
     std::vector<int32_t> arraydimensionVector;
     std::vector<FlattenedArrayElement> flattenedArray;
 
-    void addElement(int32_t flatIndex, int32_t intValue, float floatValue)
+    void addElement(int32_t flatIndex, int32_t intValue, float floatValue, Value * val, bool isuse)
     {
-        flattenedArray.push_back({flatIndex, intValue, floatValue});
+        flattenedArray.push_back({flatIndex, intValue, floatValue, val, isuse});
     }
     std::vector<FlattenedArrayElement> getElement()
     {

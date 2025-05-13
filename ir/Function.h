@@ -201,6 +201,8 @@ public:
     LabelInstruction * block_exit_Lable = nullptr;
     bool is_const_func_var = true; //表示函数内的数组是否放到函数外定义为const
     bool is_real_return = false;
+    bool is_use_memset = false;
+    bool is_use_memcpy = false;
     void removeLocalVarByName(const std::string & name);
 
 private:

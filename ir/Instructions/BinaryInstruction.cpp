@@ -64,10 +64,13 @@ void BinaryInstruction::toString(std::string & str)
             str = getIRName() + " = mul nsw " + type_str + src1->getIRName() + ", " + src2->getIRName();
             break;
         case IRInstOperator::IRINST_OP_DIV_I:
-
-            // 减法指令，二元运算
-            str = getIRName() + " = sdiv " + type_str + src1->getIRName() + ", " + src2->getIRName();
+            if (src1->getType()->toString() == "i32") {
+                str = getIRName() + " = sdiv " + type_str + src1->getIRName() + ", " + src2->getIRName();
+            } else {
+                str = getIRName() + " = fdiv " + type_str + src1->getIRName() + ", " + src2->getIRName();
+            }
             break;
+
         case IRInstOperator::IRINST_OP_GT_I:
             str = getIRName() + " = icmp gt " + type_str + src1->getIRName() + ", " + src2->getIRName();
             break;

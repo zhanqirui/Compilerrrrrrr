@@ -232,6 +232,14 @@ set(IR_SRCS
 	ir/Instructions/UnaryInstruction.h
 	ir/Instructions/LoadInstruction.h
 	ir/Instructions/LoadInstruction.cpp
+	ir/Instructions/BitcastInstruction.h
+	ir/Instructions/BitcastInstruction.cpp
+	ir/Instructions/MemcpyInstruction.cpp
+	ir/Instructions/MemcpyInstruction.h
+	ir/Instructions/MemsetInstruction.h
+	ir/Instructions/MemsetInstruction.cpp
+	ir/Instructions/GetElementPtrInstruction.cpp
+	ir/Instructions/GetElementPtrInstruction.h
 )
 
 # 符号表等共通化代码集合
