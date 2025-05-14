@@ -25,11 +25,11 @@ class InterCode {
 
 protected:
     /// @brief 指令块的指令序列
-    std::vector<Instruction *> code;
 
 public:
     /// @brief 构造函数
     InterCode() = default;
+    std::vector<Instruction *> code;
 
     /// @brief 析构函数
     ~InterCode();

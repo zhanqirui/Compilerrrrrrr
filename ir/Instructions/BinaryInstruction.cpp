@@ -38,14 +38,14 @@ void BinaryInstruction::toString(std::string & str)
 {
 
     Value *src1 = getOperand(0), *src2 = getOperand(1);
-    std::string type_str = this->getType()->toString() + " ";
-    // {
-    //     if (src1->type->isFloatType() || src2->type->isFloatType())
-    //         type_str = "float ";
-    //     else
-    //         type_str = src1->type->toString() + ' ';
-    //     ;
-    // }
+    std::string type_str;
+    {
+        if (src1->type->isFloatType() || src2->type->isFloatType())
+            type_str = "float ";
+        else
+            type_str = src1->type->toString() + ' ';
+        ;
+    }
     switch (op) {
         case IRInstOperator::IRINST_OP_ADD_I:
 

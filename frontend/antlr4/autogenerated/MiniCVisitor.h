@@ -65,6 +65,8 @@ public:
 
     virtual std::any visitAssignmentStatement(MiniCParser::AssignmentStatementContext *context) = 0;
 
+    virtual std::any visitEmptyStatement(MiniCParser::EmptyStatementContext *context) = 0;
+
     virtual std::any visitExpressionStatement(MiniCParser::ExpressionStatementContext *context) = 0;
 
     virtual std::any visitNestedBlockStatement(MiniCParser::NestedBlockStatementContext *context) = 0;

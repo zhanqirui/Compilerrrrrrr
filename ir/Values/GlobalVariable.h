@@ -19,6 +19,8 @@
 #include "GlobalValue.h"
 #include "IRConstant.h"
 #include "PointerType.h"
+#include <sstream>
+
 ///
 /// @brief 全局变量，寻址时通过符号名或变量名来寻址
 ///
@@ -97,8 +99,9 @@ public:
 
     ///
     /// @brief Declare指令IR显示
-    /// @param str
+    /// @param varName
     ///
+
     void toDeclareString(std::string & varName)
     {
         varName = getIRName();
@@ -135,7 +138,7 @@ public:
                 if (this->flattenedArray.empty()) {
                     varName += " = dso_local global " + arrayType + "zeroinitializer, align 16";
                 } else {
-                    std::string typeStr = getArrayTypeStr(dims, 0, elemType);
+                    std::string typeStr = dims.size() > 1 ? getArrayTypeStr(dims, 0, elemType) : "";
                     std::string content = emitContent(dims, elemType, flatArr, 0, 0);
                     varName += " = dso_local constant " + typeStr + " " + content + ", align 16";
                 }

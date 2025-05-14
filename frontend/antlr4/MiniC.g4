@@ -54,17 +54,18 @@ blockItem: decl # blockDeclaration | stmt # blockStatement;
 
 // 语句系统
 stmt:
-	lVal '=' exp ';'						# assignmentStatement
-	| exp? ';'								# expressionStatement
-	| block									# nestedBlockStatement
-	| 'if' '(' cond ')' stmt ('else' stmt)?	# ifElseStatement
-	| 'while' '(' cond ')' stmt				# whileLoopStatement
-	| 'break' ';'							# breakStatement
-	| 'continue' ';'						# continueStatement
-	| 'return' exp? ';'						# returnStmt; // 新增 return 语句规则
+	lVal '=' exp ';'					# assignmentStatement
+	| ';'		                        # emptyStatement
+	| exp ';'	                        # expressionStatement 
+	| block								# nestedBlockStatement
+	| IF '(' cond ')' stmt (ELSE stmt)?	# ifElseStatement
+	| WHILE '(' cond ')' stmt			# whileLoopStatement
+	| BREAK ';'							# breakStatement
+	| CONTINUE ';'						# continueStatement
+	| RETURN exp? ';'					# returnStmt;
 
 // 表达式体系
-exp: addExp;
+exp: lOrExp;
 
 // 条件表达式
 cond: lOrExp;
@@ -80,9 +81,9 @@ number: IntConst | FloatConst;
 
 // 一元表达式
 unaryExp:
-	primaryExp # UnaryExpPrimary 
-	| Ident '(' funcRParams? ')' # UnaryExpFuncCall 
-	| unaryOp unaryExp # UnaryOpUnaryExp;
+	primaryExp						# UnaryExpPrimary
+	| Ident '(' funcRParams? ')'	# UnaryExpFuncCall
+	| unaryOp unaryExp				# UnaryOpUnaryExp;
 
 // 一元运算符
 unaryOp: '+' | '-' | '!';
@@ -106,14 +107,31 @@ lOrExp: lAndExp ('||' lAndExp)*;
 // 常量表达式
 constExp: addExp;
 
-// return 
-
-RETURN: 'return';
-
 // 词法规则
+
+BREAK: 'break';
+CONTINUE: 'continue';
+IF: 'if';
+ELSE: 'else';
+WHILE: 'while';
+RETURN: 'return';
+CONST: 'const';
+INT: 'int';
+FLOAT: 'float';
+VOID: 'void';
+
 Ident: [a-zA-Z_] [a-zA-Z0-9_]*;
-IntConst: [1-9][0-9]* | '0';
-FloatConst: [0-9]+ '.' [0-9]* | '.' [0-9]+;
+IntConst:
+	'0x' [0-9a-fA-F]+ // 16进制
+	| '0X' [0-9a-fA-F]+ // 16进制
+	| '0' [0-7]+ // 8进制
+	| [1-9][0-9]* // 十进制
+	| '0'; // 单独的0
+
+FloatConst:
+	[0-9]+ '.' [0-9]* ([eE] [+\-]? [0-9]+)? // 1.23, 1.23e10, 1.23E-10
+	| '.' [0-9]+ ([eE] [+\-]? [0-9]+)? // .23, .23e5
+	| [0-9]+ [eE] [+\-]? [0-9]+; // 1e10, 1E-10
 
 // 空白和注释
 Whitespace: [ \t\r\n]+ -> skip;

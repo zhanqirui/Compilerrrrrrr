@@ -440,7 +440,20 @@ void Function::renameIR()
         }
     }
 }
+void Function::BLOCK_SIMPLE_EN()
+{
+    // 内置函数忽略
+    if (isBuiltin()) {
+        return;
+    }
+    Instruction *left, *right;
+    for (auto inst: this->getInterCode().getInsts()) {
+        if (inst->getOp() == IRInstOperator::IRINST_OP_LABEL) {
 
+        } else if (inst->hasResultValue()) {
+        }
+    }
+}
 ///
 /// @brief 获取统计的ARG指令的个数
 /// @return int32_t 个数
@@ -481,4 +494,30 @@ LabelInstruction * Function::getblock_entry_Lable()
 LabelInstruction * Function::getblock_exit_Lable()
 {
     return block_exit_Lable;
+}
+
+void Function::set_ifelse_Lable1(LabelInstruction * LabelInst)
+{
+    ifelse_Lable1 = LabelInst;
+}
+void Function::set_ifelse_Lable2(LabelInstruction * LabelInst)
+{
+    ifelse_Lable2 = LabelInst;
+}
+
+LabelInstruction * Function::get_ifelse_Lable1()
+{
+    return ifelse_Lable1;
+}
+LabelInstruction * Function::get_ifelse_Lable2()
+{
+    return ifelse_Lable2;
+}
+void Function::set_ifelse_exit(LabelInstruction * LabelInst)
+{
+    ifelse_exitlabel = LabelInst;
+}
+LabelInstruction * Function::get_ifelse_exit()
+{
+    return ifelse_exitlabel;
 }

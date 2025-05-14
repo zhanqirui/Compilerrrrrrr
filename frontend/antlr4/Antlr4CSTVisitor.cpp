@@ -297,6 +297,12 @@ std::any MiniCCSTVisitor::visitBlock(MiniCParser::BlockContext *ctx) {
 	}
 	return block;
 }
+
+std::any MiniCCSTVisitor::visitEmptyStatement(MiniCParser::EmptyStatementContext * ctx)
+{
+    return (ast_node *)nullptr;
+}
+
 std::any MiniCCSTVisitor::visitBlockDeclaration(MiniCParser::BlockDeclarationContext *ctx) {
 	// blockDeclaration : decl
 	return visit(ctx->decl());
@@ -392,8 +398,8 @@ std::any MiniCCSTVisitor::visitContinueStatement(MiniCParser::ContinueStatementC
 
 // 表达式
 std::any MiniCCSTVisitor::visitExp(MiniCParser::ExpContext *ctx) {
-	// exp : addExp
-	auto expr = std::any_cast<ast_node *>(visit(ctx->addExp()));
+	// exp : LorExp
+	auto expr = std::any_cast<ast_node *>(visit(ctx->lOrExp()));
 	return create_exp_node(expr);
 }
 std::any MiniCCSTVisitor::visitCond(MiniCParser::CondContext *ctx) {
@@ -436,12 +442,24 @@ std::any MiniCCSTVisitor::visitPrimaryExp(MiniCParser::PrimaryExpContext *ctx) {
 std::any MiniCCSTVisitor::visitNumber(MiniCParser::NumberContext *ctx) {
 	// number : IntConst | FloatConst
 	if (ctx->IntConst()) {
-		int val = std::stoi(ctx->IntConst()->getText());
+		std::string text = ctx->IntConst()->getText();
+		int val = 0;
+		if (text.size() > 2 && (text[0] == '0') && (text[1] == 'x' || text[1] == 'X')) {
+			// 16进制
+			val = std::stoi(text, nullptr, 16);
+		} else if (text.size() > 1 && text[0] == '0' && text[1] >= '0' && text[1] <= '7') {
+			// 8进制
+			val = std::stoi(text, nullptr, 8);
+		} else {
+			// 十进制
+			val = std::stoi(text, nullptr, 10);
+		}
 		return create_number_node(val);
 	}
 	// FloatConst
 	if (ctx->FloatConst()) {
-		float val = std::stof(ctx->FloatConst()->getText());
+		std::string text = ctx->FloatConst()->getText();
+		float val = std::stof(text);
 		return create_float_node(val);
 	}
 	return nullptr;

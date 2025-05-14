@@ -107,6 +107,10 @@ public:
     return visitChildren(ctx);
   }
 
+  virtual std::any visitEmptyStatement(MiniCParser::EmptyStatementContext *ctx) override {
+    return visitChildren(ctx);
+  }
+
   virtual std::any visitExpressionStatement(MiniCParser::ExpressionStatementContext *ctx) override {
     return visitChildren(ctx);
   }

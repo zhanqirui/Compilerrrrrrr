@@ -22,6 +22,7 @@ InstSelectorArm64::InstSelectorArm64(vector<Instruction *> & _irCode,
     translator_handlers[IRInstOperator::IRINST_OP_LABEL] = &InstSelectorArm64::translate_label;
     translator_handlers[IRInstOperator::IRINST_OP_GOTO] = &InstSelectorArm64::translate_goto;
     translator_handlers[IRInstOperator::IRINST_OP_ASSIGN] = &InstSelectorArm64::translate_assign;
+	translator_handlers[IRInstOperator::IRINST_OP_LOAD] = &InstSelectorArm64::translate_load;
 
     // 新增：注册算术/逻辑/分支/函数相关指令
     translator_handlers[IRInstOperator::IRINST_OP_ADD_I] = &InstSelectorArm64::translate_add;
@@ -115,10 +116,12 @@ void InstSelectorArm64::translate_entry(Instruction * inst) {
 
     // 保存fp/lr并分配栈帧
     if (protectedRegNo.size() == 2) {
-        iloc.inst("stp", PlatformArm64::regName[protectedRegNo[0]], PlatformArm64::regName[protectedRegNo[1]], "[sp, #-" + iloc.toStr(frame_size, false) + "]!");
+        iloc.inst("stp", PlatformArm64::regName[protectedRegNo[0]], PlatformArm64::regName[protectedRegNo[1]], "[sp, #-" + iloc.toStr(save_size, false) + "]!");
     } else if (protectedRegNo.size() == 1) {
-        iloc.inst("str", PlatformArm64::regName[protectedRegNo[0]], "[sp, #-" + iloc.toStr(frame_size, false) + "]!");
+        iloc.inst("str", PlatformArm64::regName[protectedRegNo[0]], "[sp, #-" + iloc.toStr(save_size, false) + "]!");
     }
+
+	iloc.inst("sub", PlatformArm64::regName[ARM64_SP_REG_NO], PlatformArm64::regName[ARM64_SP_REG_NO], iloc.toStr(frame_size - save_size, false));
 
     // 设置fp = sp
     iloc.inst("mov", PlatformArm64::regName[ARM64_FP_REG_NO], PlatformArm64::regName[ARM64_SP_REG_NO]);
@@ -157,11 +160,14 @@ void InstSelectorArm64::translate_exit(Instruction * inst) {
     int frame_size = off + save_size;
     if (frame_size % 16 != 0) frame_size += 16 - (frame_size % 16);
 
+	iloc.inst("mov", PlatformArm64::regName[ARM64_SP_REG_NO], PlatformArm64::regName[ARM64_FP_REG_NO]);
+	iloc.inst("add", PlatformArm64::regName[ARM64_SP_REG_NO], PlatformArm64::regName[ARM64_SP_REG_NO], iloc.toStr(frame_size - save_size, false));
+
     // 恢复fp/lr并回收栈帧
     if (protectedRegNo.size() == 2) {
-        iloc.inst("ldp", PlatformArm64::regName[protectedRegNo[0]], PlatformArm64::regName[protectedRegNo[1]], "[sp], #" + iloc.toStr(frame_size, false));
+        iloc.inst("ldp", PlatformArm64::regName[protectedRegNo[0]], PlatformArm64::regName[protectedRegNo[1]], "[sp], #" + iloc.toStr(save_size, false));
     } else if (protectedRegNo.size() == 1) {
-        iloc.inst("ldr", PlatformArm64::regName[protectedRegNo[0]], "[sp], #" + iloc.toStr(frame_size, false));
+        iloc.inst("ldr", PlatformArm64::regName[protectedRegNo[0]], "[sp], #" + iloc.toStr(save_size, false));
     }
     iloc.inst("ret", "");
 }
@@ -181,6 +187,24 @@ void InstSelectorArm64::translate_assign(Instruction * inst) {
         iloc.store_var(temp_regno, result, ARM64_TMP_REG_NO);
         simpleRegisterAllocator.free(temp_regno);
     }
+}
+
+void InstSelectorArm64::translate_load(Instruction * inst) {
+	Value * arg1 = inst->getOperand(0);
+	Value * result = inst;
+	int32_t arg1_regId = arg1->getRegId();
+    int32_t result_regId = result->getRegId();
+    if (arg1_regId != -1) {
+        iloc.store_var(arg1_regId, result, ARM64_TMP_REG_NO);
+    } else if (result_regId != -1) {
+        iloc.load_var(result_regId, arg1);
+    } else {
+        int32_t temp_regno = simpleRegisterAllocator.Allocate();
+        iloc.load_var(temp_regno, arg1);
+        iloc.store_var(temp_regno, result, ARM64_TMP_REG_NO);
+        simpleRegisterAllocator.free(temp_regno);
+    }
+
 }
 
 // 算术二元指令
