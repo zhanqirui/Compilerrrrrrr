@@ -403,6 +403,13 @@ void Module::renameIR()
         func->renameIR();
     }
 }
+void Module::BLOCK_SIMPLE_EN()
+{
+
+    for (auto func: funcVector) {
+        func->BLOCK_SIMPLE_EN();
+    }
+}
 
 /// @brief 文本输出线性IR指令
 /// @param filePath 输出文件路径

@@ -440,7 +440,20 @@ void Function::renameIR()
         }
     }
 }
+void Function::BLOCK_SIMPLE_EN()
+{
+    // 内置函数忽略
+    if (isBuiltin()) {
+        return;
+    }
+    Instruction *left, *right;
+    for (auto inst: this->getInterCode().getInsts()) {
+        if (inst->getOp() == IRInstOperator::IRINST_OP_LABEL) {
 
+        } else if (inst->hasResultValue()) {
+        }
+    }
+}
 ///
 /// @brief 获取统计的ARG指令的个数
 /// @return int32_t 个数

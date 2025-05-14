@@ -392,8 +392,8 @@ std::any MiniCCSTVisitor::visitContinueStatement(MiniCParser::ContinueStatementC
 
 // 表达式
 std::any MiniCCSTVisitor::visitExp(MiniCParser::ExpContext *ctx) {
-	// exp : addExp
-	auto expr = std::any_cast<ast_node *>(visit(ctx->addExp()));
+	// exp : LorExp
+	auto expr = std::any_cast<ast_node *>(visit(ctx->lOrExp()));
 	return create_exp_node(expr);
 }
 std::any MiniCCSTVisitor::visitCond(MiniCParser::CondContext *ctx) {

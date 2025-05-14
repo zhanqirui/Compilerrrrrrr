@@ -103,6 +103,7 @@ public:
     LabelInstruction * get_ifelse_Lable2();
     void set_ifelse_exit(LabelInstruction * LabelInst);
     LabelInstruction * get_ifelse_exit();
+    void BLOCK_SIMPLE_EN();
 
     /// @brief 获取函数返回值变量
     /// @return 返回值变量

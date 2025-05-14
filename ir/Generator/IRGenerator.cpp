@@ -391,6 +391,10 @@ bool IRGenerator::ir_block(ast_node * node)
             node->blockInsts.addInst(
                 new GotoInstruction(module->getCurrentFunction(), static_cast<Instruction *>(temp->val)));
         }
+        if ((*pIter)->node_type == ast_operator_type::AST_OP_IF_ELSE_STMT) {
+            node->blockInsts.addInst(
+                new GotoInstruction(module->getCurrentFunction(), static_cast<Instruction *>(temp->val)));
+        }
         node->blockInsts.addInst(temp->blockInsts);
         if (module->getCurrentFunction()->is_real_return == true) {
             break;
@@ -461,10 +465,8 @@ bool IRGenerator::ir_if_else(ast_node * node)
 
     LabelInstruction * exitLabelInst = new LabelInstruction(currentFunc);
     LabelInstruction * entryLabelInst = nullptr;
-    if (!(node->parent->node_type == ast_operator_type::AST_OP_BLOCK)) {
-        entryLabelInst = new LabelInstruction(currentFunc);
-        node->blockInsts.addInst(entryLabelInst);
-    }
+    entryLabelInst = new LabelInstruction(currentFunc);
+    node->blockInsts.addInst(entryLabelInst);
     ast_node *cond, *branch1, *branch2;
     BranchifCondition * branch_Inst;
     LabelInstruction *parent_ifelse_Lable1, *parent_ifelse_Lable2;
@@ -490,7 +492,9 @@ bool IRGenerator::ir_if_else(ast_node * node)
         cond = ir_visit_ast_node(node->sons[0]);
         node->blockInsts.addInst(cond->blockInsts);
         node->blockInsts.addInst(branch1->blockInsts);
-        node->blockInsts.addInst(new GotoInstruction(currentFunc, exitLabelInst));
+        if (!(node->blockInsts.code.back()->getOp() == IRInstOperator::IRINST_OP_GOTO)) {
+            node->blockInsts.addInst(new GotoInstruction(currentFunc, exitLabelInst));
+        }
     }
     node->blockInsts.addInst(exitLabelInst);
     node->val = entryLabelInst;
@@ -1214,85 +1218,85 @@ bool IRGenerator::ir_visitConfExp(ast_node * node)
     Op op = node->op_type;
     ast_node * src1_node = node->sons[0];
     ast_node * src2_node = node->sons[1];
-    int op1 = src1_node->integer_val;
-    int op2 = src2_node->integer_val;
-    // 优化x=2+3变成x=5
-    if (src1_node->node_type == ast_operator_type::AST_OP_LEAF_LITERAL_UINT &&
-        src2_node->node_type == ast_operator_type::AST_OP_LEAF_LITERAL_UINT) {
-        ConstInt * val = module->newConstInt((op == Op::GT)    ? (op1 > op2)
-                                             : (op == Op::LT)  ? (op1 < op2)
-                                             : (op == Op::EQ)  ? (op1 == op2)
-                                             : (op == Op::NE)  ? (op1 != op2)
-                                             : (op == Op::GE)  ? (op1 >= op2)
-                                             : (op == Op::LE)  ? (op1 <= op2)
-                                             : (op == Op::AND) ? (op1 && op2)
-                                             : (op == Op::OR)  ? (op1 || op2)
-                                                               : 0);
-        node->val = val;
-        node->type = src1_node->type->isFloatType() ? src1_node->type : src2_node->type;
-        return true;
-    }
-    // 针对const进行优化
-    Value * Var1 = nullptr;
-    Value * Var2 = nullptr;
-    int leftV;
-    int rightV;
-    if (!src1_node->name.empty()) {
-        Var1 = module->findVar(src1_node->name);
-        if (Var1->isConst()) {
-            leftV = Var1->real_int;
-        }
-    }
-    if (!src2_node->name.empty()) {
-        Var2 = module->findVar(src2_node->name);
-        if (Var2->isConst()) {
-            rightV = Var2->real_int;
-        }
-    }
-    if (Var1 && Var1->isConst() && Var2 && Var2->isConst()) {
-        ConstInt * val = module->newConstInt((op == Op::GT)    ? ((int) leftV > (int) rightV)
-                                             : (op == Op::LT)  ? ((int) leftV < (int) rightV)
-                                             : (op == Op::EQ)  ? ((int) leftV == (int) rightV)
-                                             : (op == Op::NE)  ? ((int) leftV != (int) rightV)
-                                             : (op == Op::GE)  ? ((int) leftV >= (int) rightV)
-                                             : (op == Op::LE)  ? ((int) leftV <= (int) rightV)
-                                             : (op == Op::AND) ? ((int) leftV && (int) rightV)
-                                             : (op == Op::OR)  ? ((int) leftV || (int) rightV)
-                                                               : 0);
-        node->val = val;
-        node->type = src1_node->type;
-        return true;
-    }
-    if (src1_node->node_type == ast_operator_type::AST_OP_LEAF_LITERAL_UINT ||
-        src2_node->node_type == ast_operator_type::AST_OP_LEAF_LITERAL_UINT) {
-        if (Var1 && Var1->isConst()) {
-            ConstInt * val = module->newConstInt((op == Op::GT)    ? ((int) leftV > (int) op2)
-                                                 : (op == Op::LT)  ? ((int) leftV < (int) op2)
-                                                 : (op == Op::EQ)  ? ((int) leftV == (int) op2)
-                                                 : (op == Op::NE)  ? ((int) leftV != (int) op2)
-                                                 : (op == Op::GE)  ? ((int) leftV >= (int) op2)
-                                                 : (op == Op::LE)  ? ((int) leftV <= (int) op2)
-                                                 : (op == Op::AND) ? ((int) leftV && (int) op2)
-                                                 : (op == Op::OR)  ? ((int) leftV || (int) op2)
-                                                                   : 0);
-            node->val = val;
-            node->type = src1_node->type;
-            return true;
-        } else if (Var2 && Var2->isConst()) {
-            ConstInt * val = module->newConstInt((op == Op::GT)    ? ((int) op1 > (int) rightV)
-                                                 : (op == Op::LT)  ? ((int) op1 < (int) rightV)
-                                                 : (op == Op::EQ)  ? ((int) op1 == (int) rightV)
-                                                 : (op == Op::NE)  ? ((int) op1 != (int) rightV)
-                                                 : (op == Op::GE)  ? ((int) op1 >= (int) rightV)
-                                                 : (op == Op::LE)  ? ((int) op1 <= (int) rightV)
-                                                 : (op == Op::AND) ? ((int) op1 && (int) rightV)
-                                                 : (op == Op::OR)  ? ((int) op1 || (int) rightV)
-                                                                   : 0);
-            node->val = val;
-            node->type = src2_node->type;
-            return true;
-        }
-    }
+    // int op1 = src1_node->integer_val;
+    // int op2 = src2_node->integer_val;
+    // // 优化x=2+3变成x=5
+    // if (src1_node->node_type == ast_operator_type::AST_OP_LEAF_LITERAL_UINT &&
+    //     src2_node->node_type == ast_operator_type::AST_OP_LEAF_LITERAL_UINT) {
+    //     ConstInt * val = module->newConstInt((op == Op::GT)    ? (op1 > op2)
+    //                                          : (op == Op::LT)  ? (op1 < op2)
+    //                                          : (op == Op::EQ)  ? (op1 == op2)
+    //                                          : (op == Op::NE)  ? (op1 != op2)
+    //                                          : (op == Op::GE)  ? (op1 >= op2)
+    //                                          : (op == Op::LE)  ? (op1 <= op2)
+    //                                          : (op == Op::AND) ? (op1 && op2)
+    //                                          : (op == Op::OR)  ? (op1 || op2)
+    //                                                            : 0);
+    //     node->val = val;
+    //     node->type = src1_node->type->isFloatType() ? src1_node->type : src2_node->type;
+    //     return true;
+    // }
+    // // 针对const进行优化
+    // Value * Var1 = nullptr;
+    // Value * Var2 = nullptr;
+    // int leftV;
+    // int rightV;
+    // if (!src1_node->name.empty()) {
+    //     Var1 = module->findVar(src1_node->name);
+    //     if (Var1->isConst()) {
+    //         leftV = Var1->real_int;
+    //     }
+    // }
+    // if (!src2_node->name.empty()) {
+    //     Var2 = module->findVar(src2_node->name);
+    //     if (Var2->isConst()) {
+    //         rightV = Var2->real_int;
+    //     }
+    // }
+    // if (Var1 && Var1->isConst() && Var2 && Var2->isConst()) {
+    //     ConstInt * val = module->newConstInt((op == Op::GT)    ? ((int) leftV > (int) rightV)
+    //                                          : (op == Op::LT)  ? ((int) leftV < (int) rightV)
+    //                                          : (op == Op::EQ)  ? ((int) leftV == (int) rightV)
+    //                                          : (op == Op::NE)  ? ((int) leftV != (int) rightV)
+    //                                          : (op == Op::GE)  ? ((int) leftV >= (int) rightV)
+    //                                          : (op == Op::LE)  ? ((int) leftV <= (int) rightV)
+    //                                          : (op == Op::AND) ? ((int) leftV && (int) rightV)
+    //                                          : (op == Op::OR)  ? ((int) leftV || (int) rightV)
+    //                                                            : 0);
+    //     node->val = val;
+    //     node->type = src1_node->type;
+    //     return true;
+    // }
+    // if (src1_node->node_type == ast_operator_type::AST_OP_LEAF_LITERAL_UINT ||
+    //     src2_node->node_type == ast_operator_type::AST_OP_LEAF_LITERAL_UINT) {
+    //     if (Var1 && Var1->isConst()) {
+    //         ConstInt * val = module->newConstInt((op == Op::GT)    ? ((int) leftV > (int) op2)
+    //                                              : (op == Op::LT)  ? ((int) leftV < (int) op2)
+    //                                              : (op == Op::EQ)  ? ((int) leftV == (int) op2)
+    //                                              : (op == Op::NE)  ? ((int) leftV != (int) op2)
+    //                                              : (op == Op::GE)  ? ((int) leftV >= (int) op2)
+    //                                              : (op == Op::LE)  ? ((int) leftV <= (int) op2)
+    //                                              : (op == Op::AND) ? ((int) leftV && (int) op2)
+    //                                              : (op == Op::OR)  ? ((int) leftV || (int) op2)
+    //                                                                : 0);
+    //         node->val = val;
+    //         node->type = src1_node->type;
+    //         return true;
+    //     } else if (Var2 && Var2->isConst()) {
+    //         ConstInt * val = module->newConstInt((op == Op::GT)    ? ((int) op1 > (int) rightV)
+    //                                              : (op == Op::LT)  ? ((int) op1 < (int) rightV)
+    //                                              : (op == Op::EQ)  ? ((int) op1 == (int) rightV)
+    //                                              : (op == Op::NE)  ? ((int) op1 != (int) rightV)
+    //                                              : (op == Op::GE)  ? ((int) op1 >= (int) rightV)
+    //                                              : (op == Op::LE)  ? ((int) op1 <= (int) rightV)
+    //                                              : (op == Op::AND) ? ((int) op1 && (int) rightV)
+    //                                              : (op == Op::OR)  ? ((int) op1 || (int) rightV)
+    //                                                                : 0);
+    //         node->val = val;
+    //         node->type = src2_node->type;
+    //         return true;
+    //     }
+    // }
     // 加法节点，左结合，先计算左节点，后计算右节点
 
     // 加法的左边操作数
