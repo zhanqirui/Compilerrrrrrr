@@ -135,7 +135,7 @@ public:
 				if (this->flattenedArray.empty()) {
 					varName += " = dso_local global " + arrayType + "zeroinitializer, align 16";
 				} else {
-					std::string typeStr = getArrayTypeStr(dims, 0, elemType);
+					std::string typeStr = dims.size()> 1 ? getArrayTypeStr(dims, 0, elemType) : "";
 					std::string content = emitContent(dims, elemType, flatArr, 0, 0);
 					varName += " = dso_local constant " + typeStr + " " + content + ", align 16";
 				}

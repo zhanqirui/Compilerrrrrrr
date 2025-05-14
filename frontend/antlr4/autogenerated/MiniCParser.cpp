@@ -146,7 +146,7 @@ void minicParserInitialize() {
   	239,241,3,32,16,0,240,239,1,0,0,0,240,241,1,0,0,0,241,242,1,0,0,0,242,
   	244,5,3,0,0,243,209,1,0,0,0,243,215,1,0,0,0,243,218,1,0,0,0,243,219,1,
   	0,0,0,243,228,1,0,0,0,243,234,1,0,0,0,243,236,1,0,0,0,243,238,1,0,0,0,
-  	244,31,1,0,0,0,245,246,3,50,25,0,246,33,1,0,0,0,247,248,3,58,29,0,248,
+  	244,31,1,0,0,0,245,246,3,58,29,0,246,33,1,0,0,0,247,248,3,58,29,0,248,
   	35,1,0,0,0,249,256,5,34,0,0,250,251,5,6,0,0,251,252,3,32,16,0,252,253,
   	5,7,0,0,253,255,1,0,0,0,254,250,1,0,0,0,255,258,1,0,0,0,256,254,1,0,0,
   	0,256,257,1,0,0,0,257,37,1,0,0,0,258,256,1,0,0,0,259,260,5,11,0,0,260,
@@ -1867,8 +1867,8 @@ MiniCParser::ExpContext::ExpContext(ParserRuleContext *parent, size_t invokingSt
   : ParserRuleContext(parent, invokingState) {
 }
 
-MiniCParser::AddExpContext* MiniCParser::ExpContext::addExp() {
-  return getRuleContext<MiniCParser::AddExpContext>(0);
+MiniCParser::LOrExpContext* MiniCParser::ExpContext::lOrExp() {
+  return getRuleContext<MiniCParser::LOrExpContext>(0);
 }
 
 
@@ -1898,7 +1898,7 @@ MiniCParser::ExpContext* MiniCParser::exp() {
   try {
     enterOuterAlt(_localctx, 1);
     setState(245);
-    addExp();
+    lOrExp();
    
   }
   catch (RecognitionException &e) {

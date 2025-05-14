@@ -1,6 +1,14 @@
-const int a[3][5][5][20] = {0, 1, 2, 3, 4};
-
 int main()
 {
-    return a[0][0][0][2];
+    int a = 1;
+    int b = 2;
+    int c = 3;
+    int d = 4;
+    int e = 5;
+    int f = 6;
+    if (((a * b + c < 6) || a) && d != 0) {
+        if (e || !a + 0)
+            return 2;
+    } else
+        return 1;
 }

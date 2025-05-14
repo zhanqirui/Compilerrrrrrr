@@ -64,7 +64,7 @@ stmt:
 	| 'return' exp? ';'						# returnStmt; // 新增 return 语句规则
 
 // 表达式体系
-exp: addExp;
+exp: lOrExp;
 
 // 条件表达式
 cond: lOrExp;
@@ -80,9 +80,9 @@ number: IntConst | FloatConst;
 
 // 一元表达式
 unaryExp:
-	primaryExp # UnaryExpPrimary 
-	| Ident '(' funcRParams? ')' # UnaryExpFuncCall 
-	| unaryOp unaryExp # UnaryOpUnaryExp;
+	primaryExp						# UnaryExpPrimary
+	| Ident '(' funcRParams? ')'	# UnaryExpFuncCall
+	| unaryOp unaryExp				# UnaryOpUnaryExp;
 
 // 一元运算符
 unaryOp: '+' | '-' | '!';
@@ -112,19 +112,17 @@ RETURN: 'return';
 
 // 词法规则
 Ident: [a-zA-Z_] [a-zA-Z0-9_]*;
-IntConst
-    : '0x' [0-9a-fA-F]+        // 16进制
-    | '0X' [0-9a-fA-F]+        // 16进制
-    | '0' [0-7]+               // 8进制
-    | [1-9][0-9]*              // 十进制
-    | '0'                      // 单独的0
-    ;
+IntConst:
+	'0x' [0-9a-fA-F]+ // 16进制
+	| '0X' [0-9a-fA-F]+ // 16进制
+	| '0' [0-7]+ // 8进制
+	| [1-9][0-9]* // 十进制
+	| '0'; // 单独的0
 
-FloatConst
-    : [0-9]+ '.' [0-9]* ([eE] [+\-]? [0-9]+)?   // 1.23, 1.23e10, 1.23E-10
-    | '.' [0-9]+ ([eE] [+\-]? [0-9]+)?          // .23, .23e5
-    | [0-9]+ [eE] [+\-]? [0-9]+                 // 1e10, 1E-10
-    ;
+FloatConst:
+	[0-9]+ '.' [0-9]* ([eE] [+\-]? [0-9]+)? // 1.23, 1.23e10, 1.23E-10
+	| '.' [0-9]+ ([eE] [+\-]? [0-9]+)? // .23, .23e5
+	| [0-9]+ [eE] [+\-]? [0-9]+; // 1e10, 1E-10
 
 // 空白和注释
 Whitespace: [ \t\r\n]+ -> skip;
