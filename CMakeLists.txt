@@ -240,6 +240,8 @@ set(IR_SRCS
 	ir/Instructions/MemsetInstruction.cpp
 	ir/Instructions/GetElementPtrInstruction.cpp
 	ir/Instructions/GetElementPtrInstruction.h
+	ir/Instructions/ZextInstruction.h
+	ir/Instructions/ZextInstruction.cpp
 )
 
 # 符号表等共通化代码集合

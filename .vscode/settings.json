@@ -266,6 +266,7 @@
 		"thread": "cpp",
 		"cinttypes": "cpp",
 		"typeinfo": "cpp",
-		"*.def": "cpp"
+		"*.def": "cpp",
+		"stdio.h": "c"
 	}
 }

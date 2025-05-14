@@ -38,12 +38,13 @@ void BinaryInstruction::toString(std::string & str)
 {
 
     Value *src1 = getOperand(0), *src2 = getOperand(1);
-    std::string type_str = " ";
+    std::string type_str;
     {
         if (src1->type->isFloatType() || src2->type->isFloatType())
             type_str = "float ";
         else
-            type_str = "i32 "; // LLVM IR 中是 "float"，不是 "f32"
+            type_str = src1->type->toString() + ' ';
+        ;
     }
     switch (op) {
         case IRInstOperator::IRINST_OP_ADD_I:
@@ -72,22 +73,22 @@ void BinaryInstruction::toString(std::string & str)
             break;
 
         case IRInstOperator::IRINST_OP_GT_I:
-            str = getIRName() + " = icmp gt " + type_str + src1->getIRName() + ", " + src2->getIRName();
+            str = getIRName() + " = icmp sgt " + type_str + src1->getIRName() + ", " + src2->getIRName();
             break;
         case IRInstOperator::IRINST_OP_GE_I:
 
             // 减法指令，二元运算
-            str = getIRName() + " = icmp ge " + type_str + src1->getIRName() + ", " + src2->getIRName();
+            str = getIRName() + " = icmp sge " + type_str + src1->getIRName() + ", " + src2->getIRName();
             break;
         case IRInstOperator::IRINST_OP_LT_I:
 
             // 减法指令，二元运算
-            str = getIRName() + " = icmp lt " + type_str + src1->getIRName() + ", " + src2->getIRName();
+            str = getIRName() + " = icmp slt " + type_str + src1->getIRName() + ", " + src2->getIRName();
             break;
         case IRInstOperator::IRINST_OP_LE_I:
 
             // 减法指令，二元运算
-            str = getIRName() + " = icmp le " + type_str + src1->getIRName() + ", " + src2->getIRName();
+            str = getIRName() + " = icmp sle " + type_str + src1->getIRName() + ", " + src2->getIRName();
             break;
         case IRInstOperator::IRINST_OP_EQ_I:
 
@@ -102,12 +103,12 @@ void BinaryInstruction::toString(std::string & str)
         case IRInstOperator::IRINST_OP_AND_I:
 
             // 减法指令，二元运算
-            str = getIRName() + " = and " + src1->getIRName() + "," + src2->getIRName();
+            str = getIRName() + " = and i1 " + src1->getIRName() + "," + src2->getIRName();
             break;
         case IRInstOperator::IRINST_OP_OR_I:
 
             // 减法指令，二元运算
-            str = getIRName() + " = or " + src1->getIRName() + "," + src2->getIRName();
+            str = getIRName() + " = or i1 " + src1->getIRName() + "," + src2->getIRName();
             break;
         case IRInstOperator::IRINST_OP_MOD_I:
 

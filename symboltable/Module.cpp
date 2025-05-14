@@ -403,6 +403,13 @@ void Module::renameIR()
         func->renameIR();
     }
 }
+void Module::BLOCK_SIMPLE_EN()
+{
+
+    for (auto func: funcVector) {
+        func->BLOCK_SIMPLE_EN();
+    }
+}
 
 /// @brief 文本输出线性IR指令
 /// @param filePath 输出文件路径
@@ -435,6 +442,8 @@ void Module::outputIR(const std::string & filePath)
             is_use_memset = true;
         fprintf(fp, "%s", instStr.c_str());
     }
+
+    fprintf(fp, "\ndeclare void @putint(i32) #0\n");
     if (is_use_memset)
         fprintf(fp, "\ndeclare void @llvm.memset.p0i8.i64(i8* nocapture writeonly, i8, i64, i1 immarg) #1\n");
     if (is_use_memcpy)
