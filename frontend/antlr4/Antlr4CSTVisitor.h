@@ -79,7 +79,7 @@ protected:
     std::any visitWhileLoopStatement(MiniCParser::WhileLoopStatementContext *ctx) override;
     std::any visitBreakStatement(MiniCParser::BreakStatementContext *ctx) override;
     std::any visitContinueStatement(MiniCParser::ContinueStatementContext *ctx) override;
-
+    std::any visitEmptyStatement(MiniCParser::EmptyStatementContext * ctx) override;
     // 表达式
     std::any visitExp(MiniCParser::ExpContext *ctx) override;
     std::any visitCond(MiniCParser::CondContext *ctx) override;
