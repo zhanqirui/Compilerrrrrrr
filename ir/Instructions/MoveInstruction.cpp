@@ -28,7 +28,7 @@
 /// @param srcVal1 源操作数
 ///
 MoveInstruction::MoveInstruction(Function * _func, Value * _result, Value * _srcVal1)
-    : Instruction(_func, IRInstOperator::IRINST_OP_ASSIGN, VoidType::getType())
+    : Instruction(_func, IRInstOperator::IRINST_OP_STORE, VoidType::getType())
 {
     addOperand(_result);
     addOperand(_srcVal1);

@@ -1601,6 +1601,7 @@ bool IRGenerator::ir_array_var_def_declare(ast_node * node)
     for (auto d: dimensions)
         total_size *= d;
 
+	total_size = total_size * 4; // 每个元素4字节
     // 获取数组变量的实际值
     Value * array_val = module->findVarValue(var_name);
     BitcastInstruction * bitcatinst;
@@ -1609,7 +1610,7 @@ bool IRGenerator::ir_array_var_def_declare(ast_node * node)
     if (node->sons.size() > 2 && node->sons[2]->sons.size() > 0) {
         bitcatinst = new BitcastInstruction(module->getCurrentFunction(), array_val, 8);
         node->blockInsts.addInst(bitcatinst);
-        MemsetInstruction * memsetInst = new MemsetInstruction(module->getCurrentFunction(), bitcatinst, 0, 32, 16);
+        MemsetInstruction * memsetInst = new MemsetInstruction(module->getCurrentFunction(), bitcatinst, 0, total_size, 16);
         node->blockInsts.addInst(memsetInst);
         std::vector<InitElement> flatten_nodes;
         // int linear_index = 0;

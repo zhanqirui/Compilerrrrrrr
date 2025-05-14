@@ -24,6 +24,11 @@ public:
     /// @brief 转换成字符串
     void toString(std::string & str) override;
 
+	int64_t getSize() const
+	{
+		return size;
+	}
+
 private:
     int8_t value;
     int64_t size;

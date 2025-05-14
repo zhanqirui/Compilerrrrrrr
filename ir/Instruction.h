@@ -63,6 +63,12 @@ enum class IRInstOperator : std::int8_t {
 	/// @brief Load指令，加载指令  LLVM指令   Store指令现在还在Move里没有单独提出来
 	IRINST_OP_LOAD,
 
+	IRINST_OP_GEP,
+
+	IRINST_OP_CAST,
+
+	IRINST_OP_STORE,
+
     /// @brief 最大指令码，也是无效指令
     IRINST_OP_MAX,
     IRINST_OP_MEMCPY,
