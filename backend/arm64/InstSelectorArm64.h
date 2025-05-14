@@ -30,6 +30,10 @@ protected:
     void translate_exit(Instruction * inst);
     void translate_assign(Instruction * inst);
 	void translate_load(Instruction * inst);
+	void translate_gep(Instruction * inst);
+	void translate_cast(Instruction * inst);
+	void translate_memset(Instruction * inst);
+	void translate_store(Instruction * inst);
     void translate_label(Instruction * inst);
     void translate_goto(Instruction * inst);
     void outputIRInstruction(Instruction * inst);
