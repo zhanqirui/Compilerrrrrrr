@@ -399,9 +399,10 @@ bool IRGenerator::ir_block(ast_node * node)
         if (module->getCurrentFunction()->is_real_return == true) {
             break;
         }
-        // if ((*pIter)->node_type == ast_operator_type::AST_OP_RETURN) {
-        //     break;
-        // }
+        if ((*pIter)->node_type == ast_operator_type::AST_OP_BREAK ||
+            (*pIter)->node_type == ast_operator_type::AST_OP_CONTINUE) {
+            break;
+        }
     }
 
     // 离开作用域
@@ -515,6 +516,10 @@ bool IRGenerator::ir_while(ast_node * node)
     Function * currentFunc = module->getCurrentFunction();
     LabelInstruction * entryLabelInst = new LabelInstruction(currentFunc);
     LabelInstruction * exitLabelInst = new LabelInstruction(currentFunc);
+    LabelInstruction *parent_block_entry_Lable, *parent_block_exit_Lable;
+    //保存当前的出入口，if和while都要相应保留
+    parent_block_entry_Lable = currentFunc->getblock_entry_Lable();
+    parent_block_exit_Lable = currentFunc->getblock_exit_Lable();
     currentFunc->set_block_entry_Lable(entryLabelInst);
     currentFunc->set_block_exit_Lable(exitLabelInst);
     node->blockInsts.addInst(entryLabelInst);
@@ -524,20 +529,37 @@ bool IRGenerator::ir_while(ast_node * node)
     node->blockInsts.addInst(cond->blockInsts);
     // nested_block->val是语块的的一个label，也就是开头
     ast_node * nested_block = ir_visit_ast_node(node->sons[1]);
-
-    // nested_block->val是一个label指令
     BranchifCondition * branch_Inst;
-    branch_Inst = new BranchifCondition(module->getCurrentFunction(), cond->val, nested_block->val, exitLabelInst);
+    LabelInstruction * breakLabelInst = nullptr;
+    LabelInstruction * continueLabelInst = nullptr;
+    if (node->sons[1]->node_type == ast_operator_type::AST_OP_BREAK) {
+        //主要是为了解决while(1)break的问题，continue不再block内
+        breakLabelInst = new LabelInstruction(currentFunc);
+        branch_Inst = new BranchifCondition(module->getCurrentFunction(), cond->val, breakLabelInst, exitLabelInst);
+    } else if (node->sons[1]->node_type == ast_operator_type::AST_OP_CONTINUE) {
+        /// continue为验证
+        continueLabelInst = new LabelInstruction(currentFunc);
+        branch_Inst = new BranchifCondition(module->getCurrentFunction(), cond->val, continueLabelInst, entryLabelInst);
+    } else {
+        branch_Inst = new BranchifCondition(module->getCurrentFunction(), cond->val, nested_block->val, exitLabelInst);
+    }
     node->blockInsts.addInst(branch_Inst);
+    if (breakLabelInst != nullptr) {
+        node->blockInsts.addInst(breakLabelInst);
+    }
     node->blockInsts.addInst(nested_block->blockInsts);
+
     node->blockInsts.addInst(new GotoInstruction(currentFunc, entryLabelInst));
+
     node->val = entryLabelInst;
+
     node->blockInsts.addInst(exitLabelInst);
     // 离开作用域
     if (node->needScope) {
         module->leaveScope();
     }
-
+    currentFunc->set_block_entry_Lable(parent_block_entry_Lable);
+    currentFunc->set_block_exit_Lable(parent_block_exit_Lable);
     return true;
 }
 /// @brief return节点翻译成线性中间IR
@@ -601,14 +623,18 @@ bool IRGenerator::ir_break(ast_node * node)
 {
 
     Function * currentFunc = module->getCurrentFunction();
-    node->blockInsts.addInst(new GotoInstruction(currentFunc, currentFunc->getblock_exit_Lable()));
+    GotoInstruction * inst = new GotoInstruction(currentFunc, currentFunc->getblock_exit_Lable());
+    node->blockInsts.addInst(inst);
+    node->val = inst;
     return true;
 }
 bool IRGenerator::ir_continue(ast_node * node)
 {
 
     Function * currentFunc = module->getCurrentFunction();
-    node->blockInsts.addInst(new GotoInstruction(currentFunc, currentFunc->getblock_entry_Lable()));
+    GotoInstruction * inst = new GotoInstruction(currentFunc, currentFunc->getblock_entry_Lable());
+    node->blockInsts.addInst(inst);
+    node->val = inst;
     return true;
 }
 /// @brief 类型叶子节点翻译成线性中间IR
@@ -823,17 +849,24 @@ bool IRGenerator::ir_add(ast_node * node)
                                             ZERO,
                                             RstoInst ? RstoInst : right->val,
                                             IntegerType::getTypeInt());
+            // 针对const int N=-1优化
+            addInst->real_float = -right->val->real_float;
+            addInst->real_int = -right->val->real_int;
         } else {
             addInst = new BinaryInstruction(module->getCurrentFunction(),
                                             IRInstOperator::IRINST_OP_ADD_I,
                                             ZERO,
                                             RstoInst ? RstoInst : right->val,
                                             IntegerType::getTypeInt());
+            // 针对const int N=1优化
+            addInst->real_float = right->val->real_float;
+            addInst->real_int = right->val->real_int;
         }
     } else {
 
         Value * L = LstoInst ? LstoInst : left->val;
         Value * R = RstoInst ? RstoInst : right->val;
+
         if (L->type->toString() == "i1") {
             Lzertinst = new ZextInstruction(module->getCurrentFunction(), L, IntegerType::getTypeInt());
         }
@@ -846,6 +879,8 @@ bool IRGenerator::ir_add(ast_node * node)
                                         Lzertinst ? Lzertinst : L,
                                         Rzertinst ? Rzertinst : R,
                                         IntegerType::getTypeInt());
+        addInst->real_int = (op == Op::ADD) ? L->real_int + R->real_int : L->real_int - R->real_int;
+        addInst->real_float = (op == Op::ADD) ? L->real_float + R->real_float : L->real_float - R->real_float;
     }
 
     // BinaryInstruction->getIRName();
@@ -1810,7 +1845,30 @@ bool IRGenerator::ir_leaf_node_var_id(ast_node * node)
     val = module->findVar(node->name);
     if (node->parent->node_type == ast_operator_type::AST_OP_ASSIGN_STMT) {
         node->val = val;
-    } else {
+    } else if (node->parent->node_type == ast_operator_type::AST_OP_IF_ELSE_STMT) {
+        ///这个是为了解决if (m)的问题
+        LoadInstruction * LoadInst = new LoadInstruction(module->getCurrentFunction(), val, true);
+
+        ConstInt * ZERO = module->newConstInt(0);
+        BinaryInstruction * EQ_ZERO_Inst = new BinaryInstruction(module->getCurrentFunction(),
+                                                                 IRInstOperator::IRINST_OP_NE_I,
+                                                                 LoadInst,
+                                                                 ZERO,
+                                                                 IntegerType::getTypeBool());
+        BranchifCondition * branch_Inst = new BranchifCondition(module->getCurrentFunction(),
+                                                                EQ_ZERO_Inst,
+                                                                module->getCurrentFunction()->get_ifelse_Lable1(),
+                                                                module->getCurrentFunction()->get_ifelse_Lable2());
+        node->val = branch_Inst;
+        node->blockInsts.addInst(LoadInst);
+        node->blockInsts.addInst(EQ_ZERO_Inst);
+        node->blockInsts.addInst(branch_Inst);
+
+    } else if (val->isConst()) {
+        node->val = val;
+    }
+
+    else {
         LoadInstruction * LoadInst = new LoadInstruction(module->getCurrentFunction(), val, true);
         node->blockInsts.addInst(LoadInst);
         node->val = LoadInst;
