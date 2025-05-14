@@ -29,7 +29,7 @@
 LoadInstruction::LoadInstruction(Function * _func, Value * srcVal1, bool is_int)
     : Instruction(
           _func,
-          IRInstOperator::IRINST_OP_ASSIGN,
+          IRInstOperator::IRINST_OP_LOAD,
           (is_int ? static_cast<Type *>(IntegerType::getTypeInt()) : static_cast<Type *>(FloatType::getTypeFloat())))
 {
     addOperand(srcVal1);

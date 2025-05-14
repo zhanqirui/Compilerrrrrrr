@@ -436,12 +436,24 @@ std::any MiniCCSTVisitor::visitPrimaryExp(MiniCParser::PrimaryExpContext *ctx) {
 std::any MiniCCSTVisitor::visitNumber(MiniCParser::NumberContext *ctx) {
 	// number : IntConst | FloatConst
 	if (ctx->IntConst()) {
-		int val = std::stoi(ctx->IntConst()->getText());
+		std::string text = ctx->IntConst()->getText();
+		int val = 0;
+		if (text.size() > 2 && (text[0] == '0') && (text[1] == 'x' || text[1] == 'X')) {
+			// 16进制
+			val = std::stoi(text, nullptr, 16);
+		} else if (text.size() > 1 && text[0] == '0' && text[1] >= '0' && text[1] <= '7') {
+			// 8进制
+			val = std::stoi(text, nullptr, 8);
+		} else {
+			// 十进制
+			val = std::stoi(text, nullptr, 10);
+		}
 		return create_number_node(val);
 	}
 	// FloatConst
 	if (ctx->FloatConst()) {
-		float val = std::stof(ctx->FloatConst()->getText());
+		std::string text = ctx->FloatConst()->getText();
+		float val = std::stof(text);
 		return create_float_node(val);
 	}
 	return nullptr;

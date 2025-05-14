@@ -482,3 +482,29 @@ LabelInstruction * Function::getblock_exit_Lable()
 {
     return block_exit_Lable;
 }
+
+void Function::set_ifelse_Lable1(LabelInstruction * LabelInst)
+{
+    ifelse_Lable1 = LabelInst;
+}
+void Function::set_ifelse_Lable2(LabelInstruction * LabelInst)
+{
+    ifelse_Lable2 = LabelInst;
+}
+
+LabelInstruction * Function::get_ifelse_Lable1()
+{
+    return ifelse_Lable1;
+}
+LabelInstruction * Function::get_ifelse_Lable2()
+{
+    return ifelse_Lable2;
+}
+void Function::set_ifelse_exit(LabelInstruction * LabelInst)
+{
+    ifelse_exitlabel = LabelInst;
+}
+LabelInstruction * Function::get_ifelse_exit()
+{
+    return ifelse_exitlabel;
+}

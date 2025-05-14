@@ -47,8 +47,8 @@ enum class IRInstOperator : std::int8_t {
     IRINST_OP_GE_I,  //>=
     IRINST_OP_EQ_I,  //==
     IRINST_OP_NE_I,  //!=
-    IRINST_OP_AND_I, //&&
-    IRINST_OP_OR_I,  //||
+    IRINST_OP_AND_I, //& or &&
+    IRINST_OP_OR_I,  //| or ||
     IRINST_OP_NOT_I, //!
     IRINST_OP_MOD_I, //%
     IRINST_OP_BRANCH_I,
@@ -60,14 +60,14 @@ enum class IRInstOperator : std::int8_t {
     IRINST_OP_ARG,
 
     /* 后续可追加其他的IR指令 */
+    /// @brief Load指令，加载指令  LLVM指令   Store指令现在还在Move里没有单独提出来
+    IRINST_OP_LOAD,
 
     /// @brief 最大指令码，也是无效指令
     IRINST_OP_MAX,
-
-    /// @brief Load指令，加载指令  LLVM指令   Store指令现在还在Move里没有单独提出来
-    IRINST_OP_LOAD,
     IRINST_OP_MEMCPY,
-    IRINST_OP_MEMSET
+    IRINST_OP_MEMSET,
+    IRINST_OP_ZEXT
 };
 
 ///
