@@ -297,6 +297,12 @@ std::any MiniCCSTVisitor::visitBlock(MiniCParser::BlockContext *ctx) {
 	}
 	return block;
 }
+
+std::any MiniCCSTVisitor::visitEmptyStatement(MiniCParser::EmptyStatementContext * ctx)
+{
+    return (ast_node *)nullptr;
+}
+
 std::any MiniCCSTVisitor::visitBlockDeclaration(MiniCParser::BlockDeclarationContext *ctx) {
 	// blockDeclaration : decl
 	return visit(ctx->decl());

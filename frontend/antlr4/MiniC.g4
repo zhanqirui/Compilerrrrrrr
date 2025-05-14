@@ -54,14 +54,15 @@ blockItem: decl # blockDeclaration | stmt # blockStatement;
 
 // 语句系统
 stmt:
-	lVal '=' exp ';'						# assignmentStatement
-	| exp? ';'								# expressionStatement
-	| block									# nestedBlockStatement
-	| 'if' '(' cond ')' stmt ('else' stmt)?	# ifElseStatement
-	| 'while' '(' cond ')' stmt				# whileLoopStatement
-	| 'break' ';'							# breakStatement
-	| 'continue' ';'						# continueStatement
-	| 'return' exp? ';'						# returnStmt; // 新增 return 语句规则
+	lVal '=' exp ';'					# assignmentStatement
+	| ';'		                        # emptyStatement
+	| exp ';'	                        # expressionStatement 
+	| block								# nestedBlockStatement
+	| IF '(' cond ')' stmt (ELSE stmt)?	# ifElseStatement
+	| WHILE '(' cond ')' stmt			# whileLoopStatement
+	| BREAK ';'							# breakStatement
+	| CONTINUE ';'						# continueStatement
+	| RETURN exp? ';'					# returnStmt;
 
 // 表达式体系
 exp: lOrExp;
@@ -106,11 +107,19 @@ lOrExp: lAndExp ('||' lAndExp)*;
 // 常量表达式
 constExp: addExp;
 
-// return 
-
-RETURN: 'return';
-
 // 词法规则
+
+BREAK: 'break';
+CONTINUE: 'continue';
+IF: 'if';
+ELSE: 'else';
+WHILE: 'while';
+RETURN: 'return';
+CONST: 'const';
+INT: 'int';
+FLOAT: 'float';
+VOID: 'void';
+
 Ident: [a-zA-Z_] [a-zA-Z0-9_]*;
 IntConst:
 	'0x' [0-9a-fA-F]+ // 16进制
