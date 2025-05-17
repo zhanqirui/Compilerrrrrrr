@@ -444,6 +444,7 @@ void Module::outputIR(const std::string & filePath)
     }
 
     fprintf(fp, "\ndeclare void @putint(i32) #0\n");
+    fprintf(fp, "\ndeclare i32 @getint() #0\n");
     if (is_use_memset)
         fprintf(fp, "\ndeclare void @llvm.memset.p0i8.i64(i8* nocapture writeonly, i8, i64, i1 immarg) #1\n");
     if (is_use_memcpy)

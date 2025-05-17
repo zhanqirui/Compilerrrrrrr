@@ -115,6 +115,7 @@ protected:
     bool ir_div(ast_node * node);
     bool ir_array_init(ast_node * node);
     bool ir_array_acess(ast_node * node);
+    ast_node * ir_array_aslval_assign(ast_node * node);
     // 新增：函数调用
     bool ir_func_call(ast_node * node);
 

@@ -1485,6 +1485,10 @@ bool IRGenerator::ir_assign(ast_node * node)
 
     // 赋值运算符的右侧操作数
     ast_node * right = ir_visit_ast_node(son2_node);
+    // if (right->val->isConst()) {
+    //     printf("const variable can not be assigned.");
+    //     return false;
+    // }
     if (!right) {
         // 某个变量没有定值
         return false;
@@ -1800,9 +1804,14 @@ bool IRGenerator::ir_array_acess(ast_node * node)
     std::vector<int> indices = {flatindex};
     gepInst = new GetElementPtrInstruction(module->getCurrentFunction(), bitcatinst, indices);
     node->blockInsts.addInst(gepInst);
-    LoadInstruction * LoadInst = new LoadInstruction(module->getCurrentFunction(), gepInst, true);
-    node->blockInsts.addInst(LoadInst);
-    currentVal = LoadInst;
+    if (node->parent->node_type == ast_operator_type::AST_OP_ASSIGN_STMT) {
+        currentVal = gepInst;
+    } else {
+        LoadInstruction * LoadInst = new LoadInstruction(module->getCurrentFunction(), gepInst, true);
+        node->blockInsts.addInst(LoadInst);
+        currentVal = LoadInst;
+    }
+
     node->val = currentVal;
     return true;
 }
@@ -1869,7 +1878,8 @@ bool IRGenerator::ir_leaf_node_var_id(ast_node * node)
     }
 
     else {
-        LoadInstruction * LoadInst = new LoadInstruction(module->getCurrentFunction(), val, true);
+        LoadInstruction * LoadInst =
+            new LoadInstruction(module->getCurrentFunction(), val, val->getType()->isFloatType() ? false : true);
         node->blockInsts.addInst(LoadInst);
         node->val = LoadInst;
     }

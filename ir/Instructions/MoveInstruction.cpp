@@ -40,6 +40,19 @@ void MoveInstruction::toString(std::string & str)
 {
 
     Value *dstVal = getOperand(0), *srcVal = getOperand(1);
+    if (srcVal->isConst()) {
+
+        std::string temp;
+        if (srcVal->getType()->isFloatType()) {
+            temp = std::to_string(srcVal->real_float);
+        } else {
+            temp = std::to_string(srcVal->real_int);
+        }
+        str = "store " + srcVal->getType()->toString() + " " + temp + ", " + dstVal->getType()->toString() + '*' + " " +
+              dstVal->getIRName() + ", align 4";
+        return;
+    }
+
     if (dstVal->getType() && dstVal->getType()->isPointerType()) {
         // str = '*' + dstVal->getIRName() + " = " + srcVal->getIRName();
         str = "store " + srcVal->getType()->toString() + " " + srcVal->getIRName() + ", " +
