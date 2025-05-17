@@ -1905,6 +1905,24 @@ bool IRGenerator::ir_func_call(ast_node * node)
         std::cerr << "Error: function not found: " << func_name << std::endl;
         return false;
     }
+    //对于被调用函数进行判断，如果是内置函数则需要将函数名加入到module的InFunctionList，然后模块运行时将用到的内置函数优先new出来
+    static std::unordered_map<std::string, int> irMap = {{"@getint", 1},
+                                                         {"@putint", 2},
+                                                         {"@getch", 3},
+                                                         {"@putch", 4},
+                                                         {"@getarray", 5},
+                                                         {"@putarray", 6},
+                                                         {"@getfloat", 7},
+                                                         {"@putfloat", 8},
+                                                         {"@getfarray", 9},
+                                                         {"@putfarray", 10},
+                                                         {"@putstr", 11},
+                                                         {"@putf", 12}};
+    auto it = irMap.find(callee->getIRName());
+    if (it != irMap.end()) {
+        module->InFunctionList[it->second] = true;
+		//InFunction为true则后面需要打印对应的内置函数
+    }
 
     std::vector<Value *> args;
     // 支持无参数、有参数（AST_OP_FUNC_RPARAMS）、单参数直接表达式等情况

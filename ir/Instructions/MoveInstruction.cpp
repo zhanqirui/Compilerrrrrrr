@@ -14,7 +14,7 @@
 /// <tr><td>2024-09-29 <td>1.0     <td>zenglj  <td>新建
 /// </table>
 ///
-
+#include <iostream>
 #include "VoidType.h"
 
 #include "MoveInstruction.h"
@@ -58,14 +58,14 @@ void MoveInstruction::toString(std::string & str)
         str = "store " + srcVal->getType()->toString() + " " + srcVal->getIRName() + ", " +
               dstVal->getType()->toString() + '*' + " " + dstVal->getIRName() + ", align 4";
         return;
-    }
-    if (srcVal->getType() && srcVal->getType()->isPointerType()) {
+    } else if ((srcVal->getType() && srcVal->getType()->isPointerType())) {
         // str = dstVal->getIRName() + " = " + '*' + srcVal->getIRName();
         str = "store " + srcVal->getType()->toString() + '*' + " " + srcVal->getIRName() + ", " +
               dstVal->getType()->toString() + " " + dstVal->getIRName() + ", align 4";
         return;
+    } else {
+        // str = dstVal->getIRName() + " = " + srcVal->getIRName();
+        str = "store " + srcVal->getType()->toString() + " " + srcVal->getIRName() + ", " +
+              dstVal->getType()->toString() + '*' + " " + dstVal->getIRName() + ", align 4";
     }
-    // str = dstVal->getIRName() + " = " + srcVal->getIRName();
-    str = "store " + srcVal->getType()->toString() + " " + srcVal->getIRName() + ", " + dstVal->getType()->toString() +
-          "*" + " " + dstVal->getIRName() + ", align 4";
 }
