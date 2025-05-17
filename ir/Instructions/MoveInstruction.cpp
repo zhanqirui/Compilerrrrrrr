@@ -14,7 +14,7 @@
 /// <tr><td>2024-09-29 <td>1.0     <td>zenglj  <td>新建
 /// </table>
 ///
-
+#include <iostream>
 #include "VoidType.h"
 
 #include "MoveInstruction.h"
@@ -40,19 +40,28 @@ void MoveInstruction::toString(std::string & str)
 {
 
     Value *dstVal = getOperand(0), *srcVal = getOperand(1);
-    if (dstVal->getType() && dstVal->getType()->isPointerType()) {
+    std::cout << dstVal->getType()->toString().c_str()<< '\n';
+	std::cout << srcVal->getType()->toString().c_str()<< '\n';
+	
+    if ((dstVal->getType() && dstVal->getType()->isPointerType()) &&
+        (srcVal->getType() && srcVal->getType()->isPointerType())) {
+        // str = '*' + dstVal->getIRName() + " = " + srcVal->getIRName();
+        str = "store " + srcVal->getType()->toString() + '*' + " " + srcVal->getIRName() + ", " +
+              dstVal->getType()->toString() + '*' + " " + dstVal->getIRName() + ", align 4";
+        return;
+    } else if (dstVal->getType() && dstVal->getType()->isPointerType()) {
         // str = '*' + dstVal->getIRName() + " = " + srcVal->getIRName();
         str = "store " + srcVal->getType()->toString() + " " + srcVal->getIRName() + ", " +
               dstVal->getType()->toString() + '*' + " " + dstVal->getIRName() + ", align 4";
         return;
-    }
-    if (srcVal->getType() && srcVal->getType()->isPointerType()) {
+    } else if ((srcVal->getType() && srcVal->getType()->isPointerType())) {
         // str = dstVal->getIRName() + " = " + '*' + srcVal->getIRName();
         str = "store " + srcVal->getType()->toString() + '*' + " " + srcVal->getIRName() + ", " +
               dstVal->getType()->toString() + " " + dstVal->getIRName() + ", align 4";
         return;
+    } else {
+        // str = dstVal->getIRName() + " = " + srcVal->getIRName();
+        str = "store " + srcVal->getType()->toString() + " " + srcVal->getIRName() + ", " +
+              dstVal->getType()->toString() + '*' + " " + dstVal->getIRName() + ", align 4";
     }
-    // str = dstVal->getIRName() + " = " + srcVal->getIRName();
-    str = "store " + srcVal->getType()->toString() + " " + srcVal->getIRName() + ", " + dstVal->getType()->toString() +
-          "*" + " " + dstVal->getIRName() + ", align 4";
 }

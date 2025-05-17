@@ -53,6 +53,7 @@ public:
                                      const std::vector<FlattenedArrayElement> & flattenedArray,
                                      size_t currentIndex,
                                      int32_t flatOffset);
+
     /// @brief 获取函数返回类型
     /// @return 返回类型
     Type * getReturnType();
@@ -68,6 +69,10 @@ public:
     /// @brief 判断该函数是否是内置函数
     /// @return true: 内置函数，false：用户自定义
     bool isBuiltin();
+
+    /// @brief 将所有内置函数转化成switch_case型
+    /// @param str
+    // void setDeclareString(std::string & str);
 
     /// @brief 函数指令信息输出
     /// @param str 函数指令

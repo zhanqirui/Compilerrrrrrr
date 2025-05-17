@@ -13,13 +13,14 @@
 /// <tr><td>2024-09-29 <td>1.0     <td>zenglj  <td>新建
 /// </table>
 ///
+#include <iostream>
 #include "Module.h"
 
 #include "ScopeStack.h"
 #include "Common.h"
 #include "VoidType.h"
 
-Module::Module(std::string _name) : name(_name)
+Module::Module(std::string _name) : InFunctionList(13, false), name(_name)
 {
     // 创建作用域栈
     scopeStack = new ScopeStack();
@@ -27,9 +28,34 @@ Module::Module(std::string _name) : name(_name)
     // 确保全局变量作用域入栈，这样全局变量才可以加入
     scopeStack->enterScope();
 
+    /*在模块开头加内置函数，但是具体打印涉及到有无使用*/
+    // 加入内置函数getint
+    newFunction("getint", IntegerType::getTypeInt(), {}, true);
+
     // 加入内置函数putint
-    (void) newFunction("putint", VoidType::getType(), {new FormalParam{IntegerType::getTypeInt(), ""}}, true);
-    (void) newFunction("getint", IntegerType::getTypeInt(), {}, true);
+    newFunction("putint", VoidType::getType(), {new FormalParam{IntegerType::getTypeInt(), ""}}, true);
+
+    newFunction("getch", IntegerType::getTypeInt(), {}, true);
+
+    newFunction("putch", VoidType::getType(), {new FormalParam{IntegerType::getTypeInt(), ""}}, true);
+
+    newFunction("getarray", IntegerType::getTypeInt(), {new FormalParam{IntegerType::getTypeInt(), ""}}, true);
+
+    newFunction("putarray", VoidType::getType(), {new FormalParam{IntegerType::getTypeInt(), ""}}, true);
+
+    newFunction("getfloat", FloatType::getTypeFloat(), {}, true);
+
+    newFunction("putfloat", VoidType::getType(), {new FormalParam{FloatType::getTypeFloat(), ""}}, true);
+
+    //后面几个形参列表不知道怎么加了
+
+    newFunction("getfarray", IntegerType::getTypeInt(), {new FormalParam{FloatType::getTypeFloat(), ""}}, true);
+
+    newFunction("putfarray", VoidType::getType(), {new FormalParam{IntegerType::getTypeInt(), ""}}, true);
+
+    newFunction("putstr", VoidType::getType(), {new FormalParam{IntegerType::getTypeInt(), ""}}, true);
+
+    newFunction("putf", VoidType::getType(), {new FormalParam{IntegerType::getTypeInt(), ""}}, true);
 }
 
 /// @brief 进入作用域，如进入函数体块、语句块等
@@ -94,7 +120,14 @@ Function * Module::newFunction(std::string name, Type * returnType, std::vector<
     tempFunc->getParams().assign(params.begin(), params.end());
 
     insertFunctionDirectly(tempFunc);
-
+    /*
+    if (tempFunc->InFunctionList.size() == 0) {
+        printf("no In Function\n");
+    }
+    for (int i = 0; i < tempFunc->InFunctionList.size(); i++) {
+        std::cout << tempFunc->InFunctionList[i] << '\n';
+    }
+    */
     return tempFunc;
 }
 
@@ -436,6 +469,7 @@ void Module::outputIR(const std::string & filePath)
 
         std::string instStr;
         func->toString(instStr);
+        // std::string InFunction;
         if (func->is_use_memcpy == true)
             is_use_memcpy = true;
         if (func->is_use_memset == true)
@@ -443,7 +477,55 @@ void Module::outputIR(const std::string & filePath)
         fprintf(fp, "%s", instStr.c_str());
     }
 
-    fprintf(fp, "\ndeclare void @putint(i32) #0\n");
+    // fprintf(fp, "\ndeclare void @putint(i32) #0\n");
+
+    for (int i = 0; i < InFunctionList.size(); i++) {
+        if (InFunctionList[i]) {
+            switch (i) {
+                case 1:
+                    fprintf(fp, "declare i32 @getint(...) #1\n");
+                    break;
+                case 2:
+                    fprintf(fp, "declare void @putint(i32) #1\n");
+                    break;
+                case 3:
+                    fprintf(fp, "declare i32 @getch(...) #1\n");
+                    break;
+                case 4:
+                    fprintf(fp, "declare void @putch(i32) #1\n");
+                    break;
+                case 5:
+                    fprintf(fp, "declare i32 @getarray(i32*) #1\n");
+                    break;
+                case 6:
+                    fprintf(fp, "declare void @putarray(i32,i32*) #1\n");
+                    break;
+                case 7:
+                    fprintf(fp, "declare f32 @getfloat(...) #1\n");
+                    break;
+                case 8:
+                    fprintf(fp, "declare void @putfloat(f32) #1\n");
+                    break;
+                case 9:
+                    fprintf(fp, "declare i32 @getfarray(f32*) #1\n");
+                    break;
+                case 10:
+                    fprintf(fp, "declare void @putfarray(i32,f32*) #1\n");
+                    break;
+                case 11:
+                    fprintf(fp, "declare i32 @putstr(...) #1\n");
+                    break;
+                case 12:
+                    fprintf(fp, "declare i32 @putf(...) #1\n");
+                    break;
+                default:
+                    break;
+            }
+        }
+    }
+
+    // 加入内置函数
+
     if (is_use_memset)
         fprintf(fp, "\ndeclare void @llvm.memset.p0i8.i64(i8* nocapture writeonly, i8, i64, i1 immarg) #1\n");
     if (is_use_memcpy)
@@ -542,3 +624,80 @@ Value * Module::newglobalconstArray(Type * type, std::string name, std::vector<i
     retVal->setConst(true);
     return retVal;
 }
+
+///
+/// @brief 将内置函数都需要做new,打印到时候直接判断
+/// @param str
+///
+/*
+void Module::newInFunction(std::vector<std::string> & InFunctionList)
+{
+    static std::unordered_map<std::string, int> irMap = {{"@getint", 1},
+                                                         {"@putint", 2},
+                                                         {"@getch", 3},
+                                                         {"@putch", 4},
+                                                         {"@getarray", 5},
+                                                         {"@putarray", 6},
+                                                         {"@getfloat", 7},
+                                                         {"@putfloat", 8},
+                                                         {"@getfarray", 9},
+                                                         {"@putfarray", 10},
+                                                         {"@putstr", 11},
+                                                         {"@putf", 12}};
+
+    for (int i = 0; i < InFunctionList.size(); i++) {
+        auto it = irMap.find(InFunctionList[i]);
+        if (it == irMap.end()) {
+            printf("Infunction 'name is wrong\n");
+            continue;
+        }
+        switch (it->second) {
+            case 1:
+                newFunction("getint", IntegerType::getTypeInt(), {}, true);
+                break;
+            case 2:
+                newFunction("putint", VoidType::getType(), {new FormalParam{IntegerType::getTypeInt(), ""}}, true);
+                break;
+            case 3:
+                newFunction("getch", IntegerType::getTypeInt(), {}, true);
+                break;
+            case 4:
+                newFunction("putch", VoidType::getType(), {new FormalParam{IntegerType::getTypeInt(), ""}}, true);
+                break;
+            case 5:
+                newFunction("getarray",
+                            IntegerType::getTypeInt(),
+                            {new FormalParam{IntegerType::getTypeInt(), ""}},
+                            true);
+                break;
+            case 6:
+                newFunction("putarray", VoidType::getType(), {new FormalParam{IntegerType::getTypeInt(), ""}}, true);
+                break;
+            case 7:
+                newFunction("getfloat", FloatType::getTypeFloat(), {}, true);
+                break;
+            case 8:
+                newFunction("putfloat", VoidType::getType(), {new FormalParam{FloatType::getTypeFloat(), ""}}, true);
+                break;
+            //后面几个形参列表不知道怎么加了
+            case 9:
+                newFunction("getfarray",
+                            IntegerType::getTypeInt(),
+                            {new FormalParam{FloatType::getTypeFloat(), ""}},
+                            true);
+                break;
+            case 10:
+                newFunction("putfarray", VoidType::getType(), {new FormalParam{IntegerType::getTypeInt(), ""}}, true);
+                break;
+            case 11:
+                newFunction("putstr", VoidType::getType(), {new FormalParam{IntegerType::getTypeInt(), ""}}, true);
+                break;
+            case 12:
+                newFunction("putf", VoidType::getType(), {new FormalParam{IntegerType::getTypeInt(), ""}}, true);
+                break;
+            default:
+                break;
+        }
+    }
+}
+*/
