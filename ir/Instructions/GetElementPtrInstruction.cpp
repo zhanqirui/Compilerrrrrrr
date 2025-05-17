@@ -10,7 +10,7 @@
 /// @brief GetElementPtr 指令
 ///
 GetElementPtrInstruction::GetElementPtrInstruction(Function * _func, Value * basePtr, std::vector<int> indices)
-    : Instruction(_func, IRInstOperator::IRINST_OP_ASSIGN, basePtr->getType()), indices(indices)
+    : Instruction(_func, IRInstOperator::IRINST_OP_GEP, basePtr->getType()), indices(indices)
 {
     addOperand(basePtr);
 }

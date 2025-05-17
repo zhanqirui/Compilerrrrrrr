@@ -35,6 +35,9 @@ public:
     static bool constExpr(int64_t num);
     static bool isDisp(int64_t num);
     static bool isReg(std::string name);
+    
+    // 新增：将64位寄存器名(x0-x30)转换为32位形式(w0-w30)
+    static std::string toWReg(const std::string& xreg);
 
     static const int maxRegNum = 32; // x0-x30, sp
     static const int maxUsableRegNum = 16; // x0-x15 可用通用寄存器

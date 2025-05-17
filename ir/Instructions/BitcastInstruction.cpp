@@ -27,7 +27,7 @@
 /// @param srcVal1 源操作数
 ///
 BitcastInstruction::BitcastInstruction(Function * _func, Value * srcVal1, int bit = 8)
-    : Instruction(_func, IRInstOperator::IRINST_OP_ASSIGN, (static_cast<Type *>(IntegerType::getTypeInt())))
+    : Instruction(_func, IRInstOperator::IRINST_OP_CAST, (static_cast<Type *>(IntegerType::getTypeInt())))
 //   (is_int ? static_cast<Type *>(IntegerType::getTypeInt()) : static_cast<Type *>(FloatType::getTypeFloat())))
 {
     addOperand(srcVal1);

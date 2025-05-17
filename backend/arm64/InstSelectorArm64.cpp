@@ -10,6 +10,10 @@
 #include "GotoInstruction.h"
 #include "FuncCallInstruction.h"
 #include "MoveInstruction.h"
+#include "MemsetInstruction.h"
+#include "GetElementPtrInstruction.h"
+#include "BitcastInstruction.h"
+#define Instanceof(res, type, var) auto res = dynamic_cast<type>(var)
 
 InstSelectorArm64::InstSelectorArm64(vector<Instruction *> & _irCode,
                                      ILocArm64 & _iloc,
@@ -22,7 +26,11 @@ InstSelectorArm64::InstSelectorArm64(vector<Instruction *> & _irCode,
     translator_handlers[IRInstOperator::IRINST_OP_LABEL] = &InstSelectorArm64::translate_label;
     translator_handlers[IRInstOperator::IRINST_OP_GOTO] = &InstSelectorArm64::translate_goto;
     translator_handlers[IRInstOperator::IRINST_OP_ASSIGN] = &InstSelectorArm64::translate_assign;
+	translator_handlers[IRInstOperator::IRINST_OP_STORE] = &InstSelectorArm64::translate_store;
 	translator_handlers[IRInstOperator::IRINST_OP_LOAD] = &InstSelectorArm64::translate_load;
+	translator_handlers[IRInstOperator::IRINST_OP_GEP] = &InstSelectorArm64::translate_gep;
+	translator_handlers[IRInstOperator::IRINST_OP_CAST] = &InstSelectorArm64::translate_cast;
+    translator_handlers[IRInstOperator::IRINST_OP_MEMSET] = &InstSelectorArm64::translate_memset;
 
     // 新增：注册算术/逻辑/分支/函数相关指令
     translator_handlers[IRInstOperator::IRINST_OP_ADD_I] = &InstSelectorArm64::translate_add;
@@ -177,16 +185,43 @@ void InstSelectorArm64::translate_assign(Instruction * inst) {
     Value * arg1 = inst->getOperand(1);
     int32_t arg1_regId = arg1->getRegId();
     int32_t result_regId = result->getRegId();
-    if (arg1_regId != -1) {
-        iloc.store_var(arg1_regId, result, ARM64_TMP_REG_NO);
-    } else if (result_regId != -1) {
-        iloc.load_var(result_regId, arg1);
-    } else {
-        int32_t temp_regno = simpleRegisterAllocator.Allocate();
-        iloc.load_var(temp_regno, arg1);
-        iloc.store_var(temp_regno, result, ARM64_TMP_REG_NO);
-        simpleRegisterAllocator.free(temp_regno);
-    }
+
+	//新增对数组复制的特殊处理
+	if(Instanceof(GepInst, GetElementPtrInstruction *, result)) 
+	{	
+		//储存立即数到R1
+		int32_t temp_regno1 = simpleRegisterAllocator.Allocate();
+		//储存地址到R2
+		int32_t temp_regno2 = simpleRegisterAllocator.Allocate();
+		iloc.load_var(temp_regno1, arg1);
+		iloc.load_var(temp_regno2, GepInst);
+
+		iloc.inst("str", PlatformArm64::regName[temp_regno1], "[" + PlatformArm64::regName[temp_regno2] + ", #0]");
+
+		iloc.store_var(temp_regno1, GepInst, ARM64_TMP_REG_NO);
+		simpleRegisterAllocator.free(temp_regno1);
+		simpleRegisterAllocator.free(temp_regno2);
+
+	}
+	else
+	{
+		if (arg1_regId != -1) {
+			iloc.store_var(arg1_regId, result, ARM64_TMP_REG_NO);
+		} else if (result_regId != -1) {
+			iloc.load_var(result_regId, arg1);
+		} else {
+			int32_t temp_regno = simpleRegisterAllocator.Allocate();
+			iloc.load_var(temp_regno, arg1);
+			iloc.store_var(temp_regno, result, ARM64_TMP_REG_NO);
+			simpleRegisterAllocator.free(temp_regno);
+		}
+	}
+
+}
+
+void InstSelectorArm64::translate_store(Instruction * inst) {
+	
+	translate_assign(inst);
 }
 
 void InstSelectorArm64::translate_load(Instruction * inst) {
@@ -194,17 +229,119 @@ void InstSelectorArm64::translate_load(Instruction * inst) {
 	Value * result = inst;
 	int32_t arg1_regId = arg1->getRegId();
     int32_t result_regId = result->getRegId();
-    if (arg1_regId != -1) {
-        iloc.store_var(arg1_regId, result, ARM64_TMP_REG_NO);
+	//新增对数组Load的特殊处理
+	if(Instanceof(GepInst, GetElementPtrInstruction *, arg1)) 
+	{	
+		//储存地址到x0
+		int32_t temp_regno = simpleRegisterAllocator.Allocate();
+		iloc.load_var(temp_regno, GepInst);
+		//从[x0]中取出值到x0
+		iloc.inst("ldr", PlatformArm64::regName[temp_regno], "[" + PlatformArm64::regName[temp_regno] + ", #0]");
+		//把x0保存到result
+		iloc.store_var(temp_regno, result, ARM64_TMP_REG_NO);
+		simpleRegisterAllocator.free(temp_regno);
+	}
+	else
+	{
+		if (arg1_regId != -1) {
+			iloc.store_var(arg1_regId, result, ARM64_TMP_REG_NO);
+		} else if (result_regId != -1) {
+			iloc.load_var(result_regId, arg1);
+		} else {
+			int32_t temp_regno = simpleRegisterAllocator.Allocate();
+			iloc.load_var(temp_regno, arg1);
+			iloc.store_var(temp_regno, result, ARM64_TMP_REG_NO);
+			simpleRegisterAllocator.free(temp_regno);
+		}
+	}
+    
+
+}
+
+void InstSelectorArm64::translate_gep(Instruction * inst) {
+
+	Instanceof(gepInst, GetElementPtrInstruction *, inst);
+	Value * arg1 = gepInst->getOperand(0);
+    Instanceof(castInst, BitcastInstruction *, arg1);
+
+	Value * base_addr = castInst->getOperand(0);
+
+	Value * result = gepInst;
+	int32_t base_addr_regId = base_addr->getRegId();
+    int32_t result_regId = result->getRegId();
+	//计算偏移量
+	int64_t offset = 0;
+    int dims = gepInst->getIndexces()[0];
+	//所有类型的元素大小都是4
+	offset += dims * 4;
+
+    if (base_addr_regId != -1) {
+        iloc.store_var(base_addr_regId, result, ARM64_TMP_REG_NO);
     } else if (result_regId != -1) {
-        iloc.load_var(result_regId, arg1);
+        iloc.load_var(result_regId, base_addr);
     } else {
         int32_t temp_regno = simpleRegisterAllocator.Allocate();
-        iloc.load_var(temp_regno, arg1);
+        iloc.load_var(temp_regno, base_addr);
+		// 计算具体地址
+		iloc.inst("add", PlatformArm64::regName[temp_regno], PlatformArm64::regName[temp_regno], iloc.toStr(offset, false));
         iloc.store_var(temp_regno, result, ARM64_TMP_REG_NO);
         simpleRegisterAllocator.free(temp_regno);
     }
 
+}
+
+void InstSelectorArm64::translate_cast(Instruction * inst) {
+	//cast 不生成对应指令，因为它只是一个 类型层面的转换，不改变内存地址或数据布局。
+}
+
+void InstSelectorArm64::translate_memset(Instruction * inst) {
+	Instanceof(memsetInst, MemsetInstruction *, inst);
+    // memset指令用于将一段内存设置为0
+	// 目标地址，但是源操作数存在memsetInst->getOperand(0)中的operand中
+    Value * op1 = memsetInst->getOperand(0);  
+	Instanceof(castInst, Instruction *, op1);
+	Value * addr = castInst->getOperand(0);
+    int32_t addr_reg = addr->getRegId();
+    int32_t tmp_reg = ARM64_TMP_REG_NO;
+    
+    if (addr_reg == -1) {
+        addr_reg = simpleRegisterAllocator.Allocate();
+        iloc.load_var(addr_reg, addr);
+    }
+    
+    // 使用零寄存器和stp指令优化内存初始化
+    iloc.inst("mov", PlatformArm64::regName[tmp_reg], "#0");
+	
+    int64_t len = memsetInst->getSize();
+	int aligned16_len = (len / 16) * 16;  // 可用 stp 写入的长度
+    int remainder = len - aligned16_len;
+	int aligned8_len = (remainder / 8) * 8;  // 可用 str 写入的长度
+	int rest = remainder - aligned8_len;  // 剩余的长度
+
+    // 先使用 stp 写入对齐部分
+    for (int offset = 0; offset < aligned16_len; offset += 16) {
+        iloc.inst("stp",
+                  PlatformArm64::regName[tmp_reg],
+                  PlatformArm64::regName[tmp_reg],
+                  "[" + PlatformArm64::regName[addr_reg] + ", #" + std::to_string(offset) + "]");
+    }
+	// 再使用 stp 写入对齐部分
+	if(aligned8_len) {
+		iloc.inst("str",
+					PlatformArm64::regName[tmp_reg],
+					"[" + PlatformArm64::regName[addr_reg] + ", #" + std::to_string(aligned16_len) + "]");
+	}
+	if(rest)
+	{
+		iloc.inst("str",
+			"wzr",
+			"[" + PlatformArm64::regName[addr_reg] + ", #" + std::to_string(aligned16_len + aligned8_len) + "]");
+	}
+    
+    
+    if (addr->getRegId() == -1) {
+        simpleRegisterAllocator.free(addr_reg);
+    }
 }
 
 // 算术二元指令

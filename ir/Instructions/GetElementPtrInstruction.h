@@ -25,4 +25,9 @@ public:
 
     /// @brief 转换成字符串
     void toString(std::string & str) override;
+
+	std::vector<int> getIndexces()
+	{
+		return indices;
+	}
 };

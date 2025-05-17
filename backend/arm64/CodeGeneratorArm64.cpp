@@ -365,9 +365,21 @@ void CodeGeneratorArm64::stackAlloc(Function * func)
         // baseRegNo不等于-1，则说明该变量肯定在栈上，属于内存变量，之前肯定已经分配过
         if ((var->getRegId() == -1) && (!var->getMemoryAddr())) {
 
+            int32_t size;
             // 该变量没有分配寄存器
-
-            int32_t size = var->getType()->getSize();
+			Type * type = var->getType();
+			if(type->isPointerType()) {
+                int32_t dims = 1;
+                for(auto dim: var->arraydimensionVector) {
+					dims *= dim;
+				}
+				size = dims * 4;
+			}	
+			else
+			{
+				size = var->getType()->getSize();
+			}
+            
 
             // // 32位ARM平台按照4字节的大小整数倍分配局部变量
             // size += (4 - size % 4) % 4;

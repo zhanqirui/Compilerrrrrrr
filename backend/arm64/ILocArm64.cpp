@@ -145,6 +145,20 @@ void ILocArm64::load_base(int rs_reg_no, int base_reg_no, int disp)
     emit("ldr", rsReg, base);
 }
 
+void ILocArm64::load_array_base(int rs_reg_no, int base_reg_no, int disp)
+{
+    std::string rsReg = PlatformArm64::regName[rs_reg_no];
+    std::string base = PlatformArm64::regName[base_reg_no];
+    if (PlatformArm64::isDisp(disp)) {
+        if (disp) base += "," + toStr(disp);
+    } else {
+        load_imm(rs_reg_no, disp);
+        base += "," + rsReg;
+    }
+    emit("add", rsReg, base);
+}
+
+
 // 将寄存器内容存储到基址寄存器加偏移（或加寄存器）地址处。
 void ILocArm64::store_base(int src_reg_no, int base_reg_no, int disp, int tmp_reg_no)
 {
@@ -185,7 +199,12 @@ void ILocArm64::load_var(int rs_reg_no, Value * src_var)
         if (!result) {
             minic_log(LOG_ERROR, "BUG");
         }
-        load_base(rs_reg_no, var_baseRegId, var_offset);
+		if(src_var->isArray()) {
+			// 数组变量的地址加载到寄存器
+			load_array_base(rs_reg_no, var_baseRegId, var_offset);
+		}
+		else
+        	load_base(rs_reg_no, var_baseRegId, var_offset);
     }
 }
 

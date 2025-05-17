@@ -48,6 +48,20 @@ void PlatformArm64::roundLeftShiftTwoBit(unsigned int & num) {
     num = (num << 2) | (overFlow >> 30);
 }
 
+// 将64位寄存器名(x0-x30)转换为32位形式(w0-w30)
+std::string PlatformArm64::toWReg(const std::string& xreg) {
+    // 仅当寄存器名以'x'开头时进行转换
+    if (!xreg.empty() && xreg[0] == 'x') {
+        return "w" + xreg.substr(1);
+    }
+    // 特殊处理sp和lr
+    if (xreg == "sp") return "wsp";
+    if (xreg == "lr") return "w30";
+    
+    // 无法转换则返回原名
+    return xreg;
+}
+
 bool PlatformArm64::__constExpr(int64_t num) {
     uint64_t new_num = (uint64_t) num;
     for (int i = 0; i < 32; i++) {
