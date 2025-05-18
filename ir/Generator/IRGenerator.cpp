@@ -734,6 +734,13 @@ bool IRGenerator::ir_add(ast_node * node)
         }
     }
     // 针对const进行优化
+    /*wuyue:05.18
+    针对const的优化感觉没有做完全,对于const只有const+字面量和两个const才做优化，这样做了优化后遇到变量+const
+    反而会报错，所以需要做修改，具体报错原因在于识别到不是两个常量在IR中就全用寄存器进行相加，变量可以做load，但是const先做
+    了一点优化即调用值不会load而是直接上寄存器，这就导致加法两个寄存器相加一个是变量值一个是指向常量的指针，这样会导致加法报错。
+    其他所有的加减乘除以及与或非比较都是全部同理，这一个问题也会导致const类型的组合运算如先加后乘，先加再加这样的操作全部报错
+    优化思路应该是保持原先的两个常量的情况，对于常量加变量的情况常量也像字面量一样直接返回值
+    * */
     Value * Var1 = nullptr;
     Value * Var2 = nullptr;
     float leftV;
@@ -773,6 +780,7 @@ bool IRGenerator::ir_add(ast_node * node)
         }
         return true;
     }
+
     if (src1_node->node_type == ast_operator_type::AST_OP_LEAF_LITERAL_UINT ||
         src2_node->node_type == ast_operator_type::AST_OP_LEAF_LITERAL_UINT) {
         if (Var1 && Var1->isConst()) {
@@ -805,6 +813,45 @@ bool IRGenerator::ir_add(ast_node * node)
             return true;
         }
     }
+
+    //用异或操作锁死一正一负（一个是常量，一个是变量）
+	//想复杂了，直接在打印指令里面优化
+	/*
+    if ((Var1 && Var1->isConst()) ^ (Var2 && Var2->isConst())) {
+        if (Var1 && Var1->isConst()) {
+            // 如果左边是常量，右边是变量
+            printf("var1 is const\n");
+            bool isFloat1 = src1_node->type->isFloatType();
+            if (Var1->type->isIntegerType())
+                leftV = Var1->real_int;
+            else {
+                leftV = Var1->real_float;
+            }
+            src1_node->node_type = ast_operator_type::AST_OP_LEAF_LITERAL_UINT;
+            if (isFloat1) {
+                src1_node->float_val = leftV;
+            } else {
+                src1_node->integer_val = leftV;
+            }
+
+        } else if (Var2 && Var2->isConst()) {
+            // 如果右边是常量，左边是变量
+            printf("var2 is const\n");
+            bool isFloat2 = src2_node->type->isFloatType();
+            if (Var2->type->isIntegerType())
+                rightV = Var2->real_int;
+            else {
+                rightV = Var2->real_float;
+            }
+            src2_node->node_type = ast_operator_type::AST_OP_LEAF_LITERAL_UINT;
+            if (isFloat2) {
+                src2_node->float_val = rightV;
+            } else {
+                src2_node->integer_val = rightV;
+            }
+        }
+    }
+	*/
 
     // 加法节点，左结合，先计算左节点，后计算右节点
     // LoadInstruction * LLoadInst = nullptr;
@@ -1921,7 +1968,7 @@ bool IRGenerator::ir_func_call(ast_node * node)
     auto it = irMap.find(callee->getIRName());
     if (it != irMap.end()) {
         module->InFunctionList[it->second] = true;
-		//InFunction为true则后面需要打印对应的内置函数
+        // InFunction为true则后面需要打印对应的内置函数
     }
 
     std::vector<Value *> args;
