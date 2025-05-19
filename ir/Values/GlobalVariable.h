@@ -241,6 +241,24 @@ public:
         }
     }
 
+	///
+	/// @brief 取得全局变量的大小
+	/// @return int32_t 大小
+	///
+	[[nodiscard]] int32_t getSize() const
+	{
+		return size;
+	}
+
+	///
+	/// @brief 设置全局变量的大小
+	/// @param _size 大小
+	///
+	void setSize(int32_t _size)
+	{
+		this->size = _size;
+	}
+
 private:
     ///
     /// @brief 变量加载到寄存器中时对应的寄存器编号
@@ -251,4 +269,9 @@ private:
     /// @brief 默认全局变量在BSS段，没有初始化，或者即使初始化过，但都值都为0
     ///
     bool inBSSSection = true;
+
+	///
+	/// @brief 全局变量的大小
+	///
+	int32_t size = 0;
 };
