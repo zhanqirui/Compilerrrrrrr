@@ -1,7 +1,10 @@
 grammar MiniC;
 
 // 核心编译单元
-compUnit: (decl | funcDef)* EOF;
+compUnit: (defineDirective | decl | funcDef)* EOF;
+
+// #define指令
+defineDirective: '#' DEFINE Ident (IntConst | FloatConst | StringConst | Ident);
 
 // 声明部分（常量/变量）
 decl: constDecl # constDeclaration | varDecl # varDeclaration;
@@ -109,6 +112,7 @@ constExp: addExp;
 
 // 词法规则
 
+DEFINE: 'define';
 BREAK: 'break';
 CONTINUE: 'continue';
 IF: 'if';
@@ -132,6 +136,9 @@ FloatConst:
 	[0-9]+ '.' [0-9]* ([eE] [+\-]? [0-9]+)? // 1.23, 1.23e10, 1.23E-10
 	| '.' [0-9]+ ([eE] [+\-]? [0-9]+)? // .23, .23e5
 	| [0-9]+ [eE] [+\-]? [0-9]+; // 1e10, 1E-10
+
+// 字符串常量（用于支持#define中的字符串常量）
+StringConst: '"' (~["\r\n] | '\\' .)* '"';
 
 // 空白和注释
 Whitespace: [ \t\r\n]+ -> skip;

@@ -9,15 +9,17 @@
 ///
 /// @brief GetElementPtr 指令
 ///
-GetElementPtrInstruction::GetElementPtrInstruction(Function * _func, Value * basePtr, std::vector<int> indices)
-    : Instruction(_func, IRInstOperator::IRINST_OP_GEP, basePtr->getType()), indices(indices)
+GetElementPtrInstruction::GetElementPtrInstruction(Function * _func, Value * basePtr, Value * offset)
+    : Instruction(_func, IRInstOperator::IRINST_OP_GEP, basePtr->getType())
 {
     addOperand(basePtr);
+    addOperand(offset);
 }
 void GetElementPtrInstruction::toString(std::string & str)
 {
 
     Value * srcVal1 = getOperand(0);
+    Value * srcVal2 = getOperand(1);
     std::string arrayType = "";
     // 构造 bitcast 指令的字符串
 
@@ -35,15 +37,18 @@ void GetElementPtrInstruction::toString(std::string & str)
     } else {
         arrayType = "i32";
     }
-
-    if (indices.size() == 1) {
-        str = getIRName() + " = getelementptr inbounds " + arrayType + ", " + arrayType + "* " + srcVal1->getIRName() +
-              ", i64 " + std::to_string(indices[0]);
-    } else {
-        str = getIRName() + " = getelementptr inbounds " + arrayType + ", " + arrayType + "* " + srcVal1->getIRName() +
-              ", i64 0";
-        for (size_t i = 0; i < indices.size(); ++i) {
-            str += ", i64 " + std::to_string(indices[i]);
-        }
-    }
+    str = getIRName() + " = getelementptr inbounds " + arrayType + ", " + arrayType + "* " + srcVal1->getIRName() +
+          ", i32 " + srcVal2->getIRName();
+    // if (indices.size() == 1) {
+    //     str = getIRName() + " = getelementptr inbounds " + arrayType + ", " + arrayType + "* " + srcVal1->getIRName()
+    //     +
+    //           ", i64 " + std::to_string(indices[0]);
+    // } else {
+    //     str = getIRName() + " = getelementptr inbounds " + arrayType + ", " + arrayType + "* " + srcVal1->getIRName()
+    //     +
+    //           ", i64 0";
+    //     for (size_t i = 0; i < indices.size(); ++i) {
+    //         str += ", i64 " + std::to_string(indices[i]);
+    //     }
+    // }
 }

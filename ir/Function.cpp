@@ -20,6 +20,7 @@
 #include "IRConstant.h"
 #include "Function.h"
 #include "PointerType.h"
+
 /// @brief 指定函数名字、函数类型的构造函数
 /// @param _name 函数名称
 /// @param _type 函数类型
@@ -150,13 +151,86 @@ std::string Function::processMultiDimArray(Value * Var,
     result += "}";
     return result;
 }
+
+/*
+/// @brief 将所有内置函数转化成switch_case型
+/// @param str
+
+void Function::setDeclareString(std::string & str)
+{
+    static std::unordered_map<std::string, int> irMap = {{"@getint", 1},
+                                                         {"@putint", 2},
+                                                         {"@getch", 3},
+                                                         {"@putch", 4},
+                                                         {"@getarray", 5},
+                                                         {"@putarray", 6},
+                                                         {"@getfloat", 7},
+                                                         {"@putfloat", 8},
+                                                         {"@getfarray", 9},
+                                                         {"@putfarray", 10},
+                                                         {"@putstr", 11},
+                                                         {"@putf", 12}};
+
+    auto it = irMap.find(getIRName());
+    if (it == irMap.end()) {
+        str.clear(); // 未知内置函数，不设置任何内容
+        return;
+    }
+    //具体的打印语句可能还需要做修改
+
+    switch (it->second) {
+        case 1:
+            str = "declare i32 @getint(...) #1\n";
+            break;
+        case 2:
+            str = "declare i32 @putint(...) #1\n";
+            break;
+        case 3:
+            str = "declare i32 @getch(...) #1\n";
+            break;
+        case 4:
+            str = "declare i32 @putch(...) #1\n";
+            break;
+        case 5:
+            str = "declare i32 @getarray(...) #1\n";
+            break;
+        case 6:
+            str = "declare i32 @putarray(...) #1\n";
+            break;
+        case 7:
+            str = "declare i32 @getfloat(...) #1\n";
+            break;
+        case 8:
+            str = "declare i32 @putfloat(...) #1\n";
+            break;
+        case 9:
+            str = "declare i32 @getfarray(...) #1\n";
+            break;
+        case 10:
+            str = "declare i32 @putfarray(...) #1\n";
+            break;
+        case 11:
+            str = "declare i32 @putstr(...) #1\n";
+            break;
+        case 12:
+            str = "declare i32 @putf(...) #1\n";
+            break;
+        default:
+            str.clear();
+            break;
+    }
+}
+*/
+
 /// @brief 函数指令信息输出
 /// @param str 函数指令
 void Function::toString(std::string & str)
 {
     if (builtIn) {
-        // 内置函数则什么都不输出
+        // 内置函数则不需要输出，由父函数的tostring解决
+
         return;
+        // str = "declare " + getReturnType()->toString() + " " + getIRName() + "( " + ") #0\n";
     }
 
     // 输出函数头

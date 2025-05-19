@@ -21,7 +21,7 @@ public:
     int index;
     int dim;
     std::vector<int> indices;
-    GetElementPtrInstruction(Function * _func, Value * basePtr, std::vector<int> indices);
+    GetElementPtrInstruction(Function * _func, Value * basePtr, Value * offset);
 
     /// @brief 转换成字符串
     void toString(std::string & str) override;

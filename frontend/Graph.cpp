@@ -220,6 +220,12 @@ string getNodeName(ast_node * astnode)
         case ast_operator_type::AST_OP_WHILE:
             nodeName = "while";
             break;
+        case ast_operator_type::AST_OP_STRING_CONSTANT:
+            nodeName = "string-constant";
+            break;
+        case ast_operator_type::AST_OP_DEFINE_DIRECTIVE:
+            nodeName = "define-directive";
+            break;
         default:
             nodeName = "unknown";
             break;

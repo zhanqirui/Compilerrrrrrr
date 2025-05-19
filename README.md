@@ -36,3 +36,11 @@ clang  -S -emit-llvm -o ./tests/test1-1.ll ./tests/test1-1.c
 
 
 clang -S -emit-llvm -o ./tests/test1-1S.ll ./tests/test1-1.c
+lli tests/test1-1.ll
+echo $?
+
+./build/minic -S -I -A -o ./tests/test1-7.ll ./tests/test1-7.c
+
+clang -o tests/test1-7 tests/test1-7.ll tests/std.c
+
+./tests/test1-7

@@ -14,7 +14,7 @@
 /// <tr><td>2024-09-29 <td>1.0     <td>zenglj  <td>新建
 /// </table>
 ///
-
+#include <iostream>
 #include "VoidType.h"
 
 #include "MoveInstruction.h"
@@ -40,19 +40,32 @@ void MoveInstruction::toString(std::string & str)
 {
 
     Value *dstVal = getOperand(0), *srcVal = getOperand(1);
+    if (srcVal->isConst()) {
+
+        std::string temp;
+        if (srcVal->getType()->isFloatType()) {
+            temp = std::to_string(srcVal->real_float);
+        } else {
+            temp = std::to_string(srcVal->real_int);
+        }
+        str = "store " + srcVal->getType()->toString() + " " + temp + ", " + dstVal->getType()->toString() + '*' + " " +
+              dstVal->getIRName() + ", align 4";
+        return;
+    }
+
     if (dstVal->getType() && dstVal->getType()->isPointerType()) {
         // str = '*' + dstVal->getIRName() + " = " + srcVal->getIRName();
         str = "store " + srcVal->getType()->toString() + " " + srcVal->getIRName() + ", " +
               dstVal->getType()->toString() + '*' + " " + dstVal->getIRName() + ", align 4";
         return;
-    }
-    if (srcVal->getType() && srcVal->getType()->isPointerType()) {
+    } else if ((srcVal->getType() && srcVal->getType()->isPointerType())) {
         // str = dstVal->getIRName() + " = " + '*' + srcVal->getIRName();
         str = "store " + srcVal->getType()->toString() + '*' + " " + srcVal->getIRName() + ", " +
               dstVal->getType()->toString() + " " + dstVal->getIRName() + ", align 4";
         return;
+    } else {
+        // str = dstVal->getIRName() + " = " + srcVal->getIRName();
+        str = "store " + srcVal->getType()->toString() + " " + srcVal->getIRName() + ", " +
+              dstVal->getType()->toString() + '*' + " " + dstVal->getIRName() + ", align 4";
     }
-    // str = dstVal->getIRName() + " = " + srcVal->getIRName();
-    str = "store " + srcVal->getType()->toString() + " " + srcVal->getIRName() + ", " + dstVal->getType()->toString() +
-          "*" + " " + dstVal->getIRName() + ", align 4";
 }

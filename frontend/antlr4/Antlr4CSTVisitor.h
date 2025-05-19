@@ -19,6 +19,7 @@
 #include "MiniCBaseVisitor.h"
 #include <map>
 #include <string>
+#include <unordered_map>
 
 /// @brief 遍历具体语法树产生抽象语法树
 class MiniCCSTVisitor : public MiniCBaseVisitor {
@@ -37,12 +38,17 @@ public:
 	std::map<std::string, int> getReturnNum() {
 		return NameToReturnNum;
 	}
+	// 全局或静态成员：宏定义表
+	std::unordered_map<std::string, ast_node*> macro_table;
 
 protected:
     /* 下面的函数都是从MiniCBaseVisitor继承下来的虚拟函数，需要重载实现 */
 
     // 顶层
     std::any visitCompUnit(MiniCParser::CompUnitContext *ctx) override;
+    
+    // 预处理指令
+    std::any visitDefineDirective(MiniCParser::DefineDirectiveContext *ctx) override;
 
     // 声明相关
     std::any visitConstDeclaration(MiniCParser::ConstDeclarationContext *ctx) override;

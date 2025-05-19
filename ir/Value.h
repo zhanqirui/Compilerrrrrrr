@@ -18,7 +18,6 @@
 
 #include <cstdint>
 #include <string>
-
 #include "Use.h"
 #include "Type.h"
 struct FlattenedArrayElement {
@@ -27,6 +26,10 @@ struct FlattenedArrayElement {
     float floatValue;  // 浮点值
     Value * val;
     bool is_use_val;
+};
+struct ArrayIndex {
+    int32_t idx;
+    Value * value;
 };
 ///
 /// @brief 值类，每个值都要有一个类型，全局变量和局部变量可以有名字，
@@ -146,7 +149,9 @@ public:
     virtual int32_t getLiveEnd();
 
     /// @brief 作为数组的下标集合
-    std::vector<int32_t> arrayIndexVector;
+    // std::vector<int32_t> arrayIndexVector;
+    // std::vector<int32_t, Value> arrayIndexVector;
+    std::vector<ArrayIndex> arrayIndexVector;
     std::vector<int32_t> arraydimensionVector;
     std::vector<FlattenedArrayElement> flattenedArray;
 
