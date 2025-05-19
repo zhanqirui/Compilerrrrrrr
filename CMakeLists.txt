@@ -95,25 +95,23 @@ set(ANTLR4_OUTPUT
 	${ANTLR4_GEN_DIR}/MiniCParser.h
 )
 
-
 set(CPACK_SOURCE_GENERATOR "ZIP")
 set(CPACK_SOURCE_IGNORE_FILES
-    "/build/;" # 忽略 build 目录
-    "/cmake-build-.*/;" # cmake-build-开头的目录
-    "/.git/;" # 忽略 Git 仓库
-    "~$;" # 忽略临时文件（如编辑器产生的临时文件）
-    "/doc/;" # 忽略 doc 目录
-    "/frontend/antlr4/.antlr/;" # antlr自动产生的目录
-    "/.history/;" # 本地历史文件
-    "/tests/;" # 测试文件夹
-    "/thirdparty/;" # antlr
-    "/tools/;" # tools
-    "/cmake/;" # cmake
-    "/.vs/;" # visual studio
-    "/.vscode/;" # vscode
-    "/.cache/;" # cache
+	"/build/;" # 忽略 build 目录
+	"/cmake-build-.*/;" # cmake-build-开头的目录
+	"/.git/;" # 忽略 Git 仓库
+	"~$;" # 忽略临时文件（如编辑器产生的临时文件）
+	"/doc/;" # 忽略 doc 目录
+	"/frontend/antlr4/.antlr/;" # antlr自动产生的目录
+	"/.history/;" # 本地历史文件
+	"/tests/;" # 测试文件夹
+	"/thirdparty/;" # antlr
+	"/tools/;" # tools
+	"/cmake/;" # cmake
+	"/.vs/;" # visual studio
+	"/.vscode/;" # vscode
+	"/.cache/;" # cache
 )
-
 
 # 前端源代码集合
 set(FRONTEND_SRCS
@@ -232,6 +230,16 @@ set(IR_SRCS
 	ir/Instructions/BranchifCondition.h
 	ir/Instructions/UnaryInstruction.cpp
 	ir/Instructions/UnaryInstruction.h
+	ir/Instructions/LoadInstruction.h
+	ir/Instructions/LoadInstruction.cpp
+	ir/Instructions/BitcastInstruction.h
+	ir/Instructions/BitcastInstruction.cpp
+	ir/Instructions/MemcpyInstruction.cpp
+	ir/Instructions/MemcpyInstruction.h
+	ir/Instructions/MemsetInstruction.h
+	ir/Instructions/MemsetInstruction.cpp
+	ir/Instructions/GetElementPtrInstruction.cpp
+	ir/Instructions/GetElementPtrInstruction.h
 )
 
 # 符号表等共通化代码集合

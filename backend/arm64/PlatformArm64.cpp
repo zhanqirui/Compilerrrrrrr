@@ -5,7 +5,7 @@ const std::string PlatformArm64::regName[PlatformArm64::maxRegNum] = {
     "x0", "x1", "x2", "x3", "x4", "x5", "x6", "x7",
     "x8", "x9", "x10", "x11", "x12", "x13", "x14", "x15",
     "x16", "x17", "x18", "x19", "x20", "x21", "x22", "x23",
-    "x24", "x25", "x26", "x27", "x28", "fp", "lr", "sp"
+    "x24", "x25", "x26", "x27", "x28", "x29", "lr", "sp"
 };
 
 RegVariable * PlatformArm64::intRegVal[PlatformArm64::maxRegNum] = {
@@ -46,6 +46,20 @@ RegVariable * PlatformArm64::intRegVal[PlatformArm64::maxRegNum] = {
 void PlatformArm64::roundLeftShiftTwoBit(unsigned int & num) {
     const unsigned int overFlow = num & 0xc0000000;
     num = (num << 2) | (overFlow >> 30);
+}
+
+// 将64位寄存器名(x0-x30)转换为32位形式(w0-w30)
+std::string PlatformArm64::toWReg(const std::string& xreg) {
+    // 仅当寄存器名以'x'开头时进行转换
+    if (!xreg.empty() && xreg[0] == 'x') {
+        return "w" + xreg.substr(1);
+    }
+    // 特殊处理sp和lr
+    if (xreg == "sp") return "wsp";
+    if (xreg == "lr") return "w30";
+    
+    // 无法转换则返回原名
+    return xreg;
 }
 
 bool PlatformArm64::__constExpr(int64_t num) {

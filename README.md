@@ -30,6 +30,9 @@ cmake --build build --parallel
 
 ./build/minic -S -D -o ./tests/test1-1.s ./tests/test1-1.c
 
-clang  -S -emit-llvm -o test1-1-clang.ll ./tests/test1-1.c
+clang  -S -emit-llvm -o ./tests/test1-1.ll ./tests/test1-1.c
 
 ’‘’
+
+
+clang -S -emit-llvm -o ./tests/test1-1S.ll ./tests/test1-1.c

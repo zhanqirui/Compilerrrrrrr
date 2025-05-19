@@ -63,6 +63,7 @@ public:
     ///
     /// 该构造函数将Type的ID设置为PointerTypeID，并且
     /// 保存pointeeType的指针到pointeeType成员变量
+
     explicit PointerType(const Type * pointeeType) : Type(PointerTyID)
     {
         this->pointeeType = pointeeType;
@@ -132,13 +133,17 @@ public:
     {
         return pointeeType->toString() + "*";
     }
+    const Type * getreferencetype()
+    {
+        return pointeeType;
+    }
+    const Type * pointeeType = nullptr;
 
 private:
     ///
     /// @brief 指针直接指向的类型，在指针操作中只解引用一次
     /// 例如：指针类型[3 x i32]***的指向类型为[3 x i32]**，只取掉最后一个*
     ///
-    const Type * pointeeType = nullptr;
 
     ///
     /// @brief 所有指针操作都解引用后指向的元素类型，不再是指针类型

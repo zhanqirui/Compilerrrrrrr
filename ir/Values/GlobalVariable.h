@@ -18,6 +18,8 @@
 
 #include "GlobalValue.h"
 #include "IRConstant.h"
+#include "PointerType.h"
+#include <sstream>
 
 ///
 /// @brief 全局变量，寻址时通过符号名或变量名来寻址
@@ -51,15 +53,22 @@ public:
     /// @return true
     /// @return false
     ///
+    void renameIR()
+    {
+        if (this->const_func_name != "null") {
+            IRName = "@__const." + this->const_func_name + "." + name;
+        }
+    }
+
     [[nodiscard]] bool isInBSSSection() const
     {
         return this->inBSSSection;
     }
 
-	void setInBSSSection(bool inBSS)
-	{
-		this->inBSSSection = inBSS;
-	}
+    void setInBSSSection(bool inBSS)
+    {
+        this->inBSSSection = inBSS;
+    }
 
     ///
     /// @brief 取得变量所在的作用域层级
@@ -90,24 +99,142 @@ public:
 
     ///
     /// @brief Declare指令IR显示
-    /// @param str
+    /// @param varName
     ///
-    void toDeclareString(std::string & str)
-    {
-        str = "declare " + getType()->toString() + " " + getIRName();
-        if (this->type->isIntegerType()) {
-            str += "=" + std::to_string(this->real_int); // 转换为字符串
-        } else if (this->type->isFloatType()) {
-            str += "=" + std::to_string(this->real_float); // 同理
-        } else {
-            const std::vector<int32_t> dims = this->arraydimensionVector;
-            if (!dims.empty()) {
-                for (auto dim: dims) {
-                    str += "[" + std::to_string(dim) + "]";
-                }
-            }
-        }
-    }
+	void toDeclareString(std::string &varName)
+	{
+		varName = getIRName();
+		if (this->type->isIntegerType()) {
+			varName += " = dso_local global " + getType()->toString() + " " + std::to_string(this->real_int) + ", align 4";
+		} else if (this->type->isFloatType()) {
+			varName += " = dso_local global " + getType()->toString() + " " + std::to_string(this->real_float) + ", align 4";
+		} else {
+			std::vector<std::pair<int, int>> flatArr;
+			for (const auto &elem : this->flattenedArray) {
+				flatArr.push_back({elem.flatIndex, elem.intValue});
+			}
+
+			const std::vector<int32_t> &dims = this->arraydimensionVector;
+			if (!dims.empty()) {
+				std::string arrayType;
+				for (auto it = dims.begin(); it != dims.end(); ++it) {
+					arrayType += "[" + std::to_string(*it) + " x ";
+				}
+
+				Type *baseType = getType();
+				PointerType *pointerType = dynamic_cast<PointerType *>(baseType);
+				std::string elemType = pointerType->getreferencetype()->toString();
+
+				arrayType += elemType;
+				for (size_t i = 0; i < dims.size(); ++i) {
+					arrayType += "]";
+				}
+				arrayType += " ";
+
+				// Generate the content string
+				if (this->flattenedArray.empty()) {
+					varName += " = dso_local global " + arrayType + "zeroinitializer, align 16";
+				} else {
+					std::string typeStr = dims.size()> 1 ? getArrayTypeStr(dims, 0, elemType) : "";
+					std::string content = emitContent(dims, elemType, flatArr, 0, 0);
+					varName += " = dso_local constant " + typeStr + " " + content + ", align 16";
+				}
+			}
+		}
+	}
+
+	// 构造 LLVM IR 类型字符串，比如 [5 x [5 x i32]]
+	std::string getArrayTypeStr(const std::vector<int> &dims, int dimIdx, const std::string &elemType) {
+		std::string res = elemType;
+		for (int i = dims.size() - 1; i >= dimIdx; --i) {
+			res = "[" + std::to_string(dims[i]) + " x " + res + "]";
+		}
+		return res;
+	}
+
+	std::string emitContent(const std::vector<int> &dims,
+							const std::string &elemType,
+							const std::vector<std::pair<int, int>> &flatArr,
+							size_t dimIdx, int flatOffset) {
+		int dim = dims[dimIdx];
+		int nextDimSize = 1;
+		for (size_t i = dimIdx + 1; i < dims.size(); ++i)
+			nextDimSize *= dims[i];
+
+		// 检查当前维度及所有子维度是否全为零
+		bool isAllZero = true;
+		int totalSize = nextDimSize * dim;
+		for (const auto &[idx, val] : flatArr) {
+			if (idx >= flatOffset && idx < flatOffset + totalSize && val != 0) {
+				isAllZero = false;
+				break;
+			}
+		}
+
+		std::string typeStr = getArrayTypeStr(dims, dimIdx, elemType);
+
+		// 如果整个区域全为零，直接返回zeroinitializer
+		if (isAllZero && dimIdx != 0) {
+			return typeStr + " zeroinitializer";
+		}
+
+		if (dimIdx == dims.size() - 1) {
+			// 最后一维
+			bool isDimZero = true;
+			std::vector<int> values(dim, 0);
+			for (const auto &[idx, val] : flatArr) {
+				if (idx >= flatOffset && idx < flatOffset + dim) {
+					values[idx - flatOffset] = val;
+					if (val != 0) isDimZero = false;
+				}
+			}
+
+			if (isDimZero)
+				return "[" + std::to_string(dim) + " x " + elemType + "] zeroinitializer";
+
+			std::string res = "[";
+			for (int i = 0; i < dim; ++i) {
+				res += elemType + " " + std::to_string(values[i]);
+				if (i < dim - 1)
+					res += ", ";
+			}
+			res += "]";
+			return "[" + std::to_string(dim) + " x " + elemType + "] " + res;
+		}
+
+		// 非最后一维
+		std::string res = "[";
+		for (int i = 0; i < dim; ++i) {
+			// 检查这个子数组是否全为零
+			bool isSubZero = true;
+			for (const auto &[idx, val] : flatArr) {
+				if (idx >= flatOffset + i * nextDimSize && 
+					idx < flatOffset + (i + 1) * nextDimSize && 
+					val != 0) {
+					isSubZero = false;
+					break;
+				}
+			}
+			
+			std::string subTypeStr = getArrayTypeStr(dims, dimIdx + 1, elemType);
+			
+			if (isSubZero) {
+				res += subTypeStr + " zeroinitializer";
+			} else {
+				res += emitContent(dims, elemType, flatArr, dimIdx + 1, flatOffset + i * nextDimSize);
+			}
+			
+			if (i < dim - 1)
+				res += ", ";
+		}
+		res += "]";
+		
+		if (dimIdx == 0) {
+			return res;
+		} else {
+			return "[" + std::to_string(dim) + " x " + getArrayTypeStr(dims, dimIdx + 1, elemType) + "] " + res;
+		}
+	}
 
 private:
     ///

@@ -112,12 +112,17 @@ void ILocArm64::inst(std::string op, std::string rs, std::string arg1, std::stri
 
 void ILocArm64::comment(std::string str) { emit("//", str); }
 
+// !所有的load_xx都是把xx加载到制定寄存器
+// !所有的store_xx都是把寄存器的值存储到xx处
+
+// 将一个立即数（常量）加载到指定寄存器。
 void ILocArm64::load_imm(int rs_reg_no, int64_t constant)
 {
     // ARM64: movz/movk 组合加载64位立即数，简化为mov
     emit("mov", PlatformArm64::regName[rs_reg_no], toStr(constant));
 }
 
+// 将符号（如全局变量地址）加载到寄存器。
 void ILocArm64::load_symbol(int rs_reg_no, std::string name)
 {
     // ARM64: adrp/add 组合加载符号地址，简化为adrp
@@ -125,6 +130,7 @@ void ILocArm64::load_symbol(int rs_reg_no, std::string name)
     emit("add", PlatformArm64::regName[rs_reg_no], PlatformArm64::regName[rs_reg_no], ":lo12:" + name);
 }
 
+//从基址寄存器加偏移（或加寄存器）地址处加载内存到寄存器。
 void ILocArm64::load_base(int rs_reg_no, int base_reg_no, int disp)
 {
     std::string rsReg = PlatformArm64::regName[rs_reg_no];
@@ -139,6 +145,21 @@ void ILocArm64::load_base(int rs_reg_no, int base_reg_no, int disp)
     emit("ldr", rsReg, base);
 }
 
+void ILocArm64::load_array_base(int rs_reg_no, int base_reg_no, int disp)
+{
+    std::string rsReg = PlatformArm64::regName[rs_reg_no];
+    std::string base = PlatformArm64::regName[base_reg_no];
+    if (PlatformArm64::isDisp(disp)) {
+        if (disp) base += "," + toStr(disp);
+    } else {
+        load_imm(rs_reg_no, disp);
+        base += "," + rsReg;
+    }
+    emit("add", rsReg, base);
+}
+
+
+// 将寄存器内容存储到基址寄存器加偏移（或加寄存器）地址处。
 void ILocArm64::store_base(int src_reg_no, int base_reg_no, int disp, int tmp_reg_no)
 {
     std::string base = PlatformArm64::regName[base_reg_no];
@@ -152,11 +173,13 @@ void ILocArm64::store_base(int src_reg_no, int base_reg_no, int disp, int tmp_re
     emit("str", PlatformArm64::regName[src_reg_no], base);
 }
 
+//寄存器之间的数据传送。
 void ILocArm64::mov_reg(int rs_reg_no, int src_reg_no)
 {
     emit("mov", PlatformArm64::regName[rs_reg_no], PlatformArm64::regName[src_reg_no]);
 }
 
+// 将变量的值加载到寄存器
 void ILocArm64::load_var(int rs_reg_no, Value * src_var)
 {
     if (Instanceof(constVal, ConstInt *, src_var)) {
@@ -176,10 +199,16 @@ void ILocArm64::load_var(int rs_reg_no, Value * src_var)
         if (!result) {
             minic_log(LOG_ERROR, "BUG");
         }
-        load_base(rs_reg_no, var_baseRegId, var_offset);
+		if(src_var->isArray()) {
+			// 数组变量的地址加载到寄存器
+			load_array_base(rs_reg_no, var_baseRegId, var_offset);
+		}
+		else
+        	load_base(rs_reg_no, var_baseRegId, var_offset);
     }
 }
 
+// 将变量的地址加载到寄存器
 void ILocArm64::lea_var(int rs_reg_no, Value * var)
 {
     int32_t var_baseRegId = -1;
@@ -191,6 +220,7 @@ void ILocArm64::lea_var(int rs_reg_no, Value * var)
     leaStack(rs_reg_no, var_baseRegId, var_offset);
 }
 
+// 将寄存器的值存储到变量（内存/全局/局部/寄存器变量）。
 void ILocArm64::store_var(int src_reg_no, Value * dest_var, int tmp_reg_no)
 {
     if (dest_var->getRegId() != -1) {
@@ -227,7 +257,7 @@ void ILocArm64::leaStack(int rs_reg_no, int base_reg_no, int off)
 void ILocArm64::allocStack(Function * func, int tmp_reg_no)
 {
     int funcCallArgCnt = func->getMaxFuncCallArgCnt() - 8;
-    if (funcCallArgCnt < 0) funcCallArgCnt = 0;
+    funcCallArgCnt = std::max(funcCallArgCnt, 0);
     int off = func->getMaxDep();
     off += funcCallArgCnt * 8;
     if (0 == off) return;

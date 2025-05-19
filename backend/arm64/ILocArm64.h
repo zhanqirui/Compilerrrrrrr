@@ -38,6 +38,8 @@ public:
     std::string toStr(int64_t num, bool flag = true);
     std::list<ArmInst *> & getCode();
     void load_base(int rs_reg_no, int base_reg_no, int disp);
+	void load_array_base(int rs_reg_no, int base_reg_no, int disp);
+	void store_src_to_dest_addr(int src_reg_no, int dest_reg_no);
     void store_base(int src_reg_no, int base_reg_no, int disp, int tmp_reg_no);
     void label(std::string name);
     void inst(std::string op, std::string rs=PlatformArm64::regName[ARM64_LR_REG_NO]);

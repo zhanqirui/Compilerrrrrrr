@@ -24,7 +24,7 @@
 #include "LocalVariable.h"
 #include "MemVariable.h"
 #include "IRCode.h"
-
+#include "LabelInstruction.h"
 ///
 /// @brief 描述函数信息的类，是全局静态存储，其Value的类型为FunctionType
 ///
@@ -43,6 +43,16 @@ public:
     /// @brief 注意：IR指令代码并未释放，需要手动释放
     ~Function();
 
+    /// @brief 处理数组的维度跨度
+    /// @param dims
+    /// @param index
+    /// @return
+    int getStride(const std::vector<int> & dims, int index);
+    std::string processMultiDimArray(Value * Var,
+                                     const std::vector<int32_t> & dims,
+                                     const std::vector<FlattenedArrayElement> & flattenedArray,
+                                     size_t currentIndex,
+                                     int32_t flatOffset);
     /// @brief 获取函数返回类型
     /// @return 返回类型
     Type * getReturnType();
@@ -70,15 +80,25 @@ public:
     /// @brief 获取函数出口指令
     /// @return 出口Label指令
     Instruction * getExitLabel();
+    void setBlockExitLabel(Instruction * inst);
 
+    /// @brief 获取函数出口指令
+    /// @return 出口Label指令
+    Instruction * getBlockExitLabel();
     /// @brief 设置函数返回值变量
     /// @param val 返回值变量，要求必须是局部变量，不能是临时变量
-    void setReturnValue(LocalVariable * val);
+    void setReturnValue(Value * val);
 
     /// @brief 获取函数返回值变量
     /// @return 返回值变量
-    LocalVariable * getReturnValue();
+    Value * getReturnValue();
 
+    void set_block_entry_Lable(LabelInstruction * entryLabelInst);
+    void set_block_exit_Lable(LabelInstruction * exitLabelInst);
+    LabelInstruction * getblock_entry_Lable();
+    LabelInstruction * getblock_exit_Lable();
+    /// @brief 获取函数返回值变量
+    /// @return 返回值变量
     /// @brief 获取函数内变量清单
     /// @return 函数内变量清单
     std::vector<LocalVariable *> & getVarValues()
@@ -173,9 +193,17 @@ public:
     ///
     void realArgCountReset();
 
-    void addParams(const std::vector<FormalParam*>& paramList) {
+    void addParams(const std::vector<FormalParam *> & paramList)
+    {
         params.insert(params.end(), paramList.begin(), paramList.end());
     }
+    LabelInstruction * block_entry_Lable = nullptr;
+    LabelInstruction * block_exit_Lable = nullptr;
+    bool is_const_func_var = true; //表示函数内的数组是否放到函数外定义为const
+    bool is_real_return = false;
+    bool is_use_memset = false;
+    bool is_use_memcpy = false;
+    void removeLocalVarByName(const std::string & name);
 
 private:
     ///
@@ -212,11 +240,12 @@ private:
     /// @brief 函数出口Label指令
     ///
     Instruction * exitLabel = nullptr;
+    Instruction * BlockExitLabel = nullptr;
 
     ///
     /// @brief 函数返回值变量，不能是临时变量，必须是局部变量
     ///
-    LocalVariable * returnValue = nullptr;
+    Value * returnValue = nullptr;
 
     ///
     /// @brief 由于局部变量、前4个形参需站内空间分配而导致的栈帧大小

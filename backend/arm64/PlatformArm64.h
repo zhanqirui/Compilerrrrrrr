@@ -12,6 +12,9 @@
 #include <string>
 #include "RegVariable.h"
 
+#define ARM64_SAVED_REG1  19
+#define ARM64_SAVED_REG2  20
+
 // 临时寄存器
 #define ARM64_TMP_REG_NO 16
 
@@ -32,6 +35,9 @@ public:
     static bool constExpr(int64_t num);
     static bool isDisp(int64_t num);
     static bool isReg(std::string name);
+    
+    // 新增：将64位寄存器名(x0-x30)转换为32位形式(w0-w30)
+    static std::string toWReg(const std::string& xreg);
 
     static const int maxRegNum = 32; // x0-x30, sp
     static const int maxUsableRegNum = 16; // x0-x15 可用通用寄存器

@@ -15,6 +15,7 @@
 	///
 
 	#include <string>
+	#include <sstream>
 
 	#include "Antlr4CSTVisitor.h"
 	#include "AST.h"
@@ -205,11 +206,22 @@ std::any MiniCCSTVisitor::visitArrayInitVal(MiniCParser::ArrayInitValContext *ct
 std::any MiniCCSTVisitor::visitFuncDef(MiniCParser::FuncDefContext *ctx) {
 	// funcDef : funcType Ident '(' funcFParams? ')' block
 	type_attr funcReturnType;
-	funcReturnType.type = BasicType::TYPE_INT;
+	std::string return_type = ctx->funcType()->getText();
+	if (return_type == "void") {
+		funcReturnType.type = BasicType::TYPE_VOID;
+	} else if (return_type == "int") {
+		funcReturnType.type = BasicType::TYPE_INT;
+	} else if (return_type == "float") {
+		funcReturnType.type = BasicType::TYPE_FLOAT;
+	} else {
+		funcReturnType.type = BasicType::TYPE_MAX;
+	}
 	funcReturnType.lineno = ctx->getStart()->getLine();
 	var_id_attr funcId;
 	funcId.id = strdup(ctx->Ident()->getText().c_str());
 	funcId.lineno = ctx->Ident()->getSymbol()->getLine();
+	this->CurrentFunctionName = funcId.id;
+
 	ast_node *formalParamsNode = nullptr;
 	if (ctx->funcFParams()) {
 		formalParamsNode = std::any_cast<ast_node *>(visit(ctx->funcFParams()));
@@ -285,12 +297,30 @@ std::any MiniCCSTVisitor::visitBlock(MiniCParser::BlockContext *ctx) {
 	}
 	return block;
 }
+
+std::any MiniCCSTVisitor::visitEmptyStatement(MiniCParser::EmptyStatementContext * ctx)
+{
+    return (ast_node *)nullptr;
+}
+
 std::any MiniCCSTVisitor::visitBlockDeclaration(MiniCParser::BlockDeclarationContext *ctx) {
 	// blockDeclaration : decl
 	return visit(ctx->decl());
 }
 std::any MiniCCSTVisitor::visitBlockStatement(MiniCParser::BlockStatementContext *ctx) {
 	// blockStatement : stmt
+	std::string stmt_string = ctx->getText();
+	bool is_return = false;
+    is_return = stmt_string.rfind("return", 0) == 0;
+	if (is_return) {
+		// 处理函数返回语句并计算函数返回值个数
+		Instanceof(returnStmtCtx, MiniCParser::ReturnStmtContext *, ctx->stmt());
+		if (returnStmtCtx) {
+			// 处理函数返回语句
+			return visitReturnStmtWithReturnNum(returnStmtCtx, this->CurrentFunctionName);
+		}
+        return nullptr;	
+    }
 	return visit(ctx->stmt());
 }
 std::any MiniCCSTVisitor::visitAssignmentStatement(MiniCParser::AssignmentStatementContext *ctx) {
@@ -298,6 +328,20 @@ std::any MiniCCSTVisitor::visitAssignmentStatement(MiniCParser::AssignmentStatem
 	auto lval = std::any_cast<ast_node *>(visit(ctx->lVal()));
 	auto expr = std::any_cast<ast_node *>(visit(ctx->exp()));
 	return create_assign_stmt_node(lval, expr);
+}
+
+std::any MiniCCSTVisitor::visitReturnStmtWithReturnNum(MiniCParser::ReturnStmtContext * ctx, std::string FunctionName)
+{
+	if(this->NameToReturnNum.find(FunctionName) == this->NameToReturnNum.end())
+	{
+		this->NameToReturnNum[FunctionName] = 1;
+	}
+	else
+	{
+		this->NameToReturnNum[FunctionName]++;
+	}
+
+	return visitReturnStmt(ctx);
 }
 // !一定要带前缀：MiniCCSTVisitor
 std::any MiniCCSTVisitor::visitReturnStmt(MiniCParser::ReturnStmtContext * ctx){
@@ -354,8 +398,8 @@ std::any MiniCCSTVisitor::visitContinueStatement(MiniCParser::ContinueStatementC
 
 // 表达式
 std::any MiniCCSTVisitor::visitExp(MiniCParser::ExpContext *ctx) {
-	// exp : addExp
-	auto expr = std::any_cast<ast_node *>(visit(ctx->addExp()));
+	// exp : LorExp
+	auto expr = std::any_cast<ast_node *>(visit(ctx->lOrExp()));
 	return create_exp_node(expr);
 }
 std::any MiniCCSTVisitor::visitCond(MiniCParser::CondContext *ctx) {
@@ -398,12 +442,24 @@ std::any MiniCCSTVisitor::visitPrimaryExp(MiniCParser::PrimaryExpContext *ctx) {
 std::any MiniCCSTVisitor::visitNumber(MiniCParser::NumberContext *ctx) {
 	// number : IntConst | FloatConst
 	if (ctx->IntConst()) {
-		int val = std::stoi(ctx->IntConst()->getText());
+		std::string text = ctx->IntConst()->getText();
+		int val = 0;
+		if (text.size() > 2 && (text[0] == '0') && (text[1] == 'x' || text[1] == 'X')) {
+			// 16进制
+			val = std::stoi(text, nullptr, 16);
+		} else if (text.size() > 1 && text[0] == '0' && text[1] >= '0' && text[1] <= '7') {
+			// 8进制
+			val = std::stoi(text, nullptr, 8);
+		} else {
+			// 十进制
+			val = std::stoi(text, nullptr, 10);
+		}
 		return create_number_node(val);
 	}
 	// FloatConst
 	if (ctx->FloatConst()) {
-		float val = std::stof(ctx->FloatConst()->getText());
+		std::string text = ctx->FloatConst()->getText();
+		float val = std::stof(text);
 		return create_float_node(val);
 	}
 	return nullptr;
@@ -610,3 +666,5 @@ std::any MiniCCSTVisitor::visitConstExp(MiniCParser::ConstExpContext *ctx) {
 	return create_const_exp_node(expr);
 
 }
+
+

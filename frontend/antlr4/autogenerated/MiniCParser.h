@@ -15,9 +15,9 @@ public:
     T__0 = 1, T__1 = 2, T__2 = 3, T__3 = 4, T__4 = 5, T__5 = 6, T__6 = 7, 
     T__7 = 8, T__8 = 9, T__9 = 10, T__10 = 11, T__11 = 12, T__12 = 13, T__13 = 14, 
     T__14 = 15, T__15 = 16, T__16 = 17, T__17 = 18, T__18 = 19, T__19 = 20, 
-    T__20 = 21, T__21 = 22, T__22 = 23, T__23 = 24, T__24 = 25, T__25 = 26, 
-    T__26 = 27, T__27 = 28, T__28 = 29, T__29 = 30, T__30 = 31, T__31 = 32, 
-    RETURN = 33, Ident = 34, IntConst = 35, FloatConst = 36, Whitespace = 37, 
+    T__20 = 21, T__21 = 22, T__22 = 23, BREAK = 24, CONTINUE = 25, IF = 26, 
+    ELSE = 27, WHILE = 28, RETURN = 29, CONST = 30, INT = 31, FLOAT = 32, 
+    VOID = 33, Ident = 34, IntConst = 35, FloatConst = 36, Whitespace = 37, 
     BlockComment = 38, LineComment = 39
   };
 
@@ -135,6 +135,7 @@ public:
   public:
     ConstDeclContext(antlr4::ParserRuleContext *parent, size_t invokingState);
     virtual size_t getRuleIndex() const override;
+    antlr4::tree::TerminalNode *CONST();
     BTypeContext *bType();
     std::vector<ConstDefContext *> constDef();
     ConstDefContext* constDef(size_t i);
@@ -163,6 +164,7 @@ public:
   public:
     FloatTypeContext(BTypeContext *ctx);
 
+    antlr4::tree::TerminalNode *FLOAT();
 
     virtual std::any accept(antlr4::tree::ParseTreeVisitor *visitor) override;
   };
@@ -171,6 +173,7 @@ public:
   public:
     IntTypeContext(BTypeContext *ctx);
 
+    antlr4::tree::TerminalNode *INT();
 
     virtual std::any accept(antlr4::tree::ParseTreeVisitor *visitor) override;
   };
@@ -325,6 +328,7 @@ public:
   public:
     IntReturnTypeContext(FuncTypeContext *ctx);
 
+    antlr4::tree::TerminalNode *INT();
 
     virtual std::any accept(antlr4::tree::ParseTreeVisitor *visitor) override;
   };
@@ -333,6 +337,7 @@ public:
   public:
     FloatReturnTypeContext(FuncTypeContext *ctx);
 
+    antlr4::tree::TerminalNode *FLOAT();
 
     virtual std::any accept(antlr4::tree::ParseTreeVisitor *visitor) override;
   };
@@ -341,6 +346,7 @@ public:
   public:
     VoidReturnTypeContext(FuncTypeContext *ctx);
 
+    antlr4::tree::TerminalNode *VOID();
 
     virtual std::any accept(antlr4::tree::ParseTreeVisitor *visitor) override;
   };
@@ -437,10 +443,19 @@ public:
    
   };
 
+  class  EmptyStatementContext : public StmtContext {
+  public:
+    EmptyStatementContext(StmtContext *ctx);
+
+
+    virtual std::any accept(antlr4::tree::ParseTreeVisitor *visitor) override;
+  };
+
   class  WhileLoopStatementContext : public StmtContext {
   public:
     WhileLoopStatementContext(StmtContext *ctx);
 
+    antlr4::tree::TerminalNode *WHILE();
     CondContext *cond();
     StmtContext *stmt();
 
@@ -470,9 +485,11 @@ public:
   public:
     IfElseStatementContext(StmtContext *ctx);
 
+    antlr4::tree::TerminalNode *IF();
     CondContext *cond();
     std::vector<StmtContext *> stmt();
     StmtContext* stmt(size_t i);
+    antlr4::tree::TerminalNode *ELSE();
 
     virtual std::any accept(antlr4::tree::ParseTreeVisitor *visitor) override;
   };
@@ -481,6 +498,7 @@ public:
   public:
     BreakStatementContext(StmtContext *ctx);
 
+    antlr4::tree::TerminalNode *BREAK();
 
     virtual std::any accept(antlr4::tree::ParseTreeVisitor *visitor) override;
   };
@@ -498,6 +516,7 @@ public:
   public:
     ContinueStatementContext(StmtContext *ctx);
 
+    antlr4::tree::TerminalNode *CONTINUE();
 
     virtual std::any accept(antlr4::tree::ParseTreeVisitor *visitor) override;
   };
@@ -518,7 +537,7 @@ public:
   public:
     ExpContext(antlr4::ParserRuleContext *parent, size_t invokingState);
     virtual size_t getRuleIndex() const override;
-    AddExpContext *addExp();
+    LOrExpContext *lOrExp();
 
 
     virtual std::any accept(antlr4::tree::ParseTreeVisitor *visitor) override;

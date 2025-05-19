@@ -19,7 +19,7 @@
 
 #include "IRConstant.h"
 #include "Function.h"
-
+#include "PointerType.h"
 /// @brief 指定函数名字、函数类型的构造函数
 /// @param _name 函数名称
 /// @param _type 函数类型
@@ -69,7 +69,87 @@ bool Function::isBuiltin()
 {
     return builtIn;
 }
+void Function::setBlockExitLabel(Instruction * inst)
+{
+    BlockExitLabel = inst;
+}
 
+/// @brief 获取函数出口指令
+/// @return 出口Label指令
+Instruction * Function::getBlockExitLabel()
+{
+    return BlockExitLabel;
+}
+int Function::getStride(const std::vector<int> & dims, int index)
+{
+    int stride = 1;
+    for (int i = index + 1; i < dims.size(); ++i) {
+        stride *= dims[i];
+    }
+    return stride;
+}
+/// @brief 递归处理多维数组
+/// @param dims 当前维度信息
+/// @param flattenedArray 展平后的数组
+/// @param currentIndex 当前处理的维度索引
+/// @param flatOffset 当前展平数组的偏移量
+/// @return 返回多维数组的字符串表示
+std::string Function::processMultiDimArray(Value * Var,
+                                           const std::vector<int32_t> & dims,
+                                           const std::vector<FlattenedArrayElement> & flattenedArray,
+                                           size_t currentIndex,
+                                           int32_t flatOffset)
+{
+    std::string result = "{";
+
+    // 如果已经处理到最后一维
+    if (currentIndex == dims.size() - 1) {
+        for (int32_t i = 0; i < dims[currentIndex]; ++i) {
+            int32_t flatIndex = flatOffset + i;
+            bool found = false;
+
+            // 查找展平数组中的值
+            for (const auto & element: flattenedArray) {
+                if (element.flatIndex == flatIndex) {
+
+                    std::string x = (static_cast<const PointerType *>(Var->getType())->getRootType()->isIntegerType()
+                                         ? std::to_string((int32_t) element.intValue)
+                                         : std::to_string(element.floatValue)); // 找到值
+                    result += x;
+                    found = true;
+                    break;
+                }
+            }
+
+            // 如果找不到值，使用默认值 0
+            if (!found) {
+                result += "0";
+            }
+
+            // 添加逗号分隔符，最后一个元素不加逗号
+            if (i < dims[currentIndex] - 1) {
+                result += ", ";
+            }
+        }
+    } else {
+        // 递归处理下一维
+        for (int32_t i = 0; i < dims[currentIndex]; ++i) {
+            result += processMultiDimArray(Var,
+                                           dims,
+                                           flattenedArray,
+                                           currentIndex + 1,
+                                           flatOffset + i * getStride(dims, currentIndex));
+
+            // 添加逗号分隔符，最后一个元素不加逗号
+            if (i < dims[currentIndex] - 1) {
+                result += ", ";
+            }
+        }
+    }
+
+    result += "}";
+    return result;
+}
 /// @brief 函数指令信息输出
 /// @param str 函数指令
 void Function::toString(std::string & str)
@@ -80,7 +160,7 @@ void Function::toString(std::string & str)
     }
 
     // 输出函数头
-    str = "define " + getReturnType()->toString() + " " + getIRName() + "(";
+    str = "define dso_local " + getReturnType()->toString() + " " + getIRName() + "(";
 
     bool firstParam = false;
     for (auto & param: params) {
@@ -91,36 +171,52 @@ void Function::toString(std::string & str)
             str += ", ";
         }
 
+        //先不考虑有默认值
         std::string param_str = param->getType()->toString() + " " + param->getIRName();
 
         str += param_str;
     }
 
-    str += ")\n";
+    str += ") #0 ";
 
     str += "{\n";
 
     // 输出局部变量的名字与IR名字
     for (auto & var: this->varsVector) {
-        str += "\t";
+        // str += "\t";
 
         if (var->isConst()) {
             // 判断是否为 ConstVariable 类型并强转（前提是你确认变量来自该类）
-            str += "Constant ";
+            // Constant常量在LLVM IR中不需要打印出来
+            // str += "Constant ";
         }
 
         // 局部变量和临时变量需要输出declare语句
-        str += "declare " + var->getType()->toString() + " " + var->getIRName();
+        // str += "declare " + var->getType()->toString() + " " + var->getIRName();
+        //修改为LLVM的alloca语句
+        str += "  ";
         const std::vector<int32_t> dims = var->arraydimensionVector;
         if (!dims.empty()) {
-            for (auto dim: dims) {
-                str += "[" + std::to_string(dim) + "]";
+            std::string arrayType = "";
+            for (auto it = dims.begin(); it != dims.end(); ++it) {
+                arrayType += "[" + std::to_string(*it) + " x ";
             }
+            Type * baseType = var->getType(); // 获取类型
+            PointerType * pointerType = dynamic_cast<PointerType *>(baseType);
+            arrayType += pointerType->getRootType()->toString();
+            for (size_t i = 0; i < dims.size(); ++i) {
+                arrayType += "]";
+            }
+            str += var->getIRName() + " = alloca " + arrayType + ", align 16";
+        } else {
+            str += var->getIRName() + " = alloca " + var->getType()->toString() + ", " + "align 4";
         }
         std::string extraStr;
         std::string realName = var->getName();
+
         if (!realName.empty()) {
-            str += " ; " + std::to_string(var->getScopeLevel()) + ":" + realName;
+            //变量所处块信息在LLVM IR中不需要打印
+            // str += " ; " + std::to_string(var->getScopeLevel()) + ":" + realName;
         }
 
         // ====== 新增：如果是常量变量，输出其值 ======
@@ -130,12 +226,14 @@ void Function::toString(std::string & str)
 
     // 输出临时变量的declare形式
     // 遍历所有的线性IR指令，文本输出
+    /*-----这一块还需要更改，临时变量需要更换，通过load指令先存临时变量而不是运算的结果，然后再存运算结果，然后再store------------------*/
     for (auto & inst: code.getInsts()) {
 
         if (inst->hasResultValue()) {
 
             // 局部变量和临时变量需要输出declare语句
-            str += "\tdeclare " + inst->getType()->toString() + " " + inst->getIRName() + "\n";
+            // str += "\tdeclare " + inst->getType()->toString() + " " + inst->getIRName() + "\n";
+            // str += "\t" + inst->getIRName() + " = alloca " + inst->getType()->toString() + ", " + "align 4" + "\n";
         }
     }
 
@@ -151,7 +249,7 @@ void Function::toString(std::string & str)
             if (inst->getOp() == IRInstOperator::IRINST_OP_LABEL) {
                 str += instStr + "\n";
             } else {
-                str += "\t" + instStr + "\n";
+                str += "  " + instStr + "\n";
             }
         }
     }
@@ -176,14 +274,14 @@ Instruction * Function::getExitLabel()
 
 /// @brief 设置函数返回值变量
 /// @param val 返回值变量，要求必须是局部变量，不能是临时变量
-void Function::setReturnValue(LocalVariable * val)
+void Function::setReturnValue(Value * val)
 {
     returnValue = val;
 }
 
 /// @brief 获取函数返回值变量
 /// @return 返回值变量
-LocalVariable * Function::getReturnValue()
+Value * Function::getReturnValue()
 {
     return returnValue;
 }
@@ -262,6 +360,17 @@ Function::newLocalVarValue(Type * type, std::string name, int32_t scope_level, s
 
     return varValue;
 }
+void Function::removeLocalVarByName(const std::string & name)
+{
+    for (auto it = varsVector.begin(); it != varsVector.end();) {
+        if ((*it)->getName() == name) {
+            delete *it;                // 如果你是 new 出来的对象，记得释放内存
+            it = varsVector.erase(it); // 删除后返回下一个迭代器
+        } else {
+            ++it;
+        }
+    }
+}
 
 /// @brief 新建一个内存型的Value，并加入到符号表，用于后续释放空间
 /// \param type 变量类型
@@ -304,21 +413,30 @@ void Function::renameIR()
 
     // 形式参数重命名
     for (auto & param: this->params) {
-        param->setIRName(IR_TEMP_VARNAME_PREFIX + std::to_string(nameIndex++));
+        param->setIRName("%" + std::to_string(nameIndex++));
+        // param->setIRName(IR_TEMP_VARNAME_PREFIX + std::to_string(nameIndex++));
     }
-
+    for (auto inst: this->getInterCode().getInsts()) {
+        if (inst->getOp() == IRInstOperator::IRINST_OP_ENTRY) {
+            // inst->setIRName(IR_LABEL_PREFIX + std::to_string(nameIndex++));
+            inst->setIRName("entry" + std::to_string(nameIndex++));
+        }
+    }
     // 局部变量重命名
     for (auto & var: this->varsVector) {
 
-        var->setIRName(IR_LOCAL_VARNAME_PREFIX + std::to_string(nameIndex++));
+        // var->setIRName(IR_LOCAL_VARNAME_PREFIX + std::to_string(nameIndex++));
+        var->setIRName("%" + std::to_string(nameIndex++));
     }
 
     // 遍历所有的指令进行命名
     for (auto inst: this->getInterCode().getInsts()) {
         if (inst->getOp() == IRInstOperator::IRINST_OP_LABEL) {
-            inst->setIRName(IR_LABEL_PREFIX + std::to_string(nameIndex++));
+            // inst->setIRName(IR_LABEL_PREFIX + std::to_string(nameIndex++));
+            inst->setIRName(std::to_string(nameIndex++));
         } else if (inst->hasResultValue()) {
-            inst->setIRName(IR_TEMP_VARNAME_PREFIX + std::to_string(nameIndex++));
+            // inst->setIRName(IR_TEMP_VARNAME_PREFIX + std::to_string(nameIndex++));
+            inst->setIRName("%" + std::to_string(nameIndex++));
         }
     }
 }
@@ -346,4 +464,21 @@ void Function::realArgCountInc()
 void Function::realArgCountReset()
 {
     this->realArgCount = 0;
+}
+
+void Function::set_block_entry_Lable(LabelInstruction * entryLabelInst)
+{
+    block_entry_Lable = entryLabelInst;
+}
+void Function::set_block_exit_Lable(LabelInstruction * exitLabelInst)
+{
+    block_exit_Lable = exitLabelInst;
+}
+LabelInstruction * Function::getblock_entry_Lable()
+{
+    return block_entry_Lable;
+}
+LabelInstruction * Function::getblock_exit_Lable()
+{
+    return block_exit_Lable;
 }

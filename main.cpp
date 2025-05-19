@@ -102,7 +102,7 @@ static struct option long_options[] = {{"help", no_argument, 0, 'h'},
 /// @param exeName
 static void showHelp(const std::string & exeName)
 {
-    std::cout << exeName + " -S [--symbol] [-A | --antlr4 | -D | --recursive-descent] [-T | --ast | -I | --ir] [-o "
+    std::cout << exeName + " -S [--symbol] [-A | --antlr4 | -D | --recursive-descent] [-T | --ast | -I |-L| --ir] [-o "
                            "output | --output=output] source\n";
     std::cout << "Options:\n";
     std::cout << "  -h, --help                 Show this help message\n";
@@ -133,7 +133,7 @@ static int ArgsAnalysis(int argc, char * argv[])
     // -O要求必须带有附加整数，指明优化的级别
     // -t要求必须带有目标CPU，指明目标CPU的汇编
     // -c选项在输出汇编时有效，附带输出IR指令内容
-    const char options[] = "ho:STIADO:t:c";
+    const char options[] = "ho:STIALDO:t:c";
     int option_index = 0;
 
     opterr = 1;
@@ -154,6 +154,10 @@ lb_check:
                 gShowAST = true;
                 break;
             case 'I':
+                // 产生中间IR
+                gShowLineIR = true;
+                break;
+            case 'L':
                 // 产生中间IR
                 gShowLineIR = true;
                 break;
@@ -268,20 +272,13 @@ static int compile(std::string inputFile, std::string outputFile)
         // 4) 把线性IR转换成汇编
 
         // 创建词法语法分析器
-        FrontEndExecutor * frontEndExecutor;
-        if (gFrontEndAntlr4) {
-            // Antlr4
-            frontEndExecutor = new Antlr4Executor(inputFile);
-        } else if (gFrontEndRecursiveDescentParsing) {
-            // 递归下降分析法
-            frontEndExecutor = new RecursiveDescentExecutor(inputFile);
-        } else {
-            // 默认为Flex+Bison
-            frontEndExecutor = new FlexBisonExecutor(inputFile);
-        }
+        Antlr4Executor * frontEndExecutor;
+		frontEndExecutor = new Antlr4Executor(inputFile);
 
         // 前端执行：词法分析、语法分析后产生抽象语法树，其root为全局变量ast_root
-        subResult = frontEndExecutor->run();
+        // subResult = frontEndExecutor->run();
+        std::map<std::string, int> NameToReturnNum;
+        subResult = frontEndExecutor->run(NameToReturnNum);
         if (!subResult) {
 
             minic_log(LOG_ERROR, "前端分析错误");
