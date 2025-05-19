@@ -14,7 +14,7 @@
 /// </table>
 ///
 #include "CodeGeneratorAsm.h"
-#include "SimpleRegisterAllocator.h"
+#include "LinearScanRegisterAllocator.h"
 
 class CodeGeneratorArm64 : public CodeGeneratorAsm {
 
@@ -63,5 +63,5 @@ private:
     ///
     /// @brief 简单的朴素寄存器分配方法
     ///
-    SimpleRegisterAllocator simpleRegisterAllocator;
+    LinearScanRegisterAllocator reg_allocator;
 };

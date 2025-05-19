@@ -12,10 +12,10 @@
 #include <bitset>
 #include <vector>
 #include <cstdint>
+#include "BitMap.h"
+#include "Value.h"
 
 #include "PlatformArm64.h"   // 提供 maxUsableRegNum
-
-class Value;                 // 前向声明，避免循环依赖
 
 class LinearScanRegisterAllocator {
 public:
@@ -27,7 +27,7 @@ public:
      * @param no   希望使用的寄存器号，-1 表示不指定
      * @return     成功返回寄存器号，失败返回 -1
      */
-    int Allocate(Value *var, int32_t no = -1);
+    int Allocate(Value *var = nullptr, int32_t no = -1);
 
     /**
      * @brief 直接标记指定寄存器为已占用（不与变量绑定）
@@ -57,7 +57,7 @@ private:
     /// 内部工具：同时在 regBitmap 与 usedBitmap 中置位
     void bitmapSet(int32_t no);
 
-    std::bitset<PlatformArm64::maxUsableRegNum> regBitmap;   //!< 当前活跃寄存器位图
-    std::bitset<PlatformArm64::maxUsableRegNum> usedBitmap;  //!< 曾经使用过的寄存器位图
-    std::vector<Value*> regValues;                           //!< 当前活跃变量列表
+    std::bitset<PlatformArm64::maxUsableRegNum> regBitmap;   // 当前活跃寄存器位图
+    std::bitset<PlatformArm64::maxUsableRegNum> usedBitmap;  // 曾经使用过的寄存器位图
+    std::vector<Value*> regValues;                           // 当前活跃变量列表
 };

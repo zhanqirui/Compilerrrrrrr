@@ -16,6 +16,7 @@
 ///
 
 #include <algorithm>
+#include <iostream>
 
 #include "Value.h"
 #include "Use.h"
@@ -109,6 +110,17 @@ int32_t Value::getScopeLevel()
 int32_t Value::getRegId()
 {
     return -1;
+}
+
+///
+/// @brief 设置分配的寄存器编号或ID，便于从InstSelector里面对应变量
+/// @warning The `Value` class should not directly access `setRegId`.
+///          This method is intended to be overridden by derived classes.
+///
+void Value::setRegId(int32_t _regId)
+{
+	std::cout << "Value::setRegId() should not be called directly on Value class." << std::endl;
+	std::cout << "Please override this method in derived classes." << std::endl;
 }
 
 ///

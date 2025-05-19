@@ -39,6 +39,15 @@ public:
         return regId;
     }
 
+    ///
+    /// @brief 设置寄存器编号
+    /// @param _regId 寄存器编号
+    ///
+    void setRegId(int32_t _regId) override
+    {
+        this->regId = _regId;
+    }
+
     /// @brief 获取名字
     /// @return 变量名
     [[nodiscard]] std::string getIRName() const override

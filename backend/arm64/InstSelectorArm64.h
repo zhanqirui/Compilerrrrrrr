@@ -13,7 +13,7 @@
 #include "ILocArm64.h"
 #include "Instruction.h"
 #include "PlatformArm64.h"
-#include "SimpleRegisterAllocator.h"
+#include "LinearScanRegisterAllocator.h"
 #include "RegVariable.h"
 
 using namespace std;
@@ -55,14 +55,14 @@ protected:
 
     typedef void (InstSelectorArm64::*translate_handler)(Instruction *);
     map<IRInstOperator, translate_handler> translator_handlers;
-    SimpleRegisterAllocator & simpleRegisterAllocator;
+    LinearScanRegisterAllocator & reg_allocator;
     bool showLinearIR = false;
 
 public:
     InstSelectorArm64(std::vector<Instruction *> & _irCode,
                       ILocArm64 & _iloc,
                       Function * _func,
-                      SimpleRegisterAllocator & allocator);
+                      LinearScanRegisterAllocator & allocator);
     ~InstSelectorArm64();
     void setShowLinearIR(bool show) { showLinearIR = show; }
     void run();

@@ -23,7 +23,7 @@
 #include "PlatformArm64.h"
 #include "CodeGeneratorArm64.h"
 #include "InstSelectorArm64.h"
-#include "SimpleRegisterAllocator.h"
+#include "LinearScanRegisterAllocator.h"
 #include "ILocArm64.h"
 #include "RegVariable.h"
 #include "FuncCallInstruction.h"
@@ -130,7 +130,7 @@ void CodeGeneratorArm64::genCodeSection(Function * func)
     ILocArm64 iloc(module);
 
     // 指令选择生成汇编指令
-    InstSelectorArm64 instSelector(IrInsts, iloc, func, simpleRegisterAllocator);
+    InstSelectorArm64 instSelector(IrInsts, iloc, func, reg_allocator);
     instSelector.setShowLinearIR(this->showLinearIR);
     instSelector.run();
 

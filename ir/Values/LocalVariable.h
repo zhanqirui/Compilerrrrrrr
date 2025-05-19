@@ -58,12 +58,21 @@ public:
     {
         return scope_level;
     }
+    ///
     /// @brief 获得分配的寄存器编号或ID
     /// @return int32_t 寄存器编号
     ///
     int32_t getRegId() override
     {
         return regId;
+    }
+    ///
+    /// @brief 设置寄存器编号
+    /// @param _regId 寄存器编号
+    ///
+    void setRegId(int32_t _regId) override
+    {
+        this->regId = _regId;
     }
     ///
     /// @brief 设置数组的维度

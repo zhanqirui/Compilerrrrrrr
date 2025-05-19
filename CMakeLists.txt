@@ -168,8 +168,8 @@ set(BACKEND_SRCS
 	backend/arm64/PlatformArm64.h
 	backend/arm64/CodeGeneratorArm64.cpp
 	backend/arm64/CodeGeneratorArm64.h
-	backend/arm64/SimpleRegisterAllocator.cpp
-	backend/arm64/SimpleRegisterAllocator.h
+	backend/arm64/LinearScanRegisterAllocator.cpp
+	backend/arm64/LinearScanRegisterAllocator.h
 )
 
 # 中间IR(ir)源代码集合

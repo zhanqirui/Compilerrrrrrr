@@ -203,6 +203,7 @@
 		"**/utils/getopt-port*"
 	],
 	"files.associations": {
+		"typeinfo": "cpp",
 		"cstdint": "cpp",
 		"string": "cpp",
 		"any": "cpp",
@@ -265,7 +266,7 @@
 		"streambuf": "cpp",
 		"thread": "cpp",
 		"cinttypes": "cpp",
-		"typeinfo": "cpp",
-		"*.def": "cpp"
+		"*.def": "cpp",
+		"optional": "cpp"
 	}
 }

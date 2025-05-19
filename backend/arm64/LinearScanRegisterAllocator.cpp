@@ -17,14 +17,14 @@ LinearScanRegisterAllocator::LinearScanRegisterAllocator()
 
 int LinearScanRegisterAllocator::Allocate(Value *var, int32_t no)
 {
-    if (var && var->getLoadRegId() != -1) {
+    if (var && (var->getLoadRegId() != -1)) {
         return var->getLoadRegId();
     }
 
     int32_t regno = -1;
 
     // 尝试分配指定寄存器
-    if (no != -1 && !regBitmap.test(no)) {
+    if ((no != -1) && !regBitmap.test(no)) {
         regno = no;
     } else {
         // 查找空闲寄存器

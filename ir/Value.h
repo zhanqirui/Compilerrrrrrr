@@ -121,6 +121,11 @@ public:
     virtual bool getMemoryAddr(int32_t * regId = nullptr, int64_t * offset = nullptr);
 
     ///
+    /// @brief 设置分配的寄存器编号或ID，便于从InstSelector里面对应变量
+    ///
+    virtual void setRegId(int32_t _regId);
+
+    ///
     /// @brief 对该Value进行Load用的寄存器编号
     /// @return int32_t 寄存器编号
     ///

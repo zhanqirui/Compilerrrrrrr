@@ -103,7 +103,7 @@ public:
     /// @brief 设置寄存器编号
     /// @param _regId 寄存器编号
     ///
-    void setRegId(int32_t _regId)
+    void setRegId(int32_t _regId) override
     {
         this->regId = _regId;
     }
