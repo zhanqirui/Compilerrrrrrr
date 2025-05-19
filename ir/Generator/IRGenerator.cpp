@@ -43,6 +43,8 @@
 #include "MemsetInstruction.h"
 #include "GetElementPtrInstruction.h"
 #include "ZextInstruction.h"
+#define Instanceof(res, type, var) auto res = dynamic_cast<type>(var)
+
 
 /// @brief 构造函数
 /// @param _root AST的根
@@ -2108,9 +2110,13 @@ bool IRGenerator::ir_global_const_array_def(ast_node * node)
     int total_size = 1;
     for (auto d: dimensions)
         total_size *= d;
-
+	total_size = total_size * 4; // 每个元素4字节
+	
     // 获取数组变量的实际值
     Value * array_val = module->findVarValue(var_name);
+	Instanceof(array_global_val, GlobalVariable *, array_val);
+	array_global_val->setSize(total_size);
+
     // Step 4: 处理显式初始化
     if (node->sons.size() > 2) {
         std::vector<InitElement> flatten_nodes;
@@ -2129,6 +2135,10 @@ bool IRGenerator::ir_global_const_array_def(ast_node * node)
                            level);
         node->blockInsts.addInst(node->sons[2]->blockInsts);
         node->val = array_val;
+    }
+	else
+	{
+        array_global_val->setInBSSSection(true);
     }
 
     return true;
@@ -2157,6 +2167,8 @@ bool IRGenerator::ir_const_array_var_def_declare(ast_node * node)
     int total_size = 1;
     for (auto d: dimensions)
         total_size *= d;
+
+	total_size = total_size * 4; // 每个元素4字节
     // 获取数组变量的实际值
     Value * array_val = module->findVarValue(var_name);
     BitcastInstruction * bitcatinst;
@@ -2229,17 +2241,20 @@ bool IRGenerator::ir_global_array_var_def_declare(ast_node * node)
         dimensions.push_back(static_cast<int32_t>(temp));
     }
 
+	// 计算数组总大小
+	int total_size = 1;
+	for (auto d: dimensions)
+		total_size *= d;
+	total_size = total_size * 4; // 每个元素4字节
+
     // Step 2: 获取指针类型
     PointerType * pointerType = PointerType::getNonConstPointerType(node->parent->sons[0]->type);
     node->val = module->newArrayValue(pointerType, var_name, dimensions);
 
-    // 计算数组总大小
-    int total_size = 1;
-    for (auto d: dimensions)
-        total_size *= d;
-
     // 获取数组变量的实际值
     Value * array_val = module->findVarValue(var_name);
+	Instanceof(array_global_val, GlobalVariable *, array_val);
+	array_global_val->setSize(total_size);
 
     // Step 4: 处理显式初始化
     if (node->sons.size() > 2) {
@@ -2260,6 +2275,10 @@ bool IRGenerator::ir_global_array_var_def_declare(ast_node * node)
         node->blockInsts.addInst(node->sons[2]->blockInsts);
 
         node->val = array_val;
+    }
+	else
+	{
+        array_global_val->setInBSSSection(true);
     }
 
     return true;
