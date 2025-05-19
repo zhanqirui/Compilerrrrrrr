@@ -618,31 +618,89 @@ std::any MiniCCSTVisitor::visitMulExp(MiniCParser::MulExpContext *ctx) {
 		return left;
 	}
 }
+// 添加一个辅助函数来递归处理嵌套的一元操作符
+std::pair<ast_node*, bool> processNestedUnaryOps(ast_node* node) {
+    // 如果不是一元表达式，直接返回，符号为正
+    if (node->node_type != ast_operator_type::AST_OP_UNARY_EXP) {
+        return {node, true};
+    }
+    
+    // 如果没有子节点或第一个子节点不是一元操作符，直接返回
+    if (node->sons.empty() || node->sons[0]->node_type != ast_operator_type::AST_OP_UNARY_OP) {
+        return {node, true};
+    }
+    
+    // 获取当前一元操作符的类型
+    bool isPositive = (node->sons[0]->op_type == Op::POS);
+    
+    // 如果没有操作数，直接返回
+    if (node->sons.size() <= 1) {
+        return {nullptr, isPositive};
+    }
+    
+    // 递归处理嵌套的一元表达式
+    auto innerExp = node->sons[1];
+    auto [actualNode, innerIsPositive] = processNestedUnaryOps(innerExp);
+    
+    // 计算最终符号：正+正=正，正+负=负，负+正=负，负+负=正
+    bool finalIsPositive = (isPositive == innerIsPositive);
+    
+    return {actualNode, finalIsPositive};
+}
+
 std::any MiniCCSTVisitor::visitAddExp(MiniCParser::AddExpContext *ctx) {
-	// 根据文法规则: addExp : mulExp (('+' | '-') mulExp)*
-	if (ctx->mulExp().size() == 1) {
-		// 只有一个mulExp，直接返回
-		return visit(ctx->mulExp(0));
-	} else {
-		// 处理多个mulExp的情况
-		auto left = std::any_cast<ast_node *>(visit(ctx->mulExp(0)));
-		
-		// 遍历所有操作符和右操作数
-		for (size_t i = 1; i < ctx->mulExp().size(); ++i) {
-			auto right = std::any_cast<ast_node *>(visit(ctx->mulExp(i)));
-			
-			// 获取运算符，运算符是在两个mulExp之间的token
-			std::string op = ctx->children[2 * i - 1]->getText();
-		
-			Op op_type = Op::NONE;
-			if (op == "+") op_type = Op::ADD;
-			else if (op == "-") op_type = Op::SUB;
-			
-			// 创建新的加法表达式节点，并将其作为新的左操作数
-			left = create_add_exp_node(left, right, op_type);
-		}
-		return left;
-	}
+    // 根据文法规则: addExp : mulExp (('+' | '-') mulExp)*
+    if (ctx->mulExp().size() == 1) {
+        // 只有一个mulExp，直接返回
+        return visit(ctx->mulExp(0));
+    } else {
+        // 处理多个mulExp的情况
+        auto left = std::any_cast<ast_node *>(visit(ctx->mulExp(0)));
+        
+        // 遍历所有操作符和右操作数
+        for (size_t i = 1; i < ctx->mulExp().size(); ++i) {
+            auto right = std::any_cast<ast_node *>(visit(ctx->mulExp(i)));
+            
+            // 获取运算符，运算符是在两个mulExp之间的token
+            std::string op = ctx->children[2 * i - 1]->getText();
+            
+            Op op_type = Op::NONE;
+            
+            // 当前是加号操作
+            bool isAddOp = (op == "+");
+            
+            // 检测并处理连续的一元操作符
+            if (right->node_type == ast_operator_type::AST_OP_UNARY_EXP) {
+                // 处理嵌套的一元操作符，得到实际操作数和最终符号
+                auto [actualNode, isPositive] = processNestedUnaryOps(right);
+                
+                if (actualNode) {
+                    right = actualNode;
+                    
+                    // 根据外部操作符和内部符号决定最终操作类型
+                    if (isAddOp && isPositive) {
+                        op_type = Op::ADD;  // + +... = +
+                    } else if (isAddOp && !isPositive) {
+                        op_type = Op::SUB;  // + -... = -
+                    } else if (!isAddOp && isPositive) {
+                        op_type = Op::SUB;  // - +... = -
+                    } else { // !isAddOp && !isPositive
+                        op_type = Op::ADD;  // - -... = +
+                    }
+                } else {
+                    // 如果没有实际操作数，使用默认操作
+                    op_type = isAddOp ? Op::ADD : Op::SUB;
+                }
+            } else {
+                // 处理正常情况
+                op_type = isAddOp ? Op::ADD : Op::SUB;
+            }
+            
+            // 创建新的加法表达式节点，并将其作为新的左操作数
+            left = create_add_exp_node(left, right, op_type);
+        }
+        return left;
+    }
 }
 std::any MiniCCSTVisitor::visitRelExp(MiniCParser::RelExpContext *ctx) {
 	// 根据文法规则: relExp : addExp (('<' | '>' | '<=' | '>=') addExp)*
