@@ -93,6 +93,7 @@ protected:
 
     /// @brief AST的节点操作函数
     typedef bool (IRGenerator::*ast2ir_handler_t)(ast_node *);
+    bool ir_array_exp_lval(ast_node * node);
     bool ir_visitExp(ast_node * node);
     bool ir_visitUNARYExp(ast_node * node);
     bool ir_visitUNARYOP(ast_node * node);
