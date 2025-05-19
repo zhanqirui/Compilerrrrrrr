@@ -485,10 +485,92 @@ std::any MiniCCSTVisitor::visitUnaryExpFuncCall(MiniCParser::UnaryExpFuncCallCon
 }
 
 std::any MiniCCSTVisitor::visitUnaryOpUnaryExp(MiniCParser::UnaryOpUnaryExpContext *ctx) {
-	// 处理 unaryOpUnaryExp: unaryOp unaryExp
-	auto op = std::any_cast<ast_node *>(visit(ctx->unaryOp()));
-	auto operand = std::any_cast<ast_node *>(visit(ctx->unaryExp()));
-	return create_unary_exp_node(op, operand);
+    // 处理 unaryOpUnaryExp: unaryOp unaryExp
+    auto op = std::any_cast<ast_node *>(visit(ctx->unaryOp()));
+    auto operand = std::any_cast<ast_node *>(visit(ctx->unaryExp()));
+    
+    // 如果操作数不是嵌套的一元表达式，直接返回
+    if (operand->node_type != ast_operator_type::AST_OP_UNARY_EXP) {
+        return create_unary_exp_node(op, operand);
+    }
+    
+    // 处理嵌套的一元表达式
+    // 获取当前操作符类型
+    Op current_op = op->op_type;
+    
+    // 如果当前操作符是 ! 并且内部是一元表达式
+    if (current_op == Op::NOT) {
+        // 计算连续的 ! 操作符
+        int not_count = 1; // 当前的 !
+        ast_node* inner_exp = operand;
+        
+        // 收集所有连续的 ! 操作符
+        while (inner_exp->node_type == ast_operator_type::AST_OP_UNARY_EXP &&
+               !inner_exp->sons.empty() && 
+               inner_exp->sons[0]->node_type == ast_operator_type::AST_OP_UNARY_OP &&
+               inner_exp->sons[0]->op_type == Op::NOT &&
+               inner_exp->sons.size() > 1) {
+            not_count++;
+            inner_exp = inner_exp->sons[1];
+        }
+        
+        // 偶数个 ! 互相抵消
+        if (not_count % 2 == 0) {
+            return inner_exp;
+        } else {
+            // 奇数个 ! 简化为一个 !
+            return create_unary_exp_node(create_unary_op_node(Op::NOT), inner_exp);
+        }
+    }
+    // 如果当前操作符是 + 或 -
+    else if (current_op == Op::POS || current_op == Op::NEG) {
+        // 记录最终的符号状态：true 表示正号，false 表示负号
+        bool is_positive = (current_op == Op::POS);
+        ast_node* inner_exp = operand;
+        
+        // 处理连续的 +/-
+        while (inner_exp->node_type == ast_operator_type::AST_OP_UNARY_EXP &&
+               !inner_exp->sons.empty() && 
+               inner_exp->sons[0]->node_type == ast_operator_type::AST_OP_UNARY_OP &&
+               (inner_exp->sons[0]->op_type == Op::POS || inner_exp->sons[0]->op_type == Op::NEG) &&
+               inner_exp->sons.size() > 1) {
+            
+            // 处理当前一元操作符的符号
+            bool inner_is_positive = (inner_exp->sons[0]->op_type == Op::POS);
+            
+            // 更新最终符号状态：异号得负号，同号得正号
+            is_positive = (is_positive == inner_is_positive);
+            
+            inner_exp = inner_exp->sons[1];
+        }
+        
+        // 如果内部表达式是逻辑非的表达式，不要合并，保持分离
+        if (inner_exp->node_type == ast_operator_type::AST_OP_UNARY_EXP &&
+            !inner_exp->sons.empty() && 
+            inner_exp->sons[0]->node_type == ast_operator_type::AST_OP_UNARY_OP &&
+            inner_exp->sons[0]->op_type == Op::NOT) {
+            
+            // 根据符号创建 +/- 节点
+            auto sign_op = create_unary_op_node(is_positive ? Op::POS : Op::NEG);
+            return create_unary_exp_node(sign_op, inner_exp);
+        }
+        
+        // 根据最终符号创建节点
+        if (is_positive) {
+            // 如果最终是正号且不是开头的表达式，可以完全省略正号
+            if (inner_exp->node_type != ast_operator_type::AST_OP_UNARY_EXP) {
+                return inner_exp; // 正号可以省略
+            } else {
+                return create_unary_exp_node(create_unary_op_node(Op::POS), inner_exp);
+            }
+        } else {
+            // 负号不能省略
+            return create_unary_exp_node(create_unary_op_node(Op::NEG), inner_exp);
+        }
+    }
+    
+    // 默认情况下直接创建一元表达式节点
+    return create_unary_exp_node(op, operand);
 }
 std::any MiniCCSTVisitor::visitUnaryOp(MiniCParser::UnaryOpContext *ctx) {
 	// unaryOp : '+' | '-' | '!'

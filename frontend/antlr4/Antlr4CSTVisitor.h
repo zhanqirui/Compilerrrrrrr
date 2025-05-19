@@ -99,10 +99,13 @@ protected:
     std::any visitLOrExp(MiniCParser::LOrExpContext *ctx) override;
     std::any visitConstExp(MiniCParser::ConstExpContext *ctx) override;
 
-	private:
-		//记录return语句的个数
-		std::map<std::string, int> NameToReturnNum;
+    ast_node * processNotOperator(ast_node * exp, ast_node * op);
+    ast_node * processPosNegOperator(ast_node * exp, Op current_op);
 
-		//记录当前函数名
-		std::string CurrentFunctionName;
+private:
+    // 记录return语句的个数
+    std::map<std::string, int> NameToReturnNum;
+
+    // 记录当前函数名
+    std::string CurrentFunctionName;
 };
