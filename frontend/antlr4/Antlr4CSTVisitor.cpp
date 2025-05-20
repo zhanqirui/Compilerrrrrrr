@@ -101,7 +101,13 @@ std::any MiniCCSTVisitor::visitDefineDirective(MiniCParser::DefineDirectiveConte
 	else if (ctx->FloatConst()) {
 		// 浮点数常量
 		std::string text = ctx->FloatConst()->getText();
-		float val = std::stof(text);
+		float val = 0.0f;
+		if (text.size() > 2 && (text[0] == '0') && (text[1] == 'x' || text[1] == 'X')) {
+			// 十六进制浮点常量
+			val = strtof(text.c_str(), nullptr);
+		} else {
+			val = std::stof(text);
+		}
 		value_node = create_float_node(val);
 	}
 	else if (ctx->StringConst()) {
@@ -552,7 +558,13 @@ std::any MiniCCSTVisitor::visitNumber(MiniCParser::NumberContext *ctx) {
 	// FloatConst
 	if (ctx->FloatConst()) {
 		std::string text = ctx->FloatConst()->getText();
-		float val = std::stof(text);
+		float val = 0.0f;
+		if (text.size() > 2 && (text[0] == '0') && (text[1] == 'x' || text[1] == 'X')) {
+			// 十六进制浮点常量
+			val = strtof(text.c_str(), nullptr);
+		} else {
+			val = std::stof(text);
+		}
 		return create_float_node(val);
 	}
 	return nullptr;

@@ -4,7 +4,13 @@ grammar MiniC;
 compUnit: (defineDirective | decl | funcDef)* EOF;
 
 // #define指令
-defineDirective: '#' DEFINE Ident (IntConst | FloatConst | StringConst | Ident);
+defineDirective:
+	'#' DEFINE Ident (
+		IntConst
+		| FloatConst
+		| StringConst
+		| Ident
+	);
 
 // 声明部分（常量/变量）
 decl: constDecl # constDeclaration | varDecl # varDeclaration;
@@ -58,8 +64,8 @@ blockItem: decl # blockDeclaration | stmt # blockStatement;
 // 语句系统
 stmt:
 	lVal '=' exp ';'					# assignmentStatement
-	| ';'		                        # emptyStatement
-	| exp ';'	                        # expressionStatement 
+	| ';'								# emptyStatement
+	| exp ';'							# expressionStatement
 	| block								# nestedBlockStatement
 	| IF '(' cond ')' stmt (ELSE stmt)?	# ifElseStatement
 	| WHILE '(' cond ')' stmt			# whileLoopStatement
@@ -133,7 +139,10 @@ IntConst:
 	| '0'; // 单独的0
 
 FloatConst:
-	[0-9]+ '.' [0-9]* ([eE] [+\-]? [0-9]+)? // 1.23, 1.23e10, 1.23E-10
+	// 支持C风格十六进制浮点常量
+	('0x' | '0X') [0-9a-fA-F]+ ('.' [0-9a-fA-F]*)? [pP] [+\-]? [0-9]+
+	| ('0x' | '0X') '.' [0-9a-fA-F]+ [pP] [+\-]? [0-9]+
+	| [0-9]+ '.' [0-9]* ([eE] [+\-]? [0-9]+)? // 1.23, 1.23e10, 1.23E-10
 	| '.' [0-9]+ ([eE] [+\-]? [0-9]+)? // .23, .23e5
 	| [0-9]+ [eE] [+\-]? [0-9]+; // 1e10, 1E-10
 
