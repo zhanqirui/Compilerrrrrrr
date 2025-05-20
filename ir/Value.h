@@ -42,7 +42,6 @@ class Value {
 
 protected:
     /// @brief 变量名，函数名等原始的名字，可能为空串
-    std::string name;
 
     ///
     /// @brief IR名字，用于文本IR的输出
@@ -65,6 +64,7 @@ protected:
     bool is_constant = false;
 
 public:
+    std::string name;
     std::string const_func_name = "null";
     /// @brief 构造函数
     /// @param _type
@@ -186,6 +186,7 @@ public:
     }
     int real_int;
     float real_float;
+    bool is_come_from_formalparm = false;
 
     Type * type;
 };
