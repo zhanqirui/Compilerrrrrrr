@@ -19,6 +19,10 @@ public:
     return visitChildren(ctx);
   }
 
+  virtual std::any visitDefineDirective(MiniCParser::DefineDirectiveContext *ctx) override {
+    return visitChildren(ctx);
+  }
+
   virtual std::any visitConstDeclaration(MiniCParser::ConstDeclarationContext *ctx) override {
     return visitChildren(ctx);
   }

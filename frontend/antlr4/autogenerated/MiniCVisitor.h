@@ -21,6 +21,8 @@ public:
    */
     virtual std::any visitCompUnit(MiniCParser::CompUnitContext *context) = 0;
 
+    virtual std::any visitDefineDirective(MiniCParser::DefineDirectiveContext *context) = 0;
+
     virtual std::any visitConstDeclaration(MiniCParser::ConstDeclarationContext *context) = 0;
 
     virtual std::any visitVarDeclaration(MiniCParser::VarDeclarationContext *context) = 0;
