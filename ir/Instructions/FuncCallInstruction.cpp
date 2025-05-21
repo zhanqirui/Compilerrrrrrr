@@ -85,7 +85,7 @@ void FuncCallInstruction::toString(std::string & str)
 
             // 函数有返回值要设置到结果变量中
             str = getIRName() + " = call f32 " + calledFunction->getIRName() + "(";
-        } else {
+        } else if (type->isIntegerType()) {
             // 函数有返回值要设置到结果变量中
             str = getIRName() + " = call i32 " + calledFunction->getIRName() + "(";
         }

@@ -27,7 +27,9 @@
 /// @param srcVal1 源操作数
 ///
 BitcastInstruction::BitcastInstruction(Function * _func, Value * srcVal1, int bit = 8)
-    : Instruction(_func, IRInstOperator::IRINST_OP_CAST, (static_cast<Type *>(IntegerType::getTypeInt())))
+    : Instruction(_func,
+                  IRInstOperator::IRINST_OP_CAST,
+                  (static_cast<Type *>(PointerType::getNonConstPointerType(IntegerType::getTypeInt()))))
 //   (is_int ? static_cast<Type *>(IntegerType::getTypeInt()) : static_cast<Type *>(FloatType::getTypeFloat())))
 {
     addOperand(srcVal1);
@@ -54,6 +56,8 @@ void BitcastInstruction::toString(std::string & str)
         for (size_t i = 0; i < dims.size(); ++i) {
             arrayType += "]";
         }
+    } else {
+        arrayType += srcVal1->getType()->toString();
     }
     str = getIRName() + " = bitcast " + arrayType + "* " + srcVal1->getIRName() + " to i" + std::to_string(bit) + "*";
 }

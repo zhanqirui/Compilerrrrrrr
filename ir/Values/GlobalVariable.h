@@ -140,7 +140,7 @@ public:
                 } else {
                     std::string typeStr = dims.size() > 1 ? getArrayTypeStr(dims, 0, elemType) : "";
                     std::string content = emitContent(dims, elemType, flatArr, 0, 0);
-                    varName += " = dso_local constant " + typeStr + " " + content + ", align 16";
+                    varName += " = dso_local global " + typeStr + " " + content + ", align 16";
                 }
             }
         }

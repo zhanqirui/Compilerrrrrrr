@@ -48,15 +48,26 @@ void MoveInstruction::toString(std::string & str)
         } else {
             temp = std::to_string(srcVal->real_int);
         }
-        str = "store " + srcVal->getType()->toString() + " " + temp + ", " + dstVal->getType()->toString() + '*' + " " +
-              dstVal->getIRName() + ", align 4";
+        if (dstVal->getType()->isPointerType()) {
+            str = "store " + srcVal->getType()->toString() + " " + temp + ", " + dstVal->getType()->toString() + " " +
+                  dstVal->getIRName() + ", align 4";
+        } else {
+            str = "store " + srcVal->getType()->toString() + " " + temp + ", " + dstVal->getType()->toString() + '*' +
+                  " " + dstVal->getIRName() + ", align 4";
+        }
         return;
     }
-
-    if (dstVal->getType() && dstVal->getType()->isPointerType()) {
+    std::string ispointer = dstVal->getType()->isPointerType() ? " " : "*";
+    if (dstVal->getType() && dstVal->getType()->isPointerType() && srcVal->getType() &&
+        srcVal->getType()->isPointerType()) {
         // str = '*' + dstVal->getIRName() + " = " + srcVal->getIRName();
         str = "store " + srcVal->getType()->toString() + " " + srcVal->getIRName() + ", " +
-              dstVal->getType()->toString() + '*' + " " + dstVal->getIRName() + ", align 4";
+              dstVal->getType()->toString() + "*" + ispointer + " " + dstVal->getIRName() + ", align 4";
+        return;
+    } else if (dstVal->getType() && dstVal->getType()->isPointerType()) {
+        // str = '*' + dstVal->getIRName() + " = " + srcVal->getIRName();
+        str = "store " + srcVal->getType()->toString() + " " + srcVal->getIRName() + ", " +
+              dstVal->getType()->toString() + ispointer + " " + dstVal->getIRName() + ", align 4";
         return;
     } else if ((srcVal->getType() && srcVal->getType()->isPointerType())) {
         // str = dstVal->getIRName() + " = " + '*' + srcVal->getIRName();
@@ -66,6 +77,6 @@ void MoveInstruction::toString(std::string & str)
     } else {
         // str = dstVal->getIRName() + " = " + srcVal->getIRName();
         str = "store " + srcVal->getType()->toString() + " " + srcVal->getIRName() + ", " +
-              dstVal->getType()->toString() + '*' + " " + dstVal->getIRName() + ", align 4";
+              dstVal->getType()->toString() + ispointer + " " + dstVal->getIRName() + ", align 4";
     }
 }

@@ -41,7 +41,7 @@ echo $?
 
 ./build/minic -S -I -A -o ./tests/test1-7.ll ./tests/test1-7.c
 
-clang -o tests/test1-7 tests/test1-7.ll tests/std.c
+clang -o tests/test1-1 tests/test1-1.ll tests/std.c
 
 
 ./tests/test1-7
