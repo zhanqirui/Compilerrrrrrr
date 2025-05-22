@@ -15,21 +15,21 @@ public:
     T__0 = 1, T__1 = 2, T__2 = 3, T__3 = 4, T__4 = 5, T__5 = 6, T__6 = 7, 
     T__7 = 8, T__8 = 9, T__9 = 10, T__10 = 11, T__11 = 12, T__12 = 13, T__13 = 14, 
     T__14 = 15, T__15 = 16, T__16 = 17, T__17 = 18, T__18 = 19, T__19 = 20, 
-    T__20 = 21, T__21 = 22, T__22 = 23, BREAK = 24, CONTINUE = 25, IF = 26, 
-    ELSE = 27, WHILE = 28, RETURN = 29, CONST = 30, INT = 31, FLOAT = 32, 
-    VOID = 33, Ident = 34, IntConst = 35, FloatConst = 36, Whitespace = 37, 
-    BlockComment = 38, LineComment = 39
+    T__20 = 21, T__21 = 22, T__22 = 23, T__23 = 24, DEFINE = 25, BREAK = 26, 
+    CONTINUE = 27, IF = 28, ELSE = 29, WHILE = 30, RETURN = 31, CONST = 32, 
+    INT = 33, FLOAT = 34, VOID = 35, Ident = 36, IntConst = 37, FloatConst = 38, 
+    StringConst = 39, Whitespace = 40, BlockComment = 41, LineComment = 42
   };
 
   enum {
-    RuleCompUnit = 0, RuleDecl = 1, RuleConstDecl = 2, RuleBType = 3, RuleConstDef = 4, 
-    RuleConstInitVal = 5, RuleVarDecl = 6, RuleVarDef = 7, RuleInitVal = 8, 
-    RuleFuncDef = 9, RuleFuncType = 10, RuleFuncFParams = 11, RuleFuncFParam = 12, 
-    RuleBlock = 13, RuleBlockItem = 14, RuleStmt = 15, RuleExp = 16, RuleCond = 17, 
-    RuleLVal = 18, RulePrimaryExp = 19, RuleNumber = 20, RuleUnaryExp = 21, 
-    RuleUnaryOp = 22, RuleFuncRParams = 23, RuleMulExp = 24, RuleAddExp = 25, 
-    RuleRelExp = 26, RuleEqExp = 27, RuleLAndExp = 28, RuleLOrExp = 29, 
-    RuleConstExp = 30
+    RuleCompUnit = 0, RuleDefineDirective = 1, RuleDecl = 2, RuleConstDecl = 3, 
+    RuleBType = 4, RuleConstDef = 5, RuleConstInitVal = 6, RuleVarDecl = 7, 
+    RuleVarDef = 8, RuleInitVal = 9, RuleFuncDef = 10, RuleFuncType = 11, 
+    RuleFuncFParams = 12, RuleFuncFParam = 13, RuleBlock = 14, RuleBlockItem = 15, 
+    RuleStmt = 16, RuleExp = 17, RuleCond = 18, RuleLVal = 19, RulePrimaryExp = 20, 
+    RuleNumber = 21, RuleUnaryExp = 22, RuleUnaryOp = 23, RuleFuncRParams = 24, 
+    RuleMulExp = 25, RuleAddExp = 26, RuleRelExp = 27, RuleEqExp = 28, RuleLAndExp = 29, 
+    RuleLOrExp = 30, RuleConstExp = 31
   };
 
   explicit MiniCParser(antlr4::TokenStream *input);
@@ -50,6 +50,7 @@ public:
 
 
   class CompUnitContext;
+  class DefineDirectiveContext;
   class DeclContext;
   class ConstDeclContext;
   class BTypeContext;
@@ -86,6 +87,8 @@ public:
     CompUnitContext(antlr4::ParserRuleContext *parent, size_t invokingState);
     virtual size_t getRuleIndex() const override;
     antlr4::tree::TerminalNode *EOF();
+    std::vector<DefineDirectiveContext *> defineDirective();
+    DefineDirectiveContext* defineDirective(size_t i);
     std::vector<DeclContext *> decl();
     DeclContext* decl(size_t i);
     std::vector<FuncDefContext *> funcDef();
@@ -97,6 +100,24 @@ public:
   };
 
   CompUnitContext* compUnit();
+
+  class  DefineDirectiveContext : public antlr4::ParserRuleContext {
+  public:
+    DefineDirectiveContext(antlr4::ParserRuleContext *parent, size_t invokingState);
+    virtual size_t getRuleIndex() const override;
+    antlr4::tree::TerminalNode *DEFINE();
+    std::vector<antlr4::tree::TerminalNode *> Ident();
+    antlr4::tree::TerminalNode* Ident(size_t i);
+    antlr4::tree::TerminalNode *IntConst();
+    antlr4::tree::TerminalNode *FloatConst();
+    antlr4::tree::TerminalNode *StringConst();
+
+
+    virtual std::any accept(antlr4::tree::ParseTreeVisitor *visitor) override;
+   
+  };
+
+  DefineDirectiveContext* defineDirective();
 
   class  DeclContext : public antlr4::ParserRuleContext {
   public:

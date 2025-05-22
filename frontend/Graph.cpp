@@ -115,8 +115,12 @@ string getNodeName(ast_node * astnode)
             nodeName = "unary-exp";
             break;
         case ast_operator_type::AST_OP_UNARY_OP:
-            nodeName = "unary-op";
-            break;
+		{
+			nodeName = "unsupported op";
+			if (astnode->op_type == Op::POS) nodeName = "+";
+			else if (astnode->op_type == Op::NEG) nodeName = "-";
+			else if (astnode->op_type == Op::NOT) nodeName = "!";
+		}break;
         case ast_operator_type::AST_OP_FUNC_RPARAMS:
             nodeName = "func-rparams";
             break;
@@ -215,6 +219,12 @@ string getNodeName(ast_node * astnode)
             break;
         case ast_operator_type::AST_OP_WHILE:
             nodeName = "while";
+            break;
+        case ast_operator_type::AST_OP_STRING_CONSTANT:
+            nodeName = "string-constant";
+            break;
+        case ast_operator_type::AST_OP_DEFINE_DIRECTIVE:
+            nodeName = "define-directive";
             break;
         default:
             nodeName = "unknown";

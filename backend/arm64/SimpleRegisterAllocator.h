@@ -21,8 +21,6 @@ public:
     void Allocate(int32_t no);
     void free(Value * var);
     void free(int32_t);
-
-protected:
     void bitmapSet(int32_t no);
 
 protected:
