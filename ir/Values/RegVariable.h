@@ -23,7 +23,7 @@ class RegVariable : public Value {
 
 public:
     /// @brief 整型寄存器型Value
-    /// \param val
+    /// param val
     explicit RegVariable(Type * _type, std::string _name, int32_t _reg_no) : Value(_type)
     {
         this->name = _name;

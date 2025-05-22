@@ -2259,12 +2259,6 @@ bool IRGenerator::ir_func_call(ast_node * node)
     }
     // else: 无参数
 
-    // --- 新增：为每个参数生成ARG指令 ---
-    for (auto * arg_val: args) {
-        node->blockInsts.addInst(new ArgInstruction(module->getCurrentFunction(), arg_val));
-    }
-    // --- 新增结束 ---
-
     // 只传递参数，不要把call结果变量也作为参数
     FuncCallInstruction * callInst =
         new FuncCallInstruction(module->getCurrentFunction(), callee, args, callee->getReturnType());

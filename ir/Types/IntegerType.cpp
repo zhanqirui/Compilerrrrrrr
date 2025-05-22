@@ -18,25 +18,19 @@
 #include "IntegerType.h"
 
 ///
-/// @brief 唯一的VOID类型实例
-///
-IntegerType * IntegerType::oneInstanceBool = new IntegerType(1);
-IntegerType * IntegerType::oneInstanceInt = new IntegerType(32);
-
-///
 /// @brief 获取类型bool
 /// @return VoidType*
 ///
-IntegerType * IntegerType::getTypeBool()
-{
-    return oneInstanceBool;
+IntegerType* IntegerType::getTypeBool() {
+    static IntegerType instance(1);
+    return &instance;
 }
 
 ///
 /// @brief 获取类型int
 /// @return VoidType*
 ///
-IntegerType * IntegerType::getTypeInt()
-{
-    return oneInstanceInt;
+IntegerType* IntegerType::getTypeInt() {
+    static IntegerType instance(32);  // ⚠️局部静态变量初始化顺序保证
+    return &instance;
 }
