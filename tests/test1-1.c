@@ -1,6 +1,8 @@
-const int a[5] = {0, 1, 2, 3, 4};
+int buf[2][100];
 
 int main()
 {
-    return a[4];
+    int n = getarray(buf[0]);
+    putarray(n, buf[0]);
+    return 0;
 }

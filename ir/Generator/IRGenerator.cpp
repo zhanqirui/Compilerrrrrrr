@@ -231,6 +231,8 @@ bool IRGenerator::ir_function_define(ast_node * node)
 
     // 创建出口指令并不加入出口指令，等函数内的指令处理完毕后加入出口指令
     LabelInstruction * entryLabelInst = new LabelInstruction(newFunc);
+    LabelInstruction * returnLabelInst = new LabelInstruction(newFunc);
+    module->getCurrentFunction()->set_fun_return_Lable(returnLabelInst);
 
     // 函数出口指令保存到函数信息中，因为在语义分析函数体时return语句需要跳转到函数尾部，需要这个label指令
     newFunc->setExitLabel(entryLabelInst);
@@ -300,7 +302,9 @@ bool IRGenerator::ir_function_define(ast_node * node)
     irCode.addInst(node->blockInsts);
 
     // 添加函数出口Label指令，主要用于return语句跳转到这里进行函数的退出
-    // irCode.addInst(entryLabelInst);
+
+    irCode.addInst(new GotoInstruction(module->getCurrentFunction(), returnLabelInst));
+    irCode.addInst(returnLabelInst);
     LoadInstruction * Dereference = new LoadInstruction(module->getCurrentFunction(), newFunc->getReturnValue(), true);
     irCode.addInst(Dereference);
     if (!type_node->type->isVoidType())
@@ -665,8 +669,10 @@ bool IRGenerator::ir_return(ast_node * node)
         node->val = right->val;
     }
     module->getCurrentFunction()->is_real_return = !(isReturnInIfElse(node));
-
-    // TODO 设置类型
+    if (!(module->getCurrentFunction()->is_real_return)) {
+        node->blockInsts.addInst(
+            new GotoInstruction(module->getCurrentFunction(), module->getCurrentFunction()->get_fun_return_Lable()));
+    }
 
     return true;
 }
@@ -2012,7 +2018,7 @@ bool IRGenerator::ir_leaf_node_var_id(ast_node * node)
         BitcastInstruction * bitcatinst;
         GetElementPtrInstruction * gepInst;
         LoadInstruction * LoadInst = nullptr;
-        if (module->getCurrentFunction()->name != "main") {
+        if (module->getCurrentFunction()->name != "main" && val->is_come_from_formalparm) {
             //如果是数组类型指针则不能直接load，会将数组大指针load出来，实际应该load第一个元素的地址
             LoadInst = new LoadInstruction(module->getCurrentFunction(), val, true);
             bitcatinst = new BitcastInstruction(module->getCurrentFunction(), LoadInst, 32);

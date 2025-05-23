@@ -109,7 +109,8 @@ public:
     void set_ifelse_exit(LabelInstruction * LabelInst);
     LabelInstruction * get_ifelse_exit();
     void BLOCK_SIMPLE_EN();
-
+    void set_fun_return_Lable(LabelInstruction * LabelInst);
+    LabelInstruction * get_fun_return_Lable();
     /// @brief 获取函数返回值变量
     /// @return 返回值变量
     /// @brief 获取函数内变量清单
@@ -215,7 +216,8 @@ public:
     LabelInstruction * ifelse_Lable1 = nullptr;
     LabelInstruction * ifelse_Lable2 = nullptr;
     LabelInstruction * ifelse_exitlabel = nullptr;
-    bool is_const_func_var = true; //表示函数内的数组是否放到函数外定义为const
+    LabelInstruction * return_Lable = nullptr;
+    bool is_const_func_var = true; // 表示函数内的数组是否放到函数外定义为const
     bool is_real_return = false;
     bool is_use_memset = false;
     bool is_use_memcpy = false;

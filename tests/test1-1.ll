@@ -1,13 +1,26 @@
-@a = dso_local constant  [5 x i32] [i32 0, i32 1, i32 2, i32 3, i32 4], align 16
+@buf = dso_local global [2 x [100 x i32]] zeroinitializer, align 16
 define dso_local i32 @main() #0 {
   %1 = alloca i32, align 4
+  %2 = alloca i32, align 4
   store i32 0, i32* %1, align 4
-  %2 = bitcast [5 x i32]* @a to i32*
-  %3 = getelementptr inbounds i32, i32* %2, i64 4
-  %4 = load i32, i32* %3, align 4
-  store i32 %4, i32* %1, align 4
-  %5 = load i32, i32* %1, align 4
-  ret i32 %5
-}
+  %3 = add nsw i32 0, 0
+  %4 = bitcast [2 x [100 x i32]]* @buf to i32*
+  %5 = getelementptr inbounds i32, i32* %4, i32 %3
+  %6 = load i32, i32* %5, align 4
+  %7 = call i32 (...) @getarray(i32 %6)
+  store i32 %7, i32* %2, align 4
+  %8 = load i32, i32* %2, align 4
+  %9 = add nsw i32 0, 0
+  %10 = bitcast [2 x [100 x i32]]* @buf to i32*
+  %11 = getelementptr inbounds i32, i32* %10, i32 %9
+  %12 = load i32, i32* %11, align 4
+  call void  @putarray(i32 %8, i32 %12)
+  store i32 0, i32* %1, align 4
+  br label %13
 
-declare void @putint(i32) #0
+13:
+  %14 = load i32, i32* %1, align 4
+  ret i32 %14
+}
+declare i32 @getarray(i32*) #1
+declare void @putarray(i32,i32*) #1

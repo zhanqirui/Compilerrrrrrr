@@ -472,7 +472,14 @@ void Function::Delete()
 
     varsVector.clear();
 }
-
+void Function::set_fun_return_Lable(LabelInstruction * LabelInst)
+{
+    return_Lable = LabelInst;
+}
+LabelInstruction * Function::get_fun_return_Lable()
+{
+    return return_Lable;
+}
 ///
 /// @brief 函数内的Value重命名
 ///
