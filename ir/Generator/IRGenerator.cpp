@@ -1053,7 +1053,9 @@ bool IRGenerator::ir_mul(ast_node * node)
     ast_node * src2_node = node->sons[1];
     float op1 = src1_node->type->isFloatType() ? src1_node->float_val : src1_node->integer_val;
     float op2 = src2_node->type->isFloatType() ? src2_node->float_val : src2_node->integer_val;
-    // 优化x=2+3变成x=5
+	//op1, op2都是立即数，如果是变量或是常量这里就还没有提取出值
+	//现存问题05.24 const int a = 2 * b * c会直接生成0
+    // 优化x=2*3变成x=6
     if (src1_node->node_type == ast_operator_type::AST_OP_LEAF_LITERAL_UINT &&
         src2_node->node_type == ast_operator_type::AST_OP_LEAF_LITERAL_UINT) {
         if (src1_node->type->isFloatType() || src2_node->type->isFloatType()) {

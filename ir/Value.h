@@ -187,6 +187,7 @@ public:
     int real_int;
     float real_float;
     bool is_come_from_formalparm = false;
+    float change_float;
 
     Type * type;
 };

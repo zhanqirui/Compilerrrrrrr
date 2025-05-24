@@ -18,6 +18,7 @@
 
 #include "GlobalValue.h"
 #include "IRConstant.h"
+#include "ConstFloat.h"
 #include "PointerType.h"
 #include <sstream>
 
@@ -109,8 +110,11 @@ public:
             varName +=
                 " = dso_local global " + getType()->toString() + " " + std::to_string(this->real_int) + ", align 4";
         } else if (this->type->isFloatType()) {
-            varName +=
-                " = dso_local global " + getType()->toString() + " " + std::to_string(this->real_float) + ", align 4";
+            // real_float得改成change_float
+            //  这里需要注意，LLVM IR中浮点数的表示是以十六进制的形式以及带e的形式
+            //直接调用float2str_llvm函数
+            varName += " = dso_local global " + getType()->toString() + " " +
+                       ConstFloat::float2str_llvm(this->real_float) + ", align 4";
         } else {
             std::vector<std::pair<int, int>> flatArr;
             for (const auto & elem: this->flattenedArray) {
@@ -241,23 +245,23 @@ public:
         }
     }
 
-	///
-	/// @brief 取得全局变量的大小
-	/// @return int32_t 大小
-	///
-	[[nodiscard]] int32_t getSize() const
-	{
-		return size;
-	}
+    ///
+    /// @brief 取得全局变量的大小
+    /// @return int32_t 大小
+    ///
+    [[nodiscard]] int32_t getSize() const
+    {
+        return size;
+    }
 
-	///
-	/// @brief 设置全局变量的大小
-	/// @param _size 大小
-	///
-	void setSize(int32_t _size)
-	{
-		this->size = _size;
-	}
+    ///
+    /// @brief 设置全局变量的大小
+    /// @param _size 大小
+    ///
+    void setSize(int32_t _size)
+    {
+        this->size = _size;
+    }
 
 private:
     ///
@@ -270,8 +274,8 @@ private:
     ///
     bool inBSSSection = true;
 
-	///
-	/// @brief 全局变量的大小
-	///
-	int32_t size = 0;
+    ///
+    /// @brief 全局变量的大小
+    ///
+    int32_t size = 0;
 };

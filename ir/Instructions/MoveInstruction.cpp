@@ -16,6 +16,7 @@
 ///
 #include <iostream>
 #include "VoidType.h"
+#include "ConstFloat.h"
 
 #include "MoveInstruction.h"
 
@@ -44,7 +45,9 @@ void MoveInstruction::toString(std::string & str)
 
         std::string temp;
         if (srcVal->getType()->isFloatType()) {
-            temp = std::to_string(srcVal->real_float);
+            //换成对应的LLVM格式的float
+            // temp = std::to_string(srcVal->real_float);
+            temp = ConstFloat::float2str_llvm(srcVal->real_float);
         } else {
             temp = std::to_string(srcVal->real_int);
         }
