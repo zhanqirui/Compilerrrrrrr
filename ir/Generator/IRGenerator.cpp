@@ -43,6 +43,7 @@
 #include "MemsetInstruction.h"
 #include "GetElementPtrInstruction.h"
 #include "ZextInstruction.h"
+#include "CastInstruction.h"
 #define Instanceof(res, type, var) auto res = dynamic_cast<type>(var)
 
 /// @brief 构造函数
@@ -271,12 +272,20 @@ bool IRGenerator::ir_function_define(ast_node * node)
     // 新建一个Value，用于保存函数的返回值，如果没有返回值可不用申请
     LocalVariable * retValue = nullptr;
     if (!type_node->type->isVoidType()) {
+        if (type_node->type->isIntegerType()) {
+            // 保存函数返回值变量到函数信息中，在return语句翻译时需要设置值到这个变量中
+            retValue = static_cast<LocalVariable *>(module->newVarValue(type_node->type));
+            MoveInstruction * movInst =
+                new MoveInstruction(module->getCurrentFunction(), retValue, module->newConstInt((int32_t) 0));
+            irCode.addInst(movInst);
+        } else {
+            // 保存函数返回值变量到函数信息中，在return语句翻译时需要设置值到这个变量中
+            retValue = static_cast<LocalVariable *>(module->newVarValue(type_node->type));
+            MoveInstruction * movInst =
+                new MoveInstruction(module->getCurrentFunction(), retValue, module->newConstFloat((int32_t) 0));
+            irCode.addInst(movInst);
+        }
 
-        // 保存函数返回值变量到函数信息中，在return语句翻译时需要设置值到这个变量中
-        retValue = static_cast<LocalVariable *>(module->newVarValue(type_node->type));
-        MoveInstruction * movInst =
-            new MoveInstruction(module->getCurrentFunction(), retValue, module->newConstInt((int32_t) 0));
-        irCode.addInst(movInst);
     } else {
         retValue = static_cast<LocalVariable *>(module->newVarValue(IntegerType::getTypeInt()));
     }
@@ -648,14 +657,21 @@ bool IRGenerator::ir_return(ast_node * node)
 
     // 返回值存在时则移动指令到node中
     if (right) {
-
-        // 创建临时变量保存IR的值，以及线性IR指令
         node->blockInsts.addInst(right->blockInsts);
-        // currentFunc->setReturnValue(right->val);
-        // 返回值赋值到函数返回值变量上，然后跳转到函数的尾部
-        node->blockInsts.addInst(new MoveInstruction(currentFunc, currentFunc->getReturnValue(), right->val));
+        if (right->val->type->isFloatType() && currentFunc->getReturnValue()->type->isIntegerType()) {
+            CastInstruction * castInst =
+                new CastInstruction(currentFunc, CastInstruction::FPTOSI, right->val, IntegerType::getTypeInt());
+            node->blockInsts.addInst(castInst);
+            node->blockInsts.addInst(new MoveInstruction(currentFunc, currentFunc->getReturnValue(), castInst));
+        } else if (right->val->type->isIntegerType() && currentFunc->getReturnValue()->type->isFloatType()) {
+            CastInstruction * castInst =
+                new CastInstruction(currentFunc, CastInstruction::SITOFP, right->val, FloatType::getTypeFloat());
+            node->blockInsts.addInst(castInst);
+            node->blockInsts.addInst(new MoveInstruction(currentFunc, currentFunc->getReturnValue(), castInst));
+        } else {
+            node->blockInsts.addInst(new MoveInstruction(currentFunc, currentFunc->getReturnValue(), right->val));
+        }
 
-        node->val = right->val;
     } else {
         // 没有返回值
         node->val = nullptr;
@@ -757,9 +773,10 @@ bool IRGenerator::ir_leaf_value_uint(ast_node * node)
 bool IRGenerator::ir_add(ast_node * node)
 {
     Op op = node->op_type;
+    ConstInt * ZERO = module->newConstInt(0);
     ast_node * src1_node = node->sons[0];
     ast_node * src2_node = node->sons[1];
-    ConstInt * ZERO = module->newConstInt(0);
+    //针对not情况
     if (node->node_type == ast_operator_type::AST_OP_UNARY_EXP && src1_node->op_type == Op::NOT) {
         Value * resultPtr = module->getCurrentFunction()->getReturnValue();
         ast_node * right = ir_visit_ast_node(src2_node);
@@ -792,179 +809,39 @@ bool IRGenerator::ir_add(ast_node * node)
         node->val = resultVal;
         return true;
     }
-    float op1 = src1_node->type->isFloatType() ? src1_node->float_val : src1_node->integer_val;
-    float op2 = src2_node->type->isFloatType() ? src2_node->float_val : src2_node->integer_val;
-    // 优化x=2+3变成x=5
-    if (src1_node->node_type == ast_operator_type::AST_OP_LEAF_LITERAL_UINT &&
-        src2_node->node_type == ast_operator_type::AST_OP_LEAF_LITERAL_UINT) {
-        if (src1_node->type->isFloatType() || src2_node->type->isFloatType()) {
-            ConstFloat * val = module->newConstFloat((op == Op::ADD) ? (op1 + op2) : (op1 - op2));
-            node->val = val;
-            node->type = src1_node->type->isFloatType() ? src1_node->type : src2_node->type;
-            return true;
-        } else {
-            ConstInt * val = module->newConstInt((op == Op::ADD) ? ((int) op1 + (int) op2) : ((int) op1 - (int) op2));
-            node->val = val;
-            node->type = src1_node->type;
-            return true;
-        }
-    }
-    // 针对const进行优化
-    /*wuyue:05.18
-    针对const的优化感觉没有做完全,对于const只有const+字面量和两个const才做优化，这样做了优化后遇到变量+const
-    反而会报错，所以需要做修改，具体报错原因在于识别到不是两个常量在IR中就全用寄存器进行相加，变量可以做load，但是const先做
-    了一点优化即调用值不会load而是直接上寄存器，这就导致加法两个寄存器相加一个是变量值一个是指向常量的指针，这样会导致加法报错。
-    其他所有的加减乘除以及与或非比较都是全部同理，这一个问题也会导致const类型的组合运算如先加后乘，先加再加这样的操作全部报错
-    优化思路应该是保持原先的两个常量的情况，对于常量加变量的情况常量也像字面量一样直接返回值
-    * */
-    Value * Var1 = nullptr;
-    Value * Var2 = nullptr;
-    float leftV;
-    float rightV;
-    if (!src1_node->name.empty()) {
-        Var1 = module->findVar(src1_node->name);
-        if (Var1->isConst()) {
-            if (Var1->type->isIntegerType())
-                leftV = Var1->real_int;
-            else {
-                leftV = Var1->real_float;
-            }
-        }
-    }
-    if (!src2_node->name.empty()) {
-        Var2 = module->findVar(src2_node->name);
-        if (Var2->isConst()) {
-            if (Var2->type->isIntegerType())
-                rightV = Var2->real_int;
-            else {
-                rightV = Var2->real_float;
-            }
-        }
-    }
-    if (Var1 && Var1->isConst() && Var2 && Var2->isConst()) {
-        if (Var1->type->isFloatType() || Var2->type->isFloatType()) {
-            ConstFloat * val = module->newConstFloat((op == Op::ADD) ? leftV + rightV : leftV - rightV);
-            node->val = val;
-            node->type = src1_node->type->isFloatType() ? src1_node->type : src2_node->type;
-            return true;
-        } else {
-            ConstInt * val =
-                module->newConstInt((op == Op::ADD) ? (int) leftV + (int) rightV : (int) leftV - (int) rightV);
-            node->val = val;
-            node->type = src1_node->type;
-            return true;
-        }
-        return true;
-    }
-
-    if (src1_node->node_type == ast_operator_type::AST_OP_LEAF_LITERAL_UINT ||
-        src2_node->node_type == ast_operator_type::AST_OP_LEAF_LITERAL_UINT) {
-        if (Var1 && Var1->isConst()) {
-            if (Var1->type->isFloatType() || src1_node->type->isFloatType()) {
-                ConstFloat * val = module->newConstFloat((op == Op::ADD) ? (leftV + op2) : (leftV - op2));
-                node->val = val;
-                node->type = src1_node->type->isFloatType() ? src1_node->type : src2_node->type;
-                return true;
-            } else {
-                ConstInt * val =
-                    module->newConstInt((op == Op::ADD) ? ((int) leftV + (int) op2) : ((int) leftV - (int) op2));
-                node->val = val;
-                node->type = src1_node->type;
-                return true;
-            }
-            return true;
-        } else if (Var2 && Var2->isConst()) {
-            if (src1_node->type->isFloatType() || Var2->type->isFloatType()) {
-                ConstFloat * val = module->newConstFloat((op == Op::ADD) ? (op1 + rightV) : (op1 - rightV));
-                node->val = val;
-                node->type = src1_node->type->isFloatType() ? src1_node->type : src2_node->type;
-                return true;
-            } else {
-                ConstInt * val =
-                    module->newConstInt((op == Op::ADD) ? ((int) op1 + (int) rightV) : ((int) op1 - (int) rightV));
-                node->val = val;
-                node->type = src1_node->type;
-                return true;
-            }
-            return true;
-        }
-    }
-
-    //用异或操作锁死一正一负（一个是常量，一个是变量）
-    //想复杂了，直接在打印指令里面优化
-    /*
-    if ((Var1 && Var1->isConst()) ^ (Var2 && Var2->isConst())) {
-        if (Var1 && Var1->isConst()) {
-            // 如果左边是常量，右边是变量
-            printf("var1 is const\n");
-            bool isFloat1 = src1_node->type->isFloatType();
-            if (Var1->type->isIntegerType())
-                leftV = Var1->real_int;
-            else {
-                leftV = Var1->real_float;
-            }
-            src1_node->node_type = ast_operator_type::AST_OP_LEAF_LITERAL_UINT;
-            if (isFloat1) {
-                src1_node->float_val = leftV;
-            } else {
-                src1_node->integer_val = leftV;
-            }
-
-        } else if (Var2 && Var2->isConst()) {
-            // 如果右边是常量，左边是变量
-            printf("var2 is const\n");
-            bool isFloat2 = src2_node->type->isFloatType();
-            if (Var2->type->isIntegerType())
-                rightV = Var2->real_int;
-            else {
-                rightV = Var2->real_float;
-            }
-            src2_node->node_type = ast_operator_type::AST_OP_LEAF_LITERAL_UINT;
-            if (isFloat2) {
-                src2_node->float_val = rightV;
-            } else {
-                src2_node->integer_val = rightV;
-            }
-        }
-    }
-    */
-
-    // 加法节点，左结合，先计算左节点，后计算右节点
-    // LoadInstruction * LLoadInst = nullptr;
-    // LoadInstruction * RLoadInst = nullptr;
-    // 加法的左边操作数
     ast_node * left = ir_visit_ast_node(src1_node);
     if (!left) {
         // 某个变量没有定值
         return false;
     }
-    // if(left->val->type->toString()=="i1")
-    // if (left->node_type == ast_operator_type::AST_OP_LVAL) {
-    //     RLoadInst = new LoadInstruction(module->getCurrentFunction(), left->val, true);
-    // }
-    // 加法的右边操作数
     ast_node * right = ir_visit_ast_node(src2_node);
     if (!right) {
         // 某个变量没有定值
         return false;
     }
+    if (left->val && left->val->isConst() && right->val && right->val->isConst()) {
+        if (left->val->type->isFloatType() || left->val->type->isFloatType()) {
+            node->val = module->newConstFloat((op == Op::ADD) ? (left->val->real_int + right->val->real_int)
+                                                              : (left->val->real_int - right->val->real_int));
+            node->val->real_float = (op == Op::ADD) ? (left->val->real_float + right->val->real_float)
+                                                    : (left->val->real_float - right->val->real_float);
+            node->val->setConst(true);
+            return true;
+        }
+        node->val = module->newConstInt((op == Op::ADD) ? (left->val->real_int + right->val->real_int)
+                                                        : (left->val->real_int - right->val->real_int));
+        node->val->real_float = (op == Op::ADD) ? (left->val->real_float + right->val->real_float)
+                                                : (left->val->real_float - right->val->real_float);
+        node->val->setConst(true);
+        return true;
+    }
 
-    // if (right->node_type == ast_operator_type::AST_OP_LVAL) {
-    //     RLoadInst = new LoadInstruction(module->getCurrentFunction(), right->val, true);
-    // }
     BinaryInstruction * addInst;
     StoreInstruction * LstoInst = nullptr;
     StoreInstruction * RstoInst = nullptr;
     ZextInstruction * zertinst = nullptr;
     ZextInstruction * Lzertinst = nullptr;
     ZextInstruction * Rzertinst = nullptr;
-    // if (left->node_type == ast_operator_type::AST_OP_ARRAY_ACCESS) {
-    //     LstoInst = new StoreInstruction(module->getCurrentFunction(), left->val, true);
-    // }
-    // if (right->node_type == ast_operator_type::AST_OP_ARRAY_ACCESS) {
-
-    //     RstoInst = new StoreInstruction(module->getCurrentFunction(), right->val, true);
-    // }
     IRInstOperator irOp = (op == Op::ADD) ? IRInstOperator::IRINST_OP_ADD_I : IRInstOperator::IRINST_OP_SUB_I;
     if (node->node_type == ast_operator_type::AST_OP_UNARY_EXP) {
         Value * val = RstoInst ? RstoInst : right->val;
@@ -1051,124 +928,37 @@ bool IRGenerator::ir_mul(ast_node * node)
     Op op = node->op_type;
     ast_node * src1_node = node->sons[0];
     ast_node * src2_node = node->sons[1];
-    float op1 = src1_node->type->isFloatType() ? src1_node->float_val : src1_node->integer_val;
-    float op2 = src2_node->type->isFloatType() ? src2_node->float_val : src2_node->integer_val;
-	//op1, op2都是立即数，如果是变量或是常量这里就还没有提取出值
-	//现存问题05.24 const int a = 2 * b * c会直接生成0
-    // 优化x=2*3变成x=6
-    if (src1_node->node_type == ast_operator_type::AST_OP_LEAF_LITERAL_UINT &&
-        src2_node->node_type == ast_operator_type::AST_OP_LEAF_LITERAL_UINT) {
-        if (src1_node->type->isFloatType() || src2_node->type->isFloatType()) {
-            ConstFloat * val = module->newConstFloat((op == Op::MUL)   ? (op1 * op2)
-                                                     : (op == Op::DIV) ? (op1 / op2)
-                                                                       : ((int) op1 % (int) op2));
-            node->val = val;
-            node->type = src1_node->type->isFloatType() ? src1_node->type : src2_node->type;
-            return true;
-        } else {
-            ConstInt * val = module->newConstInt((op == Op::MUL)   ? ((int) op1 * (int) op2)
-                                                 : (op == Op::DIV) ? ((int) op1 / (int) op2)
-                                                                   : ((int) op1 % (int) op2));
-            node->val = val;
-            node->type = src1_node->type;
-            return true;
-        }
-    }
-    // 针对const进行优化
-    Value * Var1 = nullptr;
-    Value * Var2 = nullptr;
-    float leftV;
-    float rightV;
-    if (!src1_node->name.empty()) {
-        Var1 = module->findVar(src1_node->name);
-        if (Var1->isConst()) {
-            if (Var1->type->isIntegerType())
-                leftV = Var1->real_int;
-            else {
-                leftV = Var1->real_float;
-            }
-        }
-    }
-    if (!src2_node->name.empty()) {
-        Var2 = module->findVar(src2_node->name);
-        if (Var2->isConst()) {
-            if (Var2->type->isIntegerType())
-                rightV = Var2->real_int;
-            else {
-                rightV = Var2->real_float;
-            }
-        }
-    }
-    if (Var1 && Var1->isConst() && Var2 && Var2->isConst()) {
-        if (Var1->type->isFloatType() || Var2->type->isFloatType()) {
-            ConstFloat * val = module->newConstFloat((op == Op::MUL)   ? leftV * rightV
-                                                     : (op == Op::DIV) ? (leftV / rightV)
-                                                                       : (int) leftV % (int) rightV);
-            node->val = val;
-            node->type = src1_node->type->isFloatType() ? src1_node->type : src2_node->type;
-            return true;
-        } else {
-            ConstInt * val = module->newConstInt((op == Op::MUL)   ? ((int) leftV * (int) rightV)
-                                                 : (op == Op::DIV) ? ((int) leftV / (int) rightV)
-                                                                   : ((int) leftV % (int) rightV));
-            node->val = val;
-            node->type = src1_node->type;
-            return true;
-        }
-        return true;
-    }
-    if (src1_node->node_type == ast_operator_type::AST_OP_LEAF_LITERAL_UINT ||
-        src2_node->node_type == ast_operator_type::AST_OP_LEAF_LITERAL_UINT) {
-        if (Var1 && Var1->isConst()) {
-            if (Var1->type->isFloatType() || src1_node->type->isFloatType()) {
-                ConstFloat * val = module->newConstFloat((op == Op::MUL)   ? (leftV * op2)
-                                                         : (op == Op::DIV) ? (leftV / op2)
-                                                                           : ((int) leftV % (int) op2));
-                node->val = val;
-                node->type = src1_node->type->isFloatType() ? src1_node->type : src2_node->type;
-                return true;
-            } else {
-                ConstInt * val = module->newConstInt((op == Op::MUL)   ? ((int) leftV * (int) op2)
-                                                     : (op == Op::DIV) ? ((int) leftV / (int) op2)
-                                                                       : ((int) leftV % (int) op2));
-                node->val = val;
-                node->type = src1_node->type;
-                return true;
-            }
-        } else if (Var2 && Var2->isConst()) {
-            if (src1_node->type->isFloatType() || Var2->type->isFloatType()) {
-                ConstFloat * val = module->newConstFloat((op == Op::MUL)   ? (op1 * rightV)
-                                                         : (op == Op::DIV) ? (op1 / rightV)
-                                                                           : ((int) op1 % (int) rightV));
-                node->val = val;
-                node->type = src1_node->type->isFloatType() ? src1_node->type : src2_node->type;
-                return true;
-            } else {
-                ConstInt * val = module->newConstInt((op == Op::MUL)   ? ((int) op1 * (int) rightV)
-                                                     : (op == Op::DIV) ? ((int) op1 / (int) rightV)
-                                                                       : ((int) op1 % (int) rightV));
-                node->val = val;
-                node->type = src1_node->type;
-                return true;
-            }
-            return true;
-        }
-    }
-
-    // 加法节点，左结合，先计算左节点，后计算右节点
-
     // 加法的左边操作数
+
     ast_node * left = ir_visit_ast_node(src1_node);
     if (!left) {
         // 某个变量没有定值
         return false;
     }
-
-    // 加法的右边操作数
     ast_node * right = ir_visit_ast_node(src2_node);
     if (!right) {
         // 某个变量没有定值
         return false;
+    }
+    if (left->val && left->val->isConst() && right->val && right->val->isConst()) {
+        if (left->val->type->isFloatType() || left->val->type->isFloatType()) {
+            node->val = module->newConstFloat((op == Op::MUL)   ? (left->val->real_int * right->val->real_int)
+                                              : (op == Op::DIV) ? (left->val->real_int / right->val->real_int)
+                                                                : (left->val->real_int % right->val->real_int));
+            node->val->real_float = (op == Op::MUL)   ? (left->val->real_float * right->val->real_float)
+                                    : (op == Op::DIV) ? (left->val->real_int / right->val->real_int)
+                                                      : (left->val->real_float / right->val->real_float);
+            node->val->setConst(true);
+            return true;
+        }
+        node->val = module->newConstInt((op == Op::MUL)   ? (left->val->real_int * right->val->real_int)
+                                        : (op == Op::DIV) ? (left->val->real_int / right->val->real_int)
+                                                          : (left->val->real_int % right->val->real_int));
+        node->val->real_float = (op == Op::MUL)   ? (left->val->real_float * right->val->real_float)
+                                : (op == Op::DIV) ? (left->val->real_int / right->val->real_int)
+                                                  : (left->val->real_float / right->val->real_float);
+        node->val->setConst(true);
+        return true;
     }
 
     BinaryInstruction * mulInst;
@@ -1510,12 +1300,27 @@ bool IRGenerator::ir_assign(ast_node * node)
         // 某个变量没有定值
         return false;
     }
-    MoveInstruction * movInst = nullptr;
-
-    movInst = new MoveInstruction(module->getCurrentFunction(), left->val, right->val);
     node->blockInsts.addInst(right->blockInsts);
     node->blockInsts.addInst(left->blockInsts);
-    node->blockInsts.addInst(movInst);
+    MoveInstruction * movInst = nullptr;
+    if (right->val->type->isFloatType() && left->val->type->isIntegerType()) {
+        CastInstruction * castInst = new CastInstruction(module->getCurrentFunction(),
+                                                         CastInstruction::FPTOSI,
+                                                         right->val,
+                                                         IntegerType::getTypeInt());
+        node->blockInsts.addInst(castInst);
+        node->blockInsts.addInst(new MoveInstruction(module->getCurrentFunction(), left->val, castInst));
+    } else if (right->val->type->isIntegerType() && left->val->type->isFloatType()) {
+        CastInstruction * castInst = new CastInstruction(module->getCurrentFunction(),
+                                                         CastInstruction::SITOFP,
+                                                         right->val,
+                                                         FloatType::getTypeFloat());
+        node->blockInsts.addInst(castInst);
+        node->blockInsts.addInst(new MoveInstruction(module->getCurrentFunction(), left->val, castInst));
+    } else {
+        node->blockInsts.addInst(new MoveInstruction(module->getCurrentFunction(), left->val, right->val));
+    }
+    // movInst = new MoveInstruction(module->getCurrentFunction(), left->val, right->val);
 
     // 这里假定赋值的类型是一致的
     if (node->parent->node_type == ast_operator_type::AST_OP_IF_ELSE_STMT) {
@@ -1532,6 +1337,7 @@ bool IRGenerator::ir_scalar_init(ast_node * node)
 {
     ast_node * left_val_node = node->parent;
     ast_node * right_node = node->sons[0];
+    ast_node * type_node = node->parent->parent->sons[0];
 
     // 赋值运算符的右侧操作数
     ast_node * right = ir_visit_ast_node(right_node);
@@ -1544,15 +1350,41 @@ bool IRGenerator::ir_scalar_init(ast_node * node)
         left_val_node->val->real_int = right->val->real_int;
     }
     // 这里只处理整型的数据，如需支持实数，则需要针对类型进行处理
-
-    MoveInstruction * movInst = new MoveInstruction(module->getCurrentFunction(), left_val_node->val, right->val);
-
     // 创建临时变量保存IR的值，以及线性IR指令
     node->blockInsts.addInst(left_val_node->blockInsts);
     node->blockInsts.addInst(right->blockInsts);
-    node->blockInsts.addInst(movInst);
+    MoveInstruction * movInst;
+    if (right->val->isConst()) {
+        if (type_node->type->isFloatType()) {
+            Value * fVal = module->newConstFloat(right->val->real_float);
+            movInst = new MoveInstruction(module->getCurrentFunction(), left_val_node->val, fVal);
+        } else {
+            Value * i32Val = module->newConstInt((int) right->val->real_float);
+            movInst = new MoveInstruction(module->getCurrentFunction(), left_val_node->val, i32Val);
+        }
+        node->blockInsts.addInst(movInst);
+    } else {
+        if (right->val->type->isFloatType() && type_node->type->isIntegerType()) {
+            CastInstruction * castInst = new CastInstruction(module->getCurrentFunction(),
+                                                             CastInstruction::FPTOSI,
+                                                             right->val,
+                                                             IntegerType::getTypeInt());
+            node->blockInsts.addInst(castInst);
+            node->blockInsts.addInst(new MoveInstruction(module->getCurrentFunction(), left_val_node->val, castInst));
+        } else if (right->val->type->isIntegerType() && type_node->type->isFloatType()) {
+            CastInstruction * castInst = new CastInstruction(module->getCurrentFunction(),
+                                                             CastInstruction::SITOFP,
+                                                             right->val,
+                                                             FloatType::getTypeFloat());
+            node->blockInsts.addInst(castInst);
+            node->blockInsts.addInst(new MoveInstruction(module->getCurrentFunction(), left_val_node->val, castInst));
+        } else {
+            node->blockInsts.addInst(new MoveInstruction(module->getCurrentFunction(), left_val_node->val, right->val));
+        }
+    }
+
     // 这里假定赋值的类型是一致的
-    node->val = movInst;
+    // node->val = movInst;
     return true;
 }
 
