@@ -819,6 +819,7 @@ bool IRGenerator::ir_add(ast_node * node)
         // 某个变量没有定值
         return false;
     }
+    // const的优化
     if (left->val && left->val->isConst() && right->val && right->val->isConst()) {
         if (left->val->type->isFloatType() || left->val->type->isFloatType()) {
             node->val = module->newConstFloat((op == Op::ADD) ? (left->val->real_int + right->val->real_int)
@@ -842,6 +843,10 @@ bool IRGenerator::ir_add(ast_node * node)
     ZextInstruction * zertinst = nullptr;
     ZextInstruction * Lzertinst = nullptr;
     ZextInstruction * Rzertinst = nullptr;
+    CastInstruction * castInstL = nullptr;
+    CastInstruction * castInstR = nullptr;
+    Value * L = nullptr;
+    Value * R = nullptr;
     IRInstOperator irOp = (op == Op::ADD) ? IRInstOperator::IRINST_OP_ADD_I : IRInstOperator::IRINST_OP_SUB_I;
     if (node->node_type == ast_operator_type::AST_OP_UNARY_EXP) {
         Value * val = RstoInst ? RstoInst : right->val;
@@ -869,8 +874,35 @@ bool IRGenerator::ir_add(ast_node * node)
         }
     } else {
 
-        Value * L = LstoInst ? LstoInst : left->val;
-        Value * R = RstoInst ? RstoInst : right->val;
+        L = LstoInst ? LstoInst : left->val;
+        R = RstoInst ? RstoInst : right->val;
+        //添加对于浮点数的类型判断
+        //类型默认为int
+        Type * type = IntegerType::getTypeInt();
+        if (left && right) {
+            Function * currentFunc = module->getCurrentFunction();
+            if (L->getType()->isFloatType() || R->getType()->isFloatType()) {
+                type = FloatType::getTypeFloat();
+                irOp = (op == Op::ADD) ? IRInstOperator::IRINST_OP_ADD_F : IRInstOperator::IRINST_OP_SUB_F;
+                if (L->getType()->isIntegerType()) {
+                    castInstL = new CastInstruction(currentFunc, CastInstruction::SITOFP, L, FloatType::getTypeFloat());
+                    // node->blockInsts.addInst(castInstL);
+                    L = castInstL;
+                }
+                if (R->getType()->isIntegerType()) {
+                    castInstR = new CastInstruction(currentFunc, CastInstruction::SITOFP, R, FloatType::getTypeFloat());
+                    // node->blockInsts.addInst(castInstR);
+                    R = castInstR;
+                }
+
+            } else if (L->getType()->isIntegerType() && R->getType()->isIntegerType()) {
+                type = IntegerType::getTypeInt();
+            } else {
+                // 不支持的类型
+                std::cerr << "Error: Unsupported types for addition/subtraction" << std::endl;
+                return false;
+            }
+        }
 
         if (L->type->toString() == "i1") {
             Lzertinst = new ZextInstruction(module->getCurrentFunction(), L, IntegerType::getTypeInt());
@@ -884,7 +916,7 @@ bool IRGenerator::ir_add(ast_node * node)
                                         irOp,
                                         Lzertinst ? Lzertinst : L,
                                         Rzertinst ? Rzertinst : R,
-                                        IntegerType::getTypeInt());
+                                        type);
         addInst->real_int = (op == Op::ADD) ? L->real_int + R->real_int : L->real_int - R->real_int;
         addInst->real_float = (op == Op::ADD) ? L->real_float + R->real_float : L->real_float - R->real_float;
     }
@@ -902,12 +934,19 @@ bool IRGenerator::ir_add(ast_node * node)
     // if (RLoadInst) {
     //     node->blockInsts.addInst(RLoadInst);
     // }
+    if (castInstL) {
+        node->blockInsts.addInst(castInstL);
+    }
+    if (castInstR) {
+        node->blockInsts.addInst(castInstR);
+    }
     if (Lzertinst)
         node->blockInsts.addInst(Lzertinst);
     if (Rzertinst)
         node->blockInsts.addInst(Rzertinst);
     if (zertinst)
         node->blockInsts.addInst(zertinst);
+
     node->blockInsts.addInst(addInst);
 
     node->val = addInst;
@@ -928,6 +967,7 @@ bool IRGenerator::ir_mul(ast_node * node)
     Op op = node->op_type;
     ast_node * src1_node = node->sons[0];
     ast_node * src2_node = node->sons[1];
+    
     // 加法的左边操作数
 
     ast_node * left = ir_visit_ast_node(src1_node);
@@ -940,6 +980,7 @@ bool IRGenerator::ir_mul(ast_node * node)
         // 某个变量没有定值
         return false;
     }
+
     if (left->val && left->val->isConst() && right->val && right->val->isConst()) {
         if (left->val->type->isFloatType() || left->val->type->isFloatType()) {
             node->val = module->newConstFloat((op == Op::MUL)   ? (left->val->real_int * right->val->real_int)
@@ -966,6 +1007,8 @@ bool IRGenerator::ir_mul(ast_node * node)
     StoreInstruction * RstoInst = nullptr;
     MoveInstruction * LMoveInst = nullptr;
     MoveInstruction * RMoveInst = nullptr;
+    CastInstruction * castInstL = nullptr;
+    CastInstruction * castInstR = nullptr;
 
     // if (left->node_type == ast_operator_type::AST_OP_ARRAY_ACCESS) {
     //     LMoveInst = new MoveInstruction(module->getCurrentFunction(), left->val, true);
@@ -976,11 +1019,37 @@ bool IRGenerator::ir_mul(ast_node * node)
     IRInstOperator irOp = (op == Op::MUL)   ? IRInstOperator::IRINST_OP_MUL_I
                           : (op == Op::DIV) ? IRInstOperator::IRINST_OP_DIV_I
                                             : IRInstOperator::IRINST_OP_MOD_I;
+    //同样添加对于float的判断
+    Type * type = IntegerType::getTypeInt();
+    if (left && right) {
+        Function * currentFunc = module->getCurrentFunction();
+        if (left->val->getType()->isFloatType() || right->val->getType()->isFloatType()) {
+            type = FloatType::getTypeFloat();
+            irOp = (op == Op::MUL) ? IRInstOperator::IRINST_OP_MUL_F : IRInstOperator::IRINST_OP_DIV_F;
+            if (left->val->getType()->isIntegerType()) {
+                castInstL =
+                    new CastInstruction(currentFunc, CastInstruction::SITOFP, left->val, FloatType::getTypeFloat());
+                left->val = castInstL;
+            }
+            if (right->val->getType()->isIntegerType()) {
+                castInstR =
+                    new CastInstruction(currentFunc, CastInstruction::SITOFP, right->val, FloatType::getTypeFloat());
+                right->val = castInstR;
+            }
+
+        } else if (left->val->getType()->isIntegerType() && right->val->getType()->isIntegerType()) {
+            type = IntegerType::getTypeInt();
+        } else {
+            // 不支持的类型
+            std::cerr << "Error: Unsupported types for mul/div/mod" << std::endl;
+            return false;
+        }
+    }
     mulInst = new BinaryInstruction(module->getCurrentFunction(),
                                     irOp,
                                     LstoInst ? LstoInst : left->val,
                                     RstoInst ? RstoInst : right->val,
-                                    IntegerType::getTypeInt());
+                                    type);
 
     node->blockInsts.addInst(left->blockInsts);
     if (LstoInst) {
@@ -989,6 +1058,12 @@ bool IRGenerator::ir_mul(ast_node * node)
     node->blockInsts.addInst(right->blockInsts);
     if (RstoInst) {
         node->blockInsts.addInst(RstoInst);
+    }
+    if (castInstL) {
+        node->blockInsts.addInst(castInstL);
+    }
+    if (castInstR) {
+        node->blockInsts.addInst(castInstR);
     }
     node->blockInsts.addInst(mulInst);
 

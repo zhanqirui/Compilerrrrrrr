@@ -39,6 +39,12 @@ enum class IRInstOperator : std::int8_t {
     IRINST_OP_SUB_I,
     IRINST_OP_MUL_I,
     IRINST_OP_DIV_I,
+    /// @brief 浮点数的加减乘除指令，二元运算
+    IRINST_OP_ADD_F,
+    IRINST_OP_SUB_F,
+    IRINST_OP_MUL_F,
+    IRINST_OP_DIV_F,
+	
     /// @brief 赋值指令，一元运算
     IRINST_OP_ASSIGN,
     IRINST_OP_GT_I,  //>
@@ -53,6 +59,19 @@ enum class IRInstOperator : std::int8_t {
     IRINST_OP_MOD_I, //%
     IRINST_OP_BRANCH_I,
 
+    ///@brief 一元运算浮点指令
+    IRINST_OP_GT_F,  //>
+    IRINST_OP_LT_F,  //<
+    IRINST_OP_LE_F,  //<=
+    IRINST_OP_GE_F,  //>=
+    IRINST_OP_EQ_F,  //==
+    IRINST_OP_NE_F,  //!=
+    IRINST_OP_AND_F, //& or &&
+    IRINST_OP_OR_F,  //| or ||
+    IRINST_OP_NOT_F, //!
+    IRINST_OP_MOD_F, //%
+    IRINST_OP_BRANCH_F,
+
     /// @brief 函数调用，多目运算，个数不限
     IRINST_OP_FUNC_CALL,
 
@@ -63,11 +82,11 @@ enum class IRInstOperator : std::int8_t {
     /// @brief Load指令，加载指令  LLVM指令   Store指令现在还在Move里没有单独提出来
     IRINST_OP_LOAD,
 
-	IRINST_OP_GEP,
+    IRINST_OP_GEP,
 
-	IRINST_OP_CAST,
+    IRINST_OP_CAST,
 
-	IRINST_OP_STORE,
+    IRINST_OP_STORE,
 
     /// @brief 最大指令码，也是无效指令
     IRINST_OP_MAX,
