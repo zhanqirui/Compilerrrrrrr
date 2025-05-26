@@ -242,6 +242,8 @@ set(IR_SRCS
 	ir/Instructions/GetElementPtrInstruction.h
 	ir/Instructions/ZextInstruction.h
 	ir/Instructions/ZextInstruction.cpp
+	ir/Instructions/CastInstruction.cpp
+	ir/Instructions/CastInstruction.h
 )
 
 # 符号表等共通化代码集合

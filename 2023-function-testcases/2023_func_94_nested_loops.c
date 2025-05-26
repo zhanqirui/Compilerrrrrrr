@@ -34,38 +34,6 @@ void loop1(int x, int y) {
   }
 }
 
-// void loop2() {
-//   int a, b, c, d, e, f, g;
-//   a = 0;
-//   while (a < 10) {
-//     b = 0;
-//     while (b < 2) {
-//       c = 0;
-//       while (c < 3) {
-//         d = 0;
-//         while (d < 2) {
-//           e = 0;
-//           while (e < 4) {
-//             f = 0;
-//             while (f < 8) {
-//               g = 0;
-//               while (g < 7) {
-//                 arr2[a][b][c][d][e][f][g] = a + b + d + g;
-//                 g = g + 1;
-//               }
-//               f = f + 1;
-//             }
-//             e = e + 1;
-//           }
-//           d = d + 1;
-//         }
-//         c = c + 1;
-//       }
-//       b = b + 1;
-//     }
-//     a = a + 1;
-//   }
-// }
 
 int loop3(int h, int i, int j, int k, int l, int m, int n) {
   int a, b, c, d, e, f, g;

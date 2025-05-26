@@ -17,6 +17,7 @@
 
 #pragma once
 
+#include <sstream>
 #include "Constant.h"
 #include "IRConstant.h"
 #include "FloatType.h"
@@ -69,6 +70,26 @@ public:
     void setLoadRegId(int32_t regId) override
     {
         this->loadRegNo = regId;
+    }
+    ///
+    /// @brief 将浮点数格式转换成LLVM格式
+    /// @details 该函数将浮点数转换为十六进制字符串格式，适用于LLVM IR的表示
+    /// @param num
+    /// @return std::string
+    ///
+    static std::string float2str_llvm(float num)
+    {
+        union {
+            uint64_t x;
+            double y;
+        } u;
+
+        std::stringstream ss;
+        // printf("%f\n",num);
+        u.y = num;
+        ss << std::hex << u.x;
+        // printf("%s\n",ss.str().c_str());
+        return "0x" + ss.str();
     }
 
 private:
