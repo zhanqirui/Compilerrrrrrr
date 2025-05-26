@@ -114,6 +114,11 @@ public:
         return depth;
     }
 
+	[[nodiscard]] int32_t getSize() const override
+    {
+        return 4;
+    }
+
     ///
     /// @brief 获取指针类型
     /// @param pointee
