@@ -314,7 +314,9 @@ bool IRGenerator::ir_function_define(ast_node * node)
 
     irCode.addInst(new GotoInstruction(module->getCurrentFunction(), returnLabelInst));
     irCode.addInst(returnLabelInst);
-    LoadInstruction * Dereference = new LoadInstruction(module->getCurrentFunction(), newFunc->getReturnValue(), true);
+    bool is_int = newFunc->getReturnValue()->getType()->isIntegerType();
+    LoadInstruction * Dereference =
+        new LoadInstruction(module->getCurrentFunction(), newFunc->getReturnValue(), is_int);
     irCode.addInst(Dereference);
     if (!type_node->type->isVoidType())
         irCode.addInst(new ExitInstruction(newFunc, Dereference));
@@ -1636,7 +1638,7 @@ bool IRGenerator::ir_array_var_def_declare(ast_node * node)
 
     // Step 4: 处理显式初始化
     if (node->sons.size() > 2 && node->sons[2]->sons.size() > 0) {
-        bitcatinst = new BitcastInstruction(module->getCurrentFunction(), array_val, 8);
+        bitcatinst = new BitcastInstruction(module->getCurrentFunction(), array_val, 8, true);
         node->blockInsts.addInst(bitcatinst);
         MemsetInstruction * memsetInst =
             new MemsetInstruction(module->getCurrentFunction(), bitcatinst, 0, total_size, 16);
@@ -1689,7 +1691,7 @@ bool IRGenerator::ir_array_var_def_declare(ast_node * node)
         }
         // }
     } else if (node->sons.size() > 2 && node->sons[2]->sons.size() == 0) {
-        bitcatinst = new BitcastInstruction(module->getCurrentFunction(), array_val, 8);
+        bitcatinst = new BitcastInstruction(module->getCurrentFunction(), array_val, 8, true);
         node->blockInsts.addInst(bitcatinst);
         MemsetInstruction * memsetInst =
             new MemsetInstruction(module->getCurrentFunction(), bitcatinst, 0, total_size, 16);
@@ -1862,7 +1864,7 @@ bool IRGenerator::ir_array_acess(ast_node * node)
     if (node->parent->node_type == ast_operator_type::AST_OP_ASSIGN_STMT) {
         currentVal = gepInst;
     } else {
-        LoadInstruction * LoadInst = new LoadInstruction(module->getCurrentFunction(), gepInst, true);
+        LoadInstruction * LoadInst = new LoadInstruction(module->getCurrentFunction(), gepInst, is_int);
         node->blockInsts.addInst(LoadInst);
         currentVal = LoadInst;
     }
@@ -1944,10 +1946,10 @@ bool IRGenerator::ir_leaf_node_var_id(ast_node * node)
         if (module->getCurrentFunction()->name != "main" && val->is_come_from_formalparm) {
             //如果是数组类型指针则不能直接load，会将数组大指针load出来，实际应该load第一个元素的地址
             LoadInst = new LoadInstruction(module->getCurrentFunction(), val, true);
-            bitcatinst = new BitcastInstruction(module->getCurrentFunction(), LoadInst, 32);
+            bitcatinst = new BitcastInstruction(module->getCurrentFunction(), LoadInst, 32, true);
             gepInst = new GetElementPtrInstruction(module->getCurrentFunction(), bitcatinst, ZERO);
         } else {
-            bitcatinst = new BitcastInstruction(module->getCurrentFunction(), val, 32);
+            bitcatinst = new BitcastInstruction(module->getCurrentFunction(), val, 32, true);
             gepInst = new GetElementPtrInstruction(module->getCurrentFunction(), bitcatinst, ZERO);
         }
         if (LoadInst)
@@ -2278,7 +2280,7 @@ bool IRGenerator::ir_const_array_var_def_declare(ast_node * node)
 
     // Step 4: 处理显式初始化
     if (node->sons.size() > 2 && node->sons[2]->sons.size() > 0) {
-        bitcatinst = new BitcastInstruction(module->getCurrentFunction(), array_val, 8);
+        bitcatinst = new BitcastInstruction(module->getCurrentFunction(), array_val, 8, true);
         node->blockInsts.addInst(bitcatinst);
         MemsetInstruction * memsetInst =
             new MemsetInstruction(module->getCurrentFunction(), bitcatinst, 0, total_size, 16);
@@ -2298,7 +2300,7 @@ bool IRGenerator::ir_const_array_var_def_declare(ast_node * node)
                            large_rank,
                            level);
         node->blockInsts.addInst(node->sons[2]->blockInsts);
-        bitcatinst = new BitcastInstruction(module->getCurrentFunction(), array_val, 32);
+        bitcatinst = new BitcastInstruction(module->getCurrentFunction(), array_val, 32, true);
         node->blockInsts.addInst(bitcatinst);
         for (FlattenedArrayElement & elem: array_val->flattenedArray) {
             GetElementPtrInstruction * gepInst;
@@ -2322,7 +2324,7 @@ bool IRGenerator::ir_const_array_var_def_declare(ast_node * node)
         }
         // }
     } else if (node->sons.size() > 2 && node->sons[2]->sons.size() == 0) {
-        bitcatinst = new BitcastInstruction(module->getCurrentFunction(), array_val, 8);
+        bitcatinst = new BitcastInstruction(module->getCurrentFunction(), array_val, 8, true);
         node->blockInsts.addInst(bitcatinst);
         MemsetInstruction * memsetInst =
             new MemsetInstruction(module->getCurrentFunction(), bitcatinst, 0, total_size, 16);

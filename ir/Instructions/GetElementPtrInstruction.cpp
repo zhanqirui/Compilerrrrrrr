@@ -26,6 +26,7 @@ void GetElementPtrInstruction::toString(std::string & str)
     PointerType * pointerType = dynamic_cast<PointerType *>(baseType);
 
     const std::vector<int32_t> dims = srcVal1->arraydimensionVector;
+
     if (!dims.empty()) {
         for (auto it = dims.begin(); it != dims.end(); ++it) {
             arrayType += "[" + std::to_string(*it) + " x ";

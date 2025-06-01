@@ -501,16 +501,16 @@ void Module::outputIR(const std::string & filePath)
                     fprintf(fp, "declare void @putarray(i32,i32*) #1\n");
                     break;
                 case 7:
-                    fprintf(fp, "declare f32 @getfloat(...) #1\n");
+                    fprintf(fp, "declare float @getfloat(...) #1\n");
                     break;
                 case 8:
-                    fprintf(fp, "declare void @putfloat(f32) #1\n");
+                    fprintf(fp, "declare void @putfloat(float) #1\n");
                     break;
                 case 9:
-                    fprintf(fp, "declare i32 @getfarray(f32*) #1\n");
+                    fprintf(fp, "declare i32 @getfarray(float*) #1\n");
                     break;
                 case 10:
-                    fprintf(fp, "declare void @putfarray(i32,f32*) #1\n");
+                    fprintf(fp, "declare void @putfarray(i32,float*) #1\n");
                     break;
                 case 11:
                     fprintf(fp, "declare i32 @putstr(...) #1\n");
