@@ -38,82 +38,380 @@ void BinaryInstruction::toString(std::string & str)
 {
 
     Value *src1 = getOperand(0), *src2 = getOperand(1);
-    std::string type_str = " ";
+    std::string type_str;
     {
         if (src1->type->isFloatType() || src2->type->isFloatType())
             type_str = "float ";
         else
-            type_str = "i32 "; // LLVM IR 中是 "float"，不是 "f32"
+            type_str = src1->type->toString() + ' ';
+        ;
     }
+    //对于所有的常量计算直接把其具体的值打印到IR中
     switch (op) {
         case IRInstOperator::IRINST_OP_ADD_I:
 
             // 加法指令，二元运算
-
-            str = getIRName() + " = add nsw " + type_str + src1->getIRName() + ", " + src2->getIRName();
-
+            if (src1->isConst() || src2->isConst()) {
+                std::string st1, st2;
+                if (src1->isConst()) {
+                    if (src1->type->isFloatType()) {
+                        st1 = std::to_string(src1->real_float);
+                    } else {
+                        st1 = std::to_string(src1->real_int);
+                    }
+                } else {
+                    st1 = src1->getIRName();
+                }
+                if (src2->isConst()) {
+                    if (src1->type->isFloatType()) {
+                        st2 = std::to_string(src2->real_float);
+                    } else {
+                        st2 = std::to_string(src2->real_int);
+                    }
+                } else {
+                    st2 = src2->getIRName();
+                }
+                str = getIRName() + " = add nsw " + type_str + st1 + ", " + st2;
+            } else {
+                str = getIRName() + " = add nsw " + type_str + src1->getIRName() + ", " + src2->getIRName();
+            }
             break;
+
         case IRInstOperator::IRINST_OP_SUB_I:
 
             // 减法指令，二元运算
-            str = getIRName() + " = sub nsw " + type_str + src1->getIRName() + ", " + src2->getIRName();
+            if (src1->isConst() || src2->isConst()) {
+                std::string st1, st2;
+                if (src1->isConst()) {
+                    if (src1->type->isFloatType()) {
+                        st1 = std::to_string(src1->real_float);
+                    } else {
+                        st1 = std::to_string(src1->real_int);
+                    }
+                } else {
+                    st1 = src1->getIRName();
+                }
+                if (src2->isConst()) {
+                    if (src1->type->isFloatType()) {
+                        st2 = std::to_string(src2->real_float);
+                    } else {
+                        st2 = std::to_string(src2->real_int);
+                    }
+                } else {
+                    st2 = src2->getIRName();
+                }
+                str = getIRName() + " = sub nsw " + type_str + st1 + ", " + st2;
+            } else {
+                str = getIRName() + " = sub nsw " + type_str + src1->getIRName() + ", " + src2->getIRName();
+            }
             break;
+
         case IRInstOperator::IRINST_OP_MUL_I:
 
-            // 减法指令，二元运算
-            str = getIRName() + " = mul nsw " + type_str + src1->getIRName() + ", " + src2->getIRName();
-            break;
-        case IRInstOperator::IRINST_OP_DIV_I:
-            if (src1->getType()->toString() == "i32") {
-                str = getIRName() + " = sdiv " + type_str + src1->getIRName() + ", " + src2->getIRName();
+            // 乘法指令，二元运算
+            if (src1->isConst() || src2->isConst()) {
+                std::string st1, st2;
+                if (src1->isConst()) {
+                    if (src1->type->isFloatType()) {
+                        st1 = std::to_string(src1->real_float);
+                    } else {
+                        st1 = std::to_string(src1->real_int);
+                    }
+                } else {
+                    st1 = src1->getIRName();
+                }
+                if (src2->isConst()) {
+                    if (src1->type->isFloatType()) {
+                        st2 = std::to_string(src2->real_float);
+                    } else {
+                        st2 = std::to_string(src2->real_int);
+                    }
+                } else {
+                    st2 = src2->getIRName();
+                }
+                str = getIRName() + " = mul nsw " + type_str + st1 + ", " + st2;
             } else {
-                str = getIRName() + " = fdiv " + type_str + src1->getIRName() + ", " + src2->getIRName();
+                str = getIRName() + " = mul nsw " + type_str + src1->getIRName() + ", " + src2->getIRName();
+            }
+            break;
+
+        case IRInstOperator::IRINST_OP_DIV_I:
+
+            // 除法指令，二元运算
+            if (src1->getType()->toString() == "i32") {
+                if (src1->isConst() || src2->isConst()) {
+                    std::string st1, st2;
+                    if (src1->isConst()) {
+                        st1 = std::to_string(src1->real_int);
+                    } else {
+                        st1 = src1->getIRName();
+                    }
+                    if (src2->isConst()) {
+                        st2 = std::to_string(src2->real_int);
+                    } else {
+                        st2 = src2->getIRName();
+                    }
+                    str = getIRName() + " = sdiv " + type_str + st1 + ", " + st2;
+                } else {
+                    str = getIRName() + " = sdiv " + type_str + src1->getIRName() + ", " + src2->getIRName();
+                }
+            } else {
+                if (src1->isConst() || src2->isConst()) {
+                    std::string st1, st2;
+                    if (src1->isConst()) {
+                        st1 = std::to_string(src1->real_float);
+                    } else {
+                        st1 = src1->getIRName();
+                    }
+                    if (src2->isConst()) {
+                        st2 = std::to_string(src2->real_float);
+                    } else {
+                        st2 = src2->getIRName();
+                    }
+                    str = getIRName() + " = fdiv " + type_str + st1 + ", " + st2;
+                } else {
+                    str = getIRName() + " = fdiv " + type_str + src1->getIRName() + ", " + src2->getIRName();
+                }
             }
             break;
 
         case IRInstOperator::IRINST_OP_GT_I:
-            str = getIRName() + " = icmp gt " + type_str + src1->getIRName() + ", " + src2->getIRName();
+
+            //有符号大于指令，二元运算
+            if (src1->isConst() || src2->isConst()) {
+                std::string st1, st2;
+                if (src1->isConst()) {
+                    if (src1->type->isFloatType()) {
+                        st1 = std::to_string(src1->real_float);
+                    } else {
+                        st1 = std::to_string(src1->real_int);
+                    }
+                } else {
+                    st1 = src1->getIRName();
+                }
+                if (src2->isConst()) {
+                    if (src1->type->isFloatType()) {
+                        st2 = std::to_string(src2->real_float);
+                    } else {
+                        st2 = std::to_string(src2->real_int);
+                    }
+                } else {
+                    st2 = src2->getIRName();
+                }
+                str = getIRName() + " = icmp sgt " + type_str + st1 + ", " + st2;
+            } else {
+                str = getIRName() + " = icmp sgt " + type_str + src1->getIRName() + ", " + src2->getIRName();
+            }
             break;
+
         case IRInstOperator::IRINST_OP_GE_I:
 
-            // 减法指令，二元运算
-            str = getIRName() + " = icmp ge " + type_str + src1->getIRName() + ", " + src2->getIRName();
+            // 有符号大于等于指令，二元运算
+            if (src1->isConst() || src2->isConst()) {
+                std::string st1, st2;
+                if (src1->isConst()) {
+                    if (src1->type->isFloatType()) {
+                        st1 = std::to_string(src1->real_float);
+                    } else {
+                        st1 = std::to_string(src1->real_int);
+                    }
+                } else {
+                    st1 = src1->getIRName();
+                }
+                if (src2->isConst()) {
+                    if (src1->type->isFloatType()) {
+                        st2 = std::to_string(src2->real_float);
+                    } else {
+                        st2 = std::to_string(src2->real_int);
+                    }
+                } else {
+                    st2 = src2->getIRName();
+                }
+                str = getIRName() + " = icmp sge " + type_str + st1 + ", " + st2;
+            } else {
+                str = getIRName() + " = icmp sge " + type_str + src1->getIRName() + ", " + src2->getIRName();
+            }
             break;
+
         case IRInstOperator::IRINST_OP_LT_I:
 
-            // 减法指令，二元运算
-            str = getIRName() + " = icmp lt " + type_str + src1->getIRName() + ", " + src2->getIRName();
+            // 有符号小于指令，二元运算
+            if (src1->isConst() || src2->isConst()) {
+                std::string st1, st2;
+                if (src1->isConst()) {
+                    if (src1->type->isFloatType()) {
+                        st1 = std::to_string(src1->real_float);
+                    } else {
+                        st1 = std::to_string(src1->real_int);
+                    }
+                } else {
+                    st1 = src1->getIRName();
+                }
+                if (src2->isConst()) {
+                    if (src1->type->isFloatType()) {
+                        st2 = std::to_string(src2->real_float);
+                    } else {
+                        st2 = std::to_string(src2->real_int);
+                    }
+                } else {
+                    st2 = src2->getIRName();
+                }
+                str = getIRName() + " = icmp slt " + type_str + st1 + ", " + st2;
+            } else {
+                str = getIRName() + " = icmp slt " + type_str + src1->getIRName() + ", " + src2->getIRName();
+            }
             break;
+
         case IRInstOperator::IRINST_OP_LE_I:
 
-            // 减法指令，二元运算
-            str = getIRName() + " = icmp le " + type_str + src1->getIRName() + ", " + src2->getIRName();
+            // 有符号小于等于指令，二元运算
+            if (src1->isConst() || src2->isConst()) {
+                std::string st1, st2;
+                if (src1->isConst()) {
+                    if (src1->type->isFloatType()) {
+                        st1 = std::to_string(src1->real_float);
+                    } else {
+                        st1 = std::to_string(src1->real_int);
+                    }
+                } else {
+                    st1 = src1->getIRName();
+                }
+                if (src2->isConst()) {
+                    if (src1->type->isFloatType()) {
+                        st2 = std::to_string(src2->real_float);
+                    } else {
+                        st2 = std::to_string(src2->real_int);
+                    }
+                } else {
+                    st2 = src2->getIRName();
+                }
+                str = getIRName() + " = icmp sle " + type_str + st1 + ", " + st2;
+            } else {
+                str = getIRName() + " = icmp sle " + type_str + src1->getIRName() + ", " + src2->getIRName();
+            }
             break;
+
         case IRInstOperator::IRINST_OP_EQ_I:
 
-            // 减法指令，二元运算
-            str = getIRName() + " = icmp eq " + type_str + src1->getIRName() + ", " + src2->getIRName();
+            // 相等判断指令，二元运算
+            if (src1->isConst() || src2->isConst()) {
+                std::string st1, st2;
+                if (src1->isConst()) {
+                    if (src1->type->isFloatType()) {
+                        st1 = std::to_string(src1->real_float);
+                    } else {
+                        st1 = std::to_string(src1->real_int);
+                    }
+                } else {
+                    st1 = src1->getIRName();
+                }
+                if (src2->isConst()) {
+                    if (src1->type->isFloatType()) {
+                        st2 = std::to_string(src2->real_float);
+                    } else {
+                        st2 = std::to_string(src2->real_int);
+                    }
+                } else {
+                    st2 = src2->getIRName();
+                }
+                str = getIRName() + " = icmp eq " + type_str + st1 + ", " + st2;
+            } else {
+                str = getIRName() + " = icmp eq " + type_str + src1->getIRName() + ", " + src2->getIRName();
+            }
             break;
+
         case IRInstOperator::IRINST_OP_NE_I:
 
-            // 减法指令，二元运算
-            str = getIRName() + " = icmp ne " + type_str + src1->getIRName() + ", " + src2->getIRName();
+            // 不相等判断指令，二元运算
+            if (src1->isConst() || src2->isConst()) {
+                std::string st1, st2;
+                if (src1->isConst()) {
+                    if (src1->type->isFloatType()) {
+                        st1 = std::to_string(src1->real_float);
+                    } else {
+                        st1 = std::to_string(src1->real_int);
+                    }
+                } else {
+                    st1 = src1->getIRName();
+                }
+                if (src2->isConst()) {
+                    if (src1->type->isFloatType()) {
+                        st2 = std::to_string(src2->real_float);
+                    } else {
+                        st2 = std::to_string(src2->real_int);
+                    }
+                } else {
+                    st2 = src2->getIRName();
+                }
+                str = getIRName() + " = icmp ne " + type_str + st1 + ", " + st2;
+            } else {
+                str = getIRName() + " = icmp ne " + type_str + src1->getIRName() + ", " + src2->getIRName();
+            }
             break;
+
         case IRInstOperator::IRINST_OP_AND_I:
 
-            // 减法指令，二元运算
-            str = getIRName() + " = and " + src1->getIRName() + "," + src2->getIRName();
+            // 有符号整数与指令，二元运算
+            if (src1->isConst() || src2->isConst()) {
+                std::string st1, st2;
+                if (src1->isConst()) {
+                    st1 = std::to_string(src1->real_int);
+                } else {
+                    st1 = src1->getIRName();
+                }
+                if (src2->isConst()) {
+                    st2 = std::to_string(src2->real_int);
+                } else {
+                    st2 = src2->getIRName();
+                }
+                str = getIRName() + " = and i1 " + st1 + "," + st2;
+            } else {
+                str = getIRName() + " = and i1 " + src1->getIRName() + "," + src2->getIRName();
+            }
             break;
+
         case IRInstOperator::IRINST_OP_OR_I:
 
-            // 减法指令，二元运算
-            str = getIRName() + " = or " + src1->getIRName() + "," + src2->getIRName();
+            // 有符号整数或指令，二元运算
+            if (src1->isConst() || src2->isConst()) {
+                std::string st1, st2;
+                if (src1->isConst()) {
+                    st1 = std::to_string(src1->real_int);
+                } else {
+                    st1 = src1->getIRName();
+                }
+                if (src2->isConst()) {
+                    st2 = std::to_string(src2->real_int);
+                } else {
+                    st2 = src2->getIRName();
+                }
+                str = getIRName() + " = or i1 " + st1 + "," + st2;
+            } else {
+                str = getIRName() + " = or i1 " + src1->getIRName() + "," + src2->getIRName();
+            }
+            str = getIRName() + " = or i1 " + src1->getIRName() + "," + src2->getIRName();
             break;
         case IRInstOperator::IRINST_OP_MOD_I:
 
-            // 减法指令，二元运算
-            str = getIRName() + " = srem " + type_str + src1->getIRName() + ", " + src2->getIRName();
+            // 有符号整数取余指令，二元运算
+            if (src1->isConst() || src2->isConst()) {
+                std::string st1, st2;
+                if (src1->isConst()) {
+                    st1 = std::to_string(src1->real_int);
+                } else {
+                    st1 = src1->getIRName();
+                }
+                if (src2->isConst()) {
+                    st2 = std::to_string(src2->real_int);
+                } else {
+                    st2 = src2->getIRName();
+                }
+                str = getIRName() + " = srem " + type_str + st1 + ", " + st2;
+            } else {
+                str = getIRName() + " = srem " + type_str + src1->getIRName() + ", " + src2->getIRName();
+            }
             break;
+
         default:
             // 未知指令
             Instruction::toString(str);

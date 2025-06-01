@@ -31,7 +31,6 @@ class InterCode {
 
 protected:
     /// @brief 指令块的指令序列
-    std::vector<Instruction *> code;
 
 	/// @brief 按名字保存函数指针
     std::unordered_map<std::string, Function *> functions_;
@@ -39,6 +38,7 @@ protected:
 public:
     /// @brief 构造函数
     InterCode() = default;
+    std::vector<Instruction *> code;
 
     /// @brief 析构函数
     ~InterCode();

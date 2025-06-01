@@ -53,14 +53,42 @@ void FuncCallInstruction::toString(std::string & str)
     // 这里假定所有函数返回类型要么是i32，要么是void
     // 函数参数的类型是i32
 
-    if (type->isVoidType()) {
-
-        // 函数没有返回值设置
-        str = "call void " + calledFunction->getIRName() + "(";
+    //优先判断是否是内置函数，内置函数的call全为i32，同时都要有寄存器分配
+    static std::unordered_map<std::string, int> irMap = {{"@getint", 1},
+                                                         {"@putint", 2},
+                                                         {"@getch", 3},
+                                                         {"@putch", 4},
+                                                         {"@getarray", 5},
+                                                         {"@putarray", 6},
+                                                         {"@getfloat", 7},
+                                                         {"@putfloat", 8},
+                                                         {"@getfarray", 9},
+                                                         {"@putfarray", 10},
+                                                         {"@putstr", 11},
+                                                         {"@putf", 12}};
+    auto it = irMap.find(calledFunction->getIRName());
+    if (it != irMap.end()) {
+        if (type->isVoidType()) {
+            str = "call void  " + calledFunction->getIRName() + "(";
+        } else if (type->isFloatType()) {
+            str = getIRName() + " = call f32 (...) " + calledFunction->getIRName() + "(";
+        } else {
+            str = getIRName() + " = call i32 (...) " + calledFunction->getIRName() + "(";
+        }
     } else {
 
-        // 函数有返回值要设置到结果变量中
-        str = getIRName() + " = call i32 " + calledFunction->getIRName() + "(";
+        if (type->isVoidType()) {
+
+            // 函数没有返回值设置
+            str = "call void " + calledFunction->getIRName() + "(";
+        } else if (type->isFloatType()) {
+
+            // 函数有返回值要设置到结果变量中
+            str = getIRName() + " = call f32 " + calledFunction->getIRName() + "(";
+        } else if (type->isIntegerType()) {
+            // 函数有返回值要设置到结果变量中
+            str = getIRName() + " = call i32 " + calledFunction->getIRName() + "(";
+        }
     }
 
     if (argCount == 0) {

@@ -165,6 +165,12 @@ enum class ast_operator_type : int {
     /// @brief 数组访问操作
     AST_OP_ARRAY_ACCESS,
 
+	/// @brief 宏定义
+	AST_OP_DEFINE_DIRECTIVE,
+
+	/// @brief 宏定义参数
+	AST_OP_STRING_CONSTANT,
+
     /// @brief 最大标识符，表示非法运算符
     AST_OP_MAX,
 };
@@ -292,6 +298,9 @@ public:
     /// @param node
     ///
     static void Delete(ast_node * node);
+
+    /// @brief 深拷贝当前节点（只拷贝AST结构，不拷贝父节点指针）
+    ast_node * clone() const;
 };
 
 /// @brief AST资源清理

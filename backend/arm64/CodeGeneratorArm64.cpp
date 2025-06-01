@@ -42,7 +42,7 @@ CodeGeneratorArm64::~CodeGeneratorArm64()
 /// @brief 产生汇编头部分
 void CodeGeneratorArm64::genHeader()
 {
-    fprintf(fp, "%s\n", ".arch armv8-a");
+    fprintf(fp, "%s\n", "	.arch armv8-a");
     // 可选: 输出文件名
     // fprintf(fp, ".file \"%s\"\n", module->getModuleName().c_str());
 }
@@ -51,32 +51,105 @@ void CodeGeneratorArm64::genHeader()
 void CodeGeneratorArm64::genDataSection()
 {
     // 生成代码段
-    fprintf(fp, ".text\n");
+    fprintf(fp, "	.text\n");
 
     // 可直接操作文件指针fp进行写操作
 
-    // 目前不支持全局变量和静态变量，以及字符串常量
-    // 全局变量分两种情况：初始化的全局变量和未初始化的全局变量
-    // TODO 这里先处理未初始化的全局变量
+    // 注意.bss和.data以及.text是不一样的，些指令都是切换段定义指令
+	//.bss用来定义未初始化的全局变量
+	// .data用来定义初始化的全局变量
+	// .text用来定义代码段
     for (auto var: module->getGlobalVariables()) {
-		fprintf(fp, ".type %s, @object\n", var->getName().c_str());
-		fprintf(fp, ".data\n");
-		fprintf(fp, ".global %s\n", var->getName().c_str());
-		fprintf(fp, ".align %d\n", var->getAlignment());
+		Type* type = var->getType();
+        std::string region = "";
+
+		if(var->isConst()) {
+			region = "section	.rodata";
+		}
+		else if(var->isInBSSSection()) {
+			region = "bss";
+		}
+		else {
+			region = "data";
+		}
+
+        int32_t size = type->isPointerType() ? var->getSize() : 4;
+        fprintf(fp, "	.global %s\n", var->getName().c_str());
+		fprintf(fp, "	.%s\n", region.c_str());
+		fprintf(fp, "	.align %d\n", var->getAlignment());
+		fprintf(fp, "	.type %s, %%object\n", var->getName().c_str());
+		fprintf(fp, "	.size %s, %d\n\n", var->getName().c_str(), size);
 		fprintf(fp, "%s:\n", var->getName().c_str());
 		// TODO 后面设置初始化的值，具体请参考ARM的汇编
-		Type* type = var->getType();
-		if(type->isIntegerType()) {
-			fprintf(fp, "    .word %d\n", (var->isInBSSSection() ? 0: var->real_int));
-			fprintf(fp, "    .size %s, %d\n\n", var->getName().c_str(), type->getSize());
+		if(var->isInBSSSection()) {
+			fprintf(fp, "    .zero %d\n", size);
 		}
-		else if(type->isFloatType()) {
-			fprintf(fp, "    .float %f\n", (var->isInBSSSection() ? 0.0 : var->real_float));
-			fprintf(fp, "    .size %s, %d\n\n", var->getName().c_str(), type->getSize());
+		else
+		{
+			if(type->isIntegerType()) {
+				fprintf(fp, "    .word %d\n", (var->real_int));
+				
+			}
+			else if(type->isFloatType()) {
+				fprintf(fp, "    .float %f\n", (var->real_float));
+			}
+			else if (type->isPointerType()) {
+				const auto& flatted_array = var->flattenedArray;
+				const auto& dim = var->arraydimensionVector;
+			
+				int unitSize = dim.empty() ? size / 4 : dim.back(); // 一行有多少元素（例如20）
+				int totalElements = size / 4; // 总元素数
+			
+				int lastIndex = 0; // 上一个填充到的 flatIndex
+				int currentRow = 0;
+			
+				for (const auto& elem : flatted_array) {
+					// 每次补齐 gap 中的空元素
+					while (lastIndex < elem.flatIndex) {
+						// 若到了新的一行的起始
+						if (lastIndex % unitSize == 0 && (elem.flatIndex - lastIndex) >= unitSize) {
+							fprintf(fp, "    .zero %d\n", unitSize * 4);
+							lastIndex += unitSize;
+						} else {
+							// 不满一整行，逐个填
+							int gap = elem.flatIndex - lastIndex;
+							fprintf(fp, "    .zero %d\n", gap * 4);
+							lastIndex = elem.flatIndex;
+						}
+					}
+			
+					// 输出当前元素
+					if (elem.is_use_val && elem.val != nullptr) {
+						fprintf(fp, "    .word 0    // from val, please resolve\n");
+					} else {
+						fprintf(fp, "    .word %d\n", elem.intValue);
+					}
+					lastIndex = elem.flatIndex + 1;
+			
+					// 判断是否到达一行结尾，需要补齐该行末尾
+					if (lastIndex % unitSize == 0) {
+						// 已自动对齐，无需补
+					}
+				}
+		
+				int remainInRow = unitSize - (lastIndex % unitSize);
+				if (remainInRow < unitSize) {
+					fprintf(fp, "    .zero %d\n", remainInRow * 4);
+					lastIndex += remainInRow;
+				}
+			
+				// 补剩下完整的未初始化行
+				if (lastIndex < totalElements) {
+					fprintf(fp, "    .zero %d\n", (totalElements - lastIndex) * 4);
+				}
+			}
+			
+			else
+			{
+				printf("unsupport type in  global variable\n");
+			}
 		}
-		else{
-			printf("unsupport type in  global variable\n");
-		}
+		
 	}
 }
 
@@ -229,11 +302,11 @@ void CodeGeneratorArm64::adjustFormalParamInsts(Function * func)
     // 如果不是不能使用这里的代码
     auto & params = func->getParams();
 
-    // 形参的前四个通过寄存器来传值R0-R3
-    for (int k = 0; k < (int) params.size() && k <= 3; k++) {
+    // 形参的前八个通过寄存器来传值R0-R7
+    for (int k = 0; k < (int) params.size() && k <= 7; k++) {
 
         // 前四个设置分配寄存器
-
+		simpleRegisterAllocator.bitmapSet(k);
         params[k]->setRegId(k);
     }
 
@@ -265,18 +338,18 @@ void CodeGeneratorArm64::adjustFuncCallInsts(Function * func)
         // 检查是否是函数调用指令，并且含有返回值
         if (Instanceof(callInst, FuncCallInstruction *, *pIter)) {
 
-            // 实参前四个要寄存器传值，其它参数通过栈传递
+            // 实参前八个要寄存器传值，其它参数通过栈传递
 
-            // 前四个的后面参数采用栈传递
+            // 前八个的后面参数采用栈传递
             int esp = 0;
-            for (int32_t k = 4; k < callInst->getOperandsNum(); k++) {
+            for (int32_t k = 8; k < callInst->getOperandsNum(); k++) {
 
                 auto arg = callInst->getOperand(k);
 
                 // 新建一个内存变量，用于栈传值到形参变量中
                 LocalVariable * newVal = func->newLocalVarValue(IntegerType::getTypeInt());
                 newVal->setMemoryAddr(ARM64_SP_REG_NO, esp);
-                esp += 4;
+                esp += 8;
 
                 Instruction * assignInst = new MoveInstruction(func, newVal, arg);
 
@@ -287,7 +360,7 @@ void CodeGeneratorArm64::adjustFuncCallInsts(Function * func)
                 pIter++;
             }
 
-            for (int k = 0; k < callInst->getOperandsNum() && k < 4; k++) {
+            for (int k = 0; k < callInst->getOperandsNum() && k < 8; k++) {
 
                 // 检查实参的类型是否是临时变量。
                 // 如果是临时变量，该变量可更改为寄存器变量即可，或者设置寄存器号
@@ -299,10 +372,10 @@ void CodeGeneratorArm64::adjustFuncCallInsts(Function * func)
                     continue;
                 } else {
                     // 创建临时变量，指定寄存器
-
                     Instruction * assignInst =
                         new MoveInstruction(func, PlatformArm64::intRegVal[k], callInst->getOperand(k));
 
+                    simpleRegisterAllocator.bitmapSet(k);
                     callInst->setOperand(k, PlatformArm64::intRegVal[k]);
 
                     // 函数调用指令前插入后，pIter仍指向函数调用指令

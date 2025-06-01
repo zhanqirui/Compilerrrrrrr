@@ -65,6 +65,7 @@ public:
                                      const std::vector<FlattenedArrayElement> & flattenedArray,
                                      size_t currentIndex,
                                      int32_t flatOffset);
+
     /// @brief 获取函数返回类型
     /// @return 返回类型
     Type * getReturnType();
@@ -80,6 +81,10 @@ public:
     /// @brief 判断该函数是否是内置函数
     /// @return true: 内置函数，false：用户自定义
     bool isBuiltin();
+
+    /// @brief 将所有内置函数转化成switch_case型
+    /// @param str
+    // void setDeclareString(std::string & str);
 
     /// @brief 函数指令信息输出
     /// @param str 函数指令
@@ -109,6 +114,14 @@ public:
     void set_block_exit_Lable(LabelInstruction * exitLabelInst);
     LabelInstruction * getblock_entry_Lable();
     LabelInstruction * getblock_exit_Lable();
+    void set_ifelse_Lable1(LabelInstruction * entryLabelInst);
+    void set_ifelse_Lable2(LabelInstruction * exitLabelInst);
+    LabelInstruction * get_ifelse_Lable1();
+    LabelInstruction * get_ifelse_Lable2();
+    void set_ifelse_exit(LabelInstruction * LabelInst);
+    LabelInstruction * get_ifelse_exit();
+    void BLOCK_SIMPLE_EN();
+
     /// @brief 获取函数返回值变量
     /// @return 返回值变量
     /// @brief 获取函数内变量清单
@@ -211,6 +224,9 @@ public:
     }
     LabelInstruction * block_entry_Lable = nullptr;
     LabelInstruction * block_exit_Lable = nullptr;
+    LabelInstruction * ifelse_Lable1 = nullptr;
+    LabelInstruction * ifelse_Lable2 = nullptr;
+    LabelInstruction * ifelse_exitlabel = nullptr;
     bool is_const_func_var = true; //表示函数内的数组是否放到函数外定义为const
     bool is_real_return = false;
     bool is_use_memset = false;

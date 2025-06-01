@@ -768,3 +768,27 @@ create_func_fparam_node(ast_node * type_node, ast_node * id_node, bool is_array,
 
     return node;
 }
+
+ast_node * ast_node::clone() const
+{
+    // 1. 拷贝当前节点的基本属性（不拷贝parent）
+    ast_node *copy = new ast_node(this->node_type, this->type, this->line_no);
+    copy->integer_val = this->integer_val;
+    copy->float_val = this->float_val;
+    copy->op_type = this->op_type;
+    copy->name = this->name;
+    copy->is_array = this->is_array;
+    copy->array_dimensions = this->array_dimensions;
+    copy->array_element_type = this->array_element_type;
+    copy->needScope = this->needScope;
+    // IR/Value等不拷贝
+
+    // 2. 递归拷贝所有子节点
+    for (auto son : this->sons) {
+        if (son) {
+            ast_node *son_copy = son->clone();
+            copy->insert_son_node(son_copy);
+        }
+    }
+    return copy;
+}

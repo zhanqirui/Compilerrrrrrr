@@ -14,7 +14,7 @@
 /// <tr><td>2024-09-29 <td>1.0     <td>zenglj  <td>新建
 /// </table>
 ///
-
+#include <iostream>
 #include "VoidType.h"
 
 #include "MoveInstruction.h"
@@ -40,19 +40,43 @@ void MoveInstruction::toString(std::string & str)
 {
 
     Value *dstVal = getOperand(0), *srcVal = getOperand(1);
-    if (dstVal->getType() && dstVal->getType()->isPointerType()) {
-        // str = '*' + dstVal->getIRName() + " = " + srcVal->getIRName();
-        str = "store " + srcVal->getType()->toString() + " " + srcVal->getIRName() + ", " +
-              dstVal->getType()->toString() + '*' + " " + dstVal->getIRName() + ", align 4";
+    if (srcVal->isConst()) {
+
+        std::string temp;
+        if (srcVal->getType()->isFloatType()) {
+            temp = std::to_string(srcVal->real_float);
+        } else {
+            temp = std::to_string(srcVal->real_int);
+        }
+        if (dstVal->getType()->isPointerType()) {
+            str = "store " + srcVal->getType()->toString() + " " + temp + ", " + dstVal->getType()->toString() + " " +
+                  dstVal->getIRName() + ", align 4";
+        } else {
+            str = "store " + srcVal->getType()->toString() + " " + temp + ", " + dstVal->getType()->toString() + '*' +
+                  " " + dstVal->getIRName() + ", align 4";
+        }
         return;
     }
-    if (srcVal->getType() && srcVal->getType()->isPointerType()) {
+    std::string ispointer = dstVal->getType()->isPointerType() ? " " : "*";
+    if (dstVal->getType() && dstVal->getType()->isPointerType() && srcVal->getType() &&
+        srcVal->getType()->isPointerType()) {
+        // str = '*' + dstVal->getIRName() + " = " + srcVal->getIRName();
+        str = "store " + srcVal->getType()->toString() + " " + srcVal->getIRName() + ", " +
+              dstVal->getType()->toString() + "*" + ispointer + " " + dstVal->getIRName() + ", align 4";
+        return;
+    } else if (dstVal->getType() && dstVal->getType()->isPointerType()) {
+        // str = '*' + dstVal->getIRName() + " = " + srcVal->getIRName();
+        str = "store " + srcVal->getType()->toString() + " " + srcVal->getIRName() + ", " +
+              dstVal->getType()->toString() + ispointer + " " + dstVal->getIRName() + ", align 4";
+        return;
+    } else if ((srcVal->getType() && srcVal->getType()->isPointerType())) {
         // str = dstVal->getIRName() + " = " + '*' + srcVal->getIRName();
         str = "store " + srcVal->getType()->toString() + '*' + " " + srcVal->getIRName() + ", " +
               dstVal->getType()->toString() + " " + dstVal->getIRName() + ", align 4";
         return;
+    } else {
+        // str = dstVal->getIRName() + " = " + srcVal->getIRName();
+        str = "store " + srcVal->getType()->toString() + " " + srcVal->getIRName() + ", " +
+              dstVal->getType()->toString() + ispointer + " " + dstVal->getIRName() + ", align 4";
     }
-    // str = dstVal->getIRName() + " = " + srcVal->getIRName();
-    str = "store " + srcVal->getType()->toString() + " " + srcVal->getIRName() + ", " + dstVal->getType()->toString() +
-          "*" + " " + dstVal->getIRName() + ", align 4";
 }

@@ -191,7 +191,9 @@ void ILocArm64::load_var(int rs_reg_no, Value * src_var)
         }
     } else if (Instanceof(globalVar, GlobalVariable *, src_var)) {
         load_symbol(rs_reg_no, globalVar->getName());
-        emit("ldr", PlatformArm64::regName[rs_reg_no], "[" + PlatformArm64::regName[rs_reg_no] + "]");
+		//对于数组全局变量，直接加载地址，不用load
+		if(!src_var->isArray())
+        	emit("ldr", PlatformArm64::regName[rs_reg_no], "[" + PlatformArm64::regName[rs_reg_no] + "]");
     } else {
         int32_t var_baseRegId = -1;
         int64_t var_offset = -1;

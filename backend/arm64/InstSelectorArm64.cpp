@@ -268,6 +268,7 @@ void InstSelectorArm64::translate_gep(Instruction * inst) {
 
 	Instanceof(gepInst, GetElementPtrInstruction *, inst);
 	Value * arg1 = gepInst->getOperand(0);
+	Value * arg2 = gepInst->getOperand(1);
     Instanceof(castInst, BitcastInstruction *, arg1);
 
 	Value * base_addr = castInst->getOperand(0);
@@ -275,11 +276,6 @@ void InstSelectorArm64::translate_gep(Instruction * inst) {
 	Value * result = gepInst;
 	int32_t base_addr_regId = base_addr->getRegId();
     int32_t result_regId = result->getRegId();
-	//计算偏移量
-	int64_t offset = 0;
-    int dims = gepInst->getIndexces()[0];
-	//所有类型的元素大小都是4
-	offset += dims * 4;
 
     if (base_addr_regId != -1) {
         iloc.store_var(base_addr_regId, result, ARM64_TMP_REG_NO);
@@ -287,11 +283,17 @@ void InstSelectorArm64::translate_gep(Instruction * inst) {
         iloc.load_var(result_regId, base_addr);
     } else {
         int32_t temp_regno = reg_allocator.Allocate();
+		int32_t offset_regno = reg_allocator.Allocate();
+		//取出基地址
         iloc.load_var(temp_regno, base_addr);
+		//把index存到offset_regno
+		iloc.load_var(offset_regno, arg2);
+		iloc.inst("lsl", PlatformArm64::regName[offset_regno], PlatformArm64::regName[offset_regno], "#2");
 		// 计算具体地址
-		iloc.inst("add", PlatformArm64::regName[temp_regno], PlatformArm64::regName[temp_regno], iloc.toStr(offset, false));
+		iloc.inst("add", PlatformArm64::regName[temp_regno], PlatformArm64::regName[temp_regno], PlatformArm64::regName[offset_regno]);
         iloc.store_var(temp_regno, result, ARM64_TMP_REG_NO);
         reg_allocator.free(temp_regno);
+		reg_allocator.free(offset_regno);
     }
 
 }
@@ -304,7 +306,7 @@ void InstSelectorArm64::translate_memset(Instruction * inst) {
 	Instanceof(memsetInst, MemsetInstruction *, inst);
     // memset指令用于将一段内存设置为0
 	// 目标地址，但是源操作数存在memsetInst->getOperand(0)中的operand中
-    Value * op1 = memsetInst->getOperand(0);  
+    Value * op1 = memsetInst->getOperand(0);
 	Instanceof(castInst, Instruction *, op1);
 	Value * addr = castInst->getOperand(0);
     int32_t addr_reg = addr->getRegId();
@@ -609,14 +611,14 @@ void InstSelectorArm64::translate_func_call(Instruction * inst) {
             iloc.load_var(reg, arg);
         }
         // ARM64前8个参数寄存器x0-x7
-        if (i - 1 < 8) {
-            iloc.inst("mov", PlatformArm64::regName[i - 1], PlatformArm64::regName[reg], "");
+        if (i < 8) {
+            iloc.inst("mov", PlatformArm64::regName[i], PlatformArm64::regName[reg], "");
         } else {
             // 超过8个参数，按ABI入栈
             // 这里只做注释，实际实现需完善
             iloc.comment("TODO: 参数" + std::to_string(i) + "入栈");
         }
-        if (arg->getRegId() == -1) reg_allocator.free(reg);
+        // if (arg->getRegId() == -1) reg_allocator.free(reg);
     }
     iloc.inst("bl", funcVal->getIRName());
     // 返回值默认在x0

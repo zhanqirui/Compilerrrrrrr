@@ -41,7 +41,8 @@ public:
     ///
     [[nodiscard]] std::string toString() const override
     {
-        return bitWidth == 32 ? "f32" : "f64";
+        // return bitWidth == 32 ? "f32" : "f64";
+        return "float";
     }
 
     ///

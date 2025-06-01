@@ -42,6 +42,9 @@
 #include "MemcpyInstruction.h"
 #include "MemsetInstruction.h"
 #include "GetElementPtrInstruction.h"
+#include "ZextInstruction.h"
+#define Instanceof(res, type, var) auto res = dynamic_cast<type>(var)
+
 
 /// @brief 构造函数
 /// @param _root AST的根
@@ -62,6 +65,7 @@ IRGenerator::IRGenerator(ast_node * _root, Module * _module) : root(_root), modu
     ast2ir_handlers[ast_operator_type::AST_OP_LAND_EXP] = &IRGenerator::ir_visitLogitExp;
     ast2ir_handlers[ast_operator_type::AST_OP_LOR_EXP] = &IRGenerator::ir_visitLogitExp;
     ast2ir_handlers[ast_operator_type::AST_OP_CONST_EXP] = &IRGenerator::ir_visitExp;
+    ast2ir_handlers[ast_operator_type::AST_OP_EXPR_STMT] = &IRGenerator::ir_visitExp;
     // 一元表达式AST_OP_UNARY_EXP
     ast2ir_handlers[ast_operator_type::AST_OP_UNARY_EXP] = &IRGenerator::ir_add;
     ast2ir_handlers[ast_operator_type::AST_OP_UNARY_OP] = &IRGenerator::ir_visitUNARYOP;
@@ -272,6 +276,8 @@ bool IRGenerator::ir_function_define(ast_node * node)
         MoveInstruction * movInst =
             new MoveInstruction(module->getCurrentFunction(), retValue, module->newConstInt((int32_t) 0));
         irCode.addInst(movInst);
+    } else {
+        retValue = static_cast<LocalVariable *>(module->newVarValue(IntegerType::getTypeInt()));
     }
     newFunc->setReturnValue(retValue);
 
@@ -298,7 +304,10 @@ bool IRGenerator::ir_function_define(ast_node * node)
     // irCode.addInst(entryLabelInst);
     LoadInstruction * Dereference = new LoadInstruction(module->getCurrentFunction(), newFunc->getReturnValue(), true);
     irCode.addInst(Dereference);
-    irCode.addInst(new ExitInstruction(newFunc, Dereference));
+    if (!type_node->type->isVoidType())
+        irCode.addInst(new ExitInstruction(newFunc, Dereference));
+    else
+        irCode.addInst(new ExitInstruction(newFunc, nullptr));
 
     // 恢复成外部函数
     module->setCurrentFunction(nullptr);
@@ -327,9 +336,12 @@ bool IRGenerator::ir_function_formal_params(ast_node * node)
             PointerType * ptrType = PointerType::getNonConstPointerType(
                 param_node->array_element_type ? param_node->array_element_type : param_type);
             var = module->newVarValue(ptrType, param_name);
+
+            param_type = ptrType;
         } else {
             var = module->newVarValue(param_type, param_name);
         }
+        var->is_come_from_formalparm = true;
         param_node->val = var;
         // 构造FormalParam并加入列表（只传type和name）
         FormalParam * formal = new FormalParam(param_type, param_name);
@@ -385,13 +397,22 @@ bool IRGenerator::ir_block(ast_node * node)
         if (!temp) {
             return false;
         }
+        if ((*pIter)->node_type == ast_operator_type::AST_OP_WHILE) {
+            node->blockInsts.addInst(
+                new GotoInstruction(module->getCurrentFunction(), static_cast<Instruction *>(temp->val)));
+        }
+        if ((*pIter)->node_type == ast_operator_type::AST_OP_IF_ELSE_STMT) {
+            node->blockInsts.addInst(
+                new GotoInstruction(module->getCurrentFunction(), static_cast<Instruction *>(temp->val)));
+        }
         node->blockInsts.addInst(temp->blockInsts);
         if (module->getCurrentFunction()->is_real_return == true) {
             break;
         }
-        // if ((*pIter)->node_type == ast_operator_type::AST_OP_RETURN) {
-        //     break;
-        // }
+        if ((*pIter)->node_type == ast_operator_type::AST_OP_BREAK ||
+            (*pIter)->node_type == ast_operator_type::AST_OP_CONTINUE) {
+            break;
+        }
     }
 
     // 离开作用域
@@ -455,41 +476,79 @@ bool IRGenerator::ir_if_else(ast_node * node)
 
     LabelInstruction * exitLabelInst = new LabelInstruction(currentFunc);
     LabelInstruction * entryLabelInst = nullptr;
-    if (!(node->parent->node_type == ast_operator_type::AST_OP_BLOCK)) {
-        entryLabelInst = new LabelInstruction(currentFunc);
-        node->blockInsts.addInst(entryLabelInst);
-    }
-    ast_node * cond = ir_visit_ast_node(node->sons[0]);
-    // cond->blocks是放的最后计算的变量，%t2= icmp gt %l1,100中的t2.
-    node->blockInsts.addInst(cond->blockInsts);
-
-    ast_node * branch1 = ir_visit_ast_node(node->sons[1]);
-    ast_node * branch2;
+    entryLabelInst = new LabelInstruction(currentFunc);
+    node->blockInsts.addInst(entryLabelInst);
+    ast_node *cond, *branch1, *branch2;
+    BinaryInstruction * NEQ_ZERO_Inst;
     BranchifCondition * branch_Inst;
+    LabelInstruction *parent_ifelse_Lable1, *parent_ifelse_Lable2;
+    parent_ifelse_Lable1 = module->getCurrentFunction()->get_ifelse_Lable1();
+    parent_ifelse_Lable2 = module->getCurrentFunction()->get_ifelse_Lable2();
+    ConstInt * ZERO = module->newConstInt(0);
     // 可能不存在else分支，只有单if
-    if (node->sons[2]) {
+    if (node->sons.size() >= 3) {
+        branch1 = ir_visit_ast_node(node->sons[1]);
         branch2 = ir_visit_ast_node(node->sons[2]);
-        branch_Inst = new BranchifCondition(module->getCurrentFunction(), cond->val, branch1->val, branch2->val);
+        module->getCurrentFunction()->set_ifelse_Lable1(static_cast<LabelInstruction *>(branch1->val));
+        module->getCurrentFunction()->set_ifelse_Lable2(static_cast<LabelInstruction *>(branch2->val));
+        //条件后判断，现有branch1的label，才能短路求值
+        cond = ir_visit_ast_node(node->sons[0]);
+        NEQ_ZERO_Inst = new BinaryInstruction(module->getCurrentFunction(),
+                                              IRInstOperator::IRINST_OP_NE_I,
+                                              cond->val,
+                                              ZERO,
+                                              IntegerType::getTypeBool());
+        branch_Inst = new BranchifCondition(module->getCurrentFunction(),
+                                            NEQ_ZERO_Inst,
+                                            static_cast<Value *>(branch1->val),
+                                            static_cast<Value *>(branch2->val));
+        node->blockInsts.addInst(cond->blockInsts);
+        node->blockInsts.addInst(NEQ_ZERO_Inst);
         node->blockInsts.addInst(branch_Inst);
         node->blockInsts.addInst(branch1->blockInsts);
         node->blockInsts.addInst(new GotoInstruction(currentFunc, exitLabelInst));
         node->blockInsts.addInst(branch2->blockInsts);
         node->blockInsts.addInst(new GotoInstruction(currentFunc, exitLabelInst));
+    } else if (node->sons.size() == 1) {
+        module->getCurrentFunction()->set_ifelse_Lable1(static_cast<LabelInstruction *>(branch1->val));
+        module->getCurrentFunction()->set_ifelse_Lable2(exitLabelInst);
+        cond = ir_visit_ast_node(node->sons[0]);
+        node->blockInsts.addInst(cond->blockInsts);
+        if (!(node->blockInsts.code.back()->getOp() == IRInstOperator::IRINST_OP_GOTO)) {
+            node->blockInsts.addInst(new GotoInstruction(currentFunc, exitLabelInst));
+        }
     } else {
-        // exitLabelInst = new LabelInstruction(currentFunc);
-        branch_Inst = new BranchifCondition(module->getCurrentFunction(), cond->val, branch1->val, exitLabelInst);
+        branch1 = ir_visit_ast_node(node->sons[1]);
+        module->getCurrentFunction()->set_ifelse_Lable1(static_cast<LabelInstruction *>(branch1->val));
+        module->getCurrentFunction()->set_ifelse_Lable2(exitLabelInst);
+        cond = ir_visit_ast_node(node->sons[0]);
+
+        NEQ_ZERO_Inst = new BinaryInstruction(module->getCurrentFunction(),
+                                              IRInstOperator::IRINST_OP_NE_I,
+                                              cond->val,
+                                              ZERO,
+                                              IntegerType::getTypeBool());
+        branch_Inst = new BranchifCondition(module->getCurrentFunction(),
+                                            NEQ_ZERO_Inst,
+                                            static_cast<Value *>(branch1->val),
+                                            static_cast<Value *>(exitLabelInst));
+
+        node->blockInsts.addInst(cond->blockInsts);
+        node->blockInsts.addInst(NEQ_ZERO_Inst);
         node->blockInsts.addInst(branch_Inst);
         node->blockInsts.addInst(branch1->blockInsts);
-        node->blockInsts.addInst(new GotoInstruction(currentFunc, exitLabelInst));
-
-    } // branch1->val是一个label指令
+        if (!(node->blockInsts.code.back()->getOp() == IRInstOperator::IRINST_OP_GOTO)) {
+            node->blockInsts.addInst(new GotoInstruction(currentFunc, exitLabelInst));
+        }
+    }
     node->blockInsts.addInst(exitLabelInst);
     node->val = entryLabelInst;
     // 离开作用域
     if (node->needScope) {
         module->leaveScope();
     }
-
+    module->getCurrentFunction()->set_ifelse_Lable1(parent_ifelse_Lable1);
+    module->getCurrentFunction()->set_ifelse_Lable2(parent_ifelse_Lable2);
     return true;
 }
 bool IRGenerator::ir_while(ast_node * node)
@@ -501,29 +560,58 @@ bool IRGenerator::ir_while(ast_node * node)
     Function * currentFunc = module->getCurrentFunction();
     LabelInstruction * entryLabelInst = new LabelInstruction(currentFunc);
     LabelInstruction * exitLabelInst = new LabelInstruction(currentFunc);
+    LabelInstruction *parent_block_entry_Lable, *parent_block_exit_Lable;
+    //保存当前的出入口，if和while都要相应保留
+    parent_block_entry_Lable = currentFunc->getblock_entry_Lable();
+    parent_block_exit_Lable = currentFunc->getblock_exit_Lable();
     currentFunc->set_block_entry_Lable(entryLabelInst);
     currentFunc->set_block_exit_Lable(exitLabelInst);
     node->blockInsts.addInst(entryLabelInst);
-
+    ConstInt * ZERO = module->newConstInt(0);
     ast_node * cond = ir_visit_ast_node(node->sons[0]);
+    BinaryInstruction * NEQ_ZERO_Inst = new BinaryInstruction(module->getCurrentFunction(),
+                                                              IRInstOperator::IRINST_OP_NE_I,
+                                                              cond->val,
+                                                              ZERO,
+                                                              IntegerType::getTypeBool());
     // cond->blocks是放的最后计算的变量，%t2= icmp gt %l1,100中的t2.
     node->blockInsts.addInst(cond->blockInsts);
+    node->blockInsts.addInst(NEQ_ZERO_Inst);
     // nested_block->val是语块的的一个label，也就是开头
     ast_node * nested_block = ir_visit_ast_node(node->sons[1]);
-
-    // nested_block->val是一个label指令
     BranchifCondition * branch_Inst;
-    branch_Inst = new BranchifCondition(module->getCurrentFunction(), cond->val, nested_block->val, exitLabelInst);
+    LabelInstruction * breakLabelInst = nullptr;
+    LabelInstruction * continueLabelInst = nullptr;
+    if (node->sons[1]->node_type == ast_operator_type::AST_OP_BREAK) {
+        //主要是为了解决while(1)break的问题，continue不再block内
+        breakLabelInst = new LabelInstruction(currentFunc);
+        branch_Inst = new BranchifCondition(module->getCurrentFunction(), NEQ_ZERO_Inst, breakLabelInst, exitLabelInst);
+    } else if (node->sons[1]->node_type == ast_operator_type::AST_OP_CONTINUE) {
+        /// continue为验证
+        continueLabelInst = new LabelInstruction(currentFunc);
+        branch_Inst =
+            new BranchifCondition(module->getCurrentFunction(), NEQ_ZERO_Inst, continueLabelInst, entryLabelInst);
+    } else {
+        branch_Inst =
+            new BranchifCondition(module->getCurrentFunction(), NEQ_ZERO_Inst, nested_block->val, exitLabelInst);
+    }
     node->blockInsts.addInst(branch_Inst);
+    if (breakLabelInst != nullptr) {
+        node->blockInsts.addInst(breakLabelInst);
+    }
     node->blockInsts.addInst(nested_block->blockInsts);
+
     node->blockInsts.addInst(new GotoInstruction(currentFunc, entryLabelInst));
+
     node->val = entryLabelInst;
+
     node->blockInsts.addInst(exitLabelInst);
     // 离开作用域
     if (node->needScope) {
         module->leaveScope();
     }
-
+    currentFunc->set_block_entry_Lable(parent_block_entry_Lable);
+    currentFunc->set_block_exit_Lable(parent_block_exit_Lable);
     return true;
 }
 /// @brief return节点翻译成线性中间IR
@@ -587,14 +675,27 @@ bool IRGenerator::ir_break(ast_node * node)
 {
 
     Function * currentFunc = module->getCurrentFunction();
-    node->blockInsts.addInst(new GotoInstruction(currentFunc, currentFunc->getblock_exit_Lable()));
+    GotoInstruction * inst = new GotoInstruction(currentFunc, currentFunc->getblock_exit_Lable());
+    LabelInstruction * label_inst;
+    if (node->parent->node_type == ast_operator_type::AST_OP_IF_ELSE_STMT) {
+        label_inst = new LabelInstruction(module->getCurrentFunction());
+        node->blockInsts.addInst(label_inst);
+        node->blockInsts.addInst(inst);
+        node->val = label_inst;
+    } else {
+        node->blockInsts.addInst(inst);
+        node->val = inst;
+    }
+
     return true;
 }
 bool IRGenerator::ir_continue(ast_node * node)
 {
 
     Function * currentFunc = module->getCurrentFunction();
-    node->blockInsts.addInst(new GotoInstruction(currentFunc, currentFunc->getblock_entry_Lable()));
+    GotoInstruction * inst = new GotoInstruction(currentFunc, currentFunc->getblock_entry_Lable());
+    node->blockInsts.addInst(inst);
+    node->val = inst;
     return true;
 }
 /// @brief 类型叶子节点翻译成线性中间IR
@@ -654,6 +755,38 @@ bool IRGenerator::ir_add(ast_node * node)
     ast_node * src1_node = node->sons[0];
     ast_node * src2_node = node->sons[1];
     ConstInt * ZERO = module->newConstInt(0);
+    if (node->node_type == ast_operator_type::AST_OP_UNARY_EXP && src1_node->op_type == Op::NOT) {
+        Value * resultPtr = module->getCurrentFunction()->getReturnValue();
+        ast_node * right = ir_visit_ast_node(src2_node);
+        BranchifCondition * branch_Inst = nullptr;
+        LabelInstruction * label_true = new LabelInstruction(module->getCurrentFunction());
+        LabelInstruction * label_false = new LabelInstruction(module->getCurrentFunction());
+        LabelInstruction * label_exit = new LabelInstruction(module->getCurrentFunction());
+        BinaryInstruction * BinInst = new BinaryInstruction(module->getCurrentFunction(),
+                                                            IRInstOperator::IRINST_OP_NE_I,
+                                                            ZERO,
+                                                            right->val,
+                                                            IntegerType::getTypeInt());
+        branch_Inst = new BranchifCondition(module->getCurrentFunction(), BinInst, label_true, label_false);
+        node->blockInsts.addInst(right->blockInsts);
+        node->blockInsts.addInst(BinInst);
+        node->blockInsts.addInst(branch_Inst);
+        // 7. true分支：store 1
+        node->blockInsts.addInst(label_true);
+        node->blockInsts.addInst(new MoveInstruction(module->getCurrentFunction(), resultPtr, module->newConstInt(0)));
+        node->blockInsts.addInst(new GotoInstruction(module->getCurrentFunction(), label_exit));
+
+        // 8. false分支：store 0
+        node->blockInsts.addInst(label_false);
+        node->blockInsts.addInst(new MoveInstruction(module->getCurrentFunction(), resultPtr, module->newConstInt(1)));
+        node->blockInsts.addInst(new GotoInstruction(module->getCurrentFunction(), label_exit));
+        // 9. exit分支：load结果
+        node->blockInsts.addInst(label_exit);
+        LoadInstruction * resultVal = new LoadInstruction(module->getCurrentFunction(), resultPtr, true);
+        node->blockInsts.addInst(resultVal);
+        node->val = resultVal;
+        return true;
+    }
     float op1 = src1_node->type->isFloatType() ? src1_node->float_val : src1_node->integer_val;
     float op2 = src2_node->type->isFloatType() ? src2_node->float_val : src2_node->integer_val;
     // 优化x=2+3变成x=5
@@ -672,6 +805,13 @@ bool IRGenerator::ir_add(ast_node * node)
         }
     }
     // 针对const进行优化
+    /*wuyue:05.18
+    针对const的优化感觉没有做完全,对于const只有const+字面量和两个const才做优化，这样做了优化后遇到变量+const
+    反而会报错，所以需要做修改，具体报错原因在于识别到不是两个常量在IR中就全用寄存器进行相加，变量可以做load，但是const先做
+    了一点优化即调用值不会load而是直接上寄存器，这就导致加法两个寄存器相加一个是变量值一个是指向常量的指针，这样会导致加法报错。
+    其他所有的加减乘除以及与或非比较都是全部同理，这一个问题也会导致const类型的组合运算如先加后乘，先加再加这样的操作全部报错
+    优化思路应该是保持原先的两个常量的情况，对于常量加变量的情况常量也像字面量一样直接返回值
+    * */
     Value * Var1 = nullptr;
     Value * Var2 = nullptr;
     float leftV;
@@ -711,6 +851,7 @@ bool IRGenerator::ir_add(ast_node * node)
         }
         return true;
     }
+
     if (src1_node->node_type == ast_operator_type::AST_OP_LEAF_LITERAL_UINT ||
         src2_node->node_type == ast_operator_type::AST_OP_LEAF_LITERAL_UINT) {
         if (Var1 && Var1->isConst()) {
@@ -744,6 +885,45 @@ bool IRGenerator::ir_add(ast_node * node)
         }
     }
 
+    //用异或操作锁死一正一负（一个是常量，一个是变量）
+    //想复杂了，直接在打印指令里面优化
+    /*
+    if ((Var1 && Var1->isConst()) ^ (Var2 && Var2->isConst())) {
+        if (Var1 && Var1->isConst()) {
+            // 如果左边是常量，右边是变量
+            printf("var1 is const\n");
+            bool isFloat1 = src1_node->type->isFloatType();
+            if (Var1->type->isIntegerType())
+                leftV = Var1->real_int;
+            else {
+                leftV = Var1->real_float;
+            }
+            src1_node->node_type = ast_operator_type::AST_OP_LEAF_LITERAL_UINT;
+            if (isFloat1) {
+                src1_node->float_val = leftV;
+            } else {
+                src1_node->integer_val = leftV;
+            }
+
+        } else if (Var2 && Var2->isConst()) {
+            // 如果右边是常量，左边是变量
+            printf("var2 is const\n");
+            bool isFloat2 = src2_node->type->isFloatType();
+            if (Var2->type->isIntegerType())
+                rightV = Var2->real_int;
+            else {
+                rightV = Var2->real_float;
+            }
+            src2_node->node_type = ast_operator_type::AST_OP_LEAF_LITERAL_UINT;
+            if (isFloat2) {
+                src2_node->float_val = rightV;
+            } else {
+                src2_node->integer_val = rightV;
+            }
+        }
+    }
+    */
+
     // 加法节点，左结合，先计算左节点，后计算右节点
     // LoadInstruction * LLoadInst = nullptr;
     // LoadInstruction * RLoadInst = nullptr;
@@ -753,6 +933,7 @@ bool IRGenerator::ir_add(ast_node * node)
         // 某个变量没有定值
         return false;
     }
+    // if(left->val->type->toString()=="i1")
     // if (left->node_type == ast_operator_type::AST_OP_LVAL) {
     //     RLoadInst = new LoadInstruction(module->getCurrentFunction(), left->val, true);
     // }
@@ -769,6 +950,9 @@ bool IRGenerator::ir_add(ast_node * node)
     BinaryInstruction * addInst;
     StoreInstruction * LstoInst = nullptr;
     StoreInstruction * RstoInst = nullptr;
+    ZextInstruction * zertinst = nullptr;
+    ZextInstruction * Lzertinst = nullptr;
+    ZextInstruction * Rzertinst = nullptr;
     // if (left->node_type == ast_operator_type::AST_OP_ARRAY_ACCESS) {
     //     LstoInst = new StoreInstruction(module->getCurrentFunction(), left->val, true);
     // }
@@ -778,25 +962,49 @@ bool IRGenerator::ir_add(ast_node * node)
     // }
     IRInstOperator irOp = (op == Op::ADD) ? IRInstOperator::IRINST_OP_ADD_I : IRInstOperator::IRINST_OP_SUB_I;
     if (node->node_type == ast_operator_type::AST_OP_UNARY_EXP) {
+        Value * val = RstoInst ? RstoInst : right->val;
+        if (val->type->toString() == "i1") {
+            zertinst = new ZextInstruction(module->getCurrentFunction(), val, IntegerType::getTypeInt());
+        }
         if (src1_node->op_type == Op::NEG) {
             addInst = new BinaryInstruction(module->getCurrentFunction(),
                                             IRInstOperator::IRINST_OP_SUB_I,
                                             ZERO,
-                                            RstoInst ? RstoInst : right->val,
+                                            zertinst ? zertinst : val,
                                             IntegerType::getTypeInt());
+            // 针对const int N=-1优化
+            addInst->real_float = -right->val->real_float;
+            addInst->real_int = -right->val->real_int;
         } else {
             addInst = new BinaryInstruction(module->getCurrentFunction(),
                                             IRInstOperator::IRINST_OP_ADD_I,
                                             ZERO,
-                                            RstoInst ? RstoInst : right->val,
+                                            zertinst ? zertinst : val,
                                             IntegerType::getTypeInt());
+            // 针对const int N=1优化
+            addInst->real_float = right->val->real_float;
+            addInst->real_int = right->val->real_int;
         }
     } else {
+
+        Value * L = LstoInst ? LstoInst : left->val;
+        Value * R = RstoInst ? RstoInst : right->val;
+
+        if (L->type->toString() == "i1") {
+            Lzertinst = new ZextInstruction(module->getCurrentFunction(), L, IntegerType::getTypeInt());
+            // node->blockInsts.addInst(Lzertinst);
+        }
+        if (R->type->toString() == "i1") {
+            Rzertinst = new ZextInstruction(module->getCurrentFunction(), R, IntegerType::getTypeInt());
+            // node->blockInsts.addInst(Rzertinst);
+        }
         addInst = new BinaryInstruction(module->getCurrentFunction(),
                                         irOp,
-                                        LstoInst ? LstoInst : left->val,
-                                        RstoInst ? RstoInst : right->val,
+                                        Lzertinst ? Lzertinst : L,
+                                        Rzertinst ? Rzertinst : R,
                                         IntegerType::getTypeInt());
+        addInst->real_int = (op == Op::ADD) ? L->real_int + R->real_int : L->real_int - R->real_int;
+        addInst->real_float = (op == Op::ADD) ? L->real_float + R->real_float : L->real_float - R->real_float;
     }
 
     // BinaryInstruction->getIRName();
@@ -812,6 +1020,12 @@ bool IRGenerator::ir_add(ast_node * node)
     // if (RLoadInst) {
     //     node->blockInsts.addInst(RLoadInst);
     // }
+    if (Lzertinst)
+        node->blockInsts.addInst(Lzertinst);
+    if (Rzertinst)
+        node->blockInsts.addInst(Rzertinst);
+    if (zertinst)
+        node->blockInsts.addInst(zertinst);
     node->blockInsts.addInst(addInst);
 
     node->val = addInst;
@@ -822,51 +1036,7 @@ bool IRGenerator::ir_add(ast_node * node)
 /// @brief 整数乘 除法AST节点翻译成线性中间IR,要根据op来判断乘除
 /// @param node AST节点
 /// @return 翻译是否成功，true：成功，false：失败
-bool IRGenerator::ir_visitUNARYExp(ast_node * node)
-{
 
-    ast_node * src1_node = node->sons[0];
-    Op op = src1_node->op_type;
-    ast_node * src2_node = node->sons[1];
-
-    // 加法节点，左结合，先计算左节点，后计算右节点
-
-    // 加法的左边操作数是单目运算符，不用处理
-    // ast_node * left = ir_visit_ast_node(src1_node);
-    // if (!left) {
-    //     // 某个变量没有定值
-    //     return false;
-    // }
-
-    // 加法的右边操作数
-    ast_node * right = ir_visit_ast_node(src2_node);
-    if (!right) {
-        // 某个变量没有定值
-        return false;
-    }
-
-    UnaryInstruction * UnaryInst;
-    StoreInstruction * RstoInst = nullptr;
-    if (right->node_type == ast_operator_type::AST_OP_ARRAY_ACCESS) {
-        RstoInst = new StoreInstruction(module->getCurrentFunction(), right->val, true);
-    }
-    UnaryInst = new UnaryInstruction(module->getCurrentFunction(),
-                                     RstoInst ? RstoInst : right->val,
-                                     IntegerType::getTypeInt(),
-                                     (op == Op::NOT)   ? "NOT"
-                                     : (op == Op::POS) ? "POS"
-                                                       : "NEG");
-
-    node->blockInsts.addInst(right->blockInsts);
-    if (RstoInst) {
-        node->blockInsts.addInst(RstoInst);
-    }
-    node->blockInsts.addInst(UnaryInst);
-
-    node->val = UnaryInst;
-
-    return true;
-}
 bool IRGenerator::ir_visitUNARYOP(ast_node * node)
 {
     return true;
@@ -997,13 +1167,15 @@ bool IRGenerator::ir_mul(ast_node * node)
     BinaryInstruction * mulInst;
     StoreInstruction * LstoInst = nullptr;
     StoreInstruction * RstoInst = nullptr;
+    MoveInstruction * LMoveInst = nullptr;
+    MoveInstruction * RMoveInst = nullptr;
 
-    if (left->node_type == ast_operator_type::AST_OP_ARRAY_ACCESS) {
-        LstoInst = new StoreInstruction(module->getCurrentFunction(), left->val, true);
-    }
-    if (right->node_type == ast_operator_type::AST_OP_ARRAY_ACCESS) {
-        RstoInst = new StoreInstruction(module->getCurrentFunction(), right->val, true);
-    }
+    // if (left->node_type == ast_operator_type::AST_OP_ARRAY_ACCESS) {
+    //     LMoveInst = new MoveInstruction(module->getCurrentFunction(), left->val, true);
+    // }
+    // if (right->node_type == ast_operator_type::AST_OP_ARRAY_ACCESS) {
+    //     RstoInst = new StoreInstruction(module->getCurrentFunction(), right->val, true);
+    // }
     IRInstOperator irOp = (op == Op::MUL)   ? IRInstOperator::IRINST_OP_MUL_I
                           : (op == Op::DIV) ? IRInstOperator::IRINST_OP_DIV_I
                                             : IRInstOperator::IRINST_OP_MOD_I;
@@ -1038,9 +1210,26 @@ bool IRGenerator::ir_visitExp(ast_node * node)
         return false;
     }
     ast_node * temp = ir_visit_ast_node(node->sons[0]);
+    LabelInstruction * label_inst;
     // 如果当前节点是叶子节点，直接生成IR
-    node->val = temp->val;
-    node->blockInsts.addInst(temp->blockInsts);
+
+    //对于if ((25 - 7) != (36 - 6 * 3)) putch(66);情况的特殊情况
+    if (node->node_type == ast_operator_type::AST_OP_EXPR_STMT &&
+        node->parent->node_type == ast_operator_type::AST_OP_IF_ELSE_STMT) {
+        label_inst = new LabelInstruction(module->getCurrentFunction());
+        node->val = label_inst;
+        node->blockInsts.addInst(label_inst);
+        node->blockInsts.addInst(temp->blockInsts);
+    } else if (node->node_type == ast_operator_type::AST_OP_EXPR_STMT &&
+               node->parent->node_type == ast_operator_type::AST_OP_WHILE) {
+        label_inst = new LabelInstruction(module->getCurrentFunction());
+        node->val = label_inst;
+        node->blockInsts.addInst(label_inst);
+        node->blockInsts.addInst(temp->blockInsts);
+    } else {
+        node->val = temp->val;
+        node->blockInsts.addInst(temp->blockInsts);
+    }
     return true;
 }
 bool IRGenerator::ir_visitLogitExp(ast_node * node)
@@ -1050,107 +1239,183 @@ bool IRGenerator::ir_visitLogitExp(ast_node * node)
         return false;
     }
     ast_operator_type Node_Type = node->node_type;
-    ast_node * src1_node = node->sons[0];
-    ast_node * src2_node = node->sons[1];
-    int op1 = src1_node->integer_val;
-    int op2 = src2_node->integer_val;
-    // 优化x=2+3变成x=5
-    if (src1_node->node_type == ast_operator_type::AST_OP_LEAF_LITERAL_UINT &&
-        src2_node->node_type == ast_operator_type::AST_OP_LEAF_LITERAL_UINT) {
-        ConstFloat * val =
-            module->newConstFloat((Node_Type == ast_operator_type::AST_OP_LAND_EXP) ? (op1 && op2) : (op1 || op2));
-        node->val = val;
-        node->type = src1_node->type->isFloatType() ? src1_node->type : src2_node->type;
-        return true;
-    }
-    // 针对const进行优化
-    Value * Var1 = nullptr;
-    Value * Var2 = nullptr;
-    int leftV;
-    int rightV;
-    if (!src1_node->name.empty()) {
-        Var1 = module->findVar(src1_node->name);
-        if (Var1->isConst()) {
-            leftV = Var1->real_int;
-        }
-    }
-    if (!src2_node->name.empty()) {
-        Var2 = module->findVar(src2_node->name);
-        if (Var2->isConst()) {
-            rightV = Var2->real_int;
-        }
-    }
-    if (Var1 && Var1->isConst() && Var2 && Var2->isConst()) {
-        ConstInt * val = module->newConstInt(
-            (Node_Type == ast_operator_type::AST_OP_LAND_EXP) ? (int) leftV && (int) rightV : (int) leftV || (int) op2);
-        node->val = val;
-        node->type = src1_node->type;
-        return true;
-    }
-    if (src1_node->node_type == ast_operator_type::AST_OP_LEAF_LITERAL_UINT ||
-        src2_node->node_type == ast_operator_type::AST_OP_LEAF_LITERAL_UINT) {
-        if (Var1 && Var1->isConst()) {
-            ConstInt * val =
-                module->newConstInt((Node_Type == ast_operator_type::AST_OP_LAND_EXP) ? ((int) leftV && (int) op2)
-                                                                                      : ((int) leftV || (int) op2));
-            node->val = val;
-            node->type = src1_node->type;
-            return true;
-        } else if (Var2 && Var2->isConst()) {
-            ConstInt * val =
-                module->newConstInt((Node_Type == ast_operator_type::AST_OP_LAND_EXP) ? ((int) op1 && (int) rightV)
-                                                                                      : ((int) op1 || (int) rightV));
-            node->val = val;
-            node->type = src1_node->type;
-            return true;
-        }
-    }
-    // 加法节点，左结合，先计算左节点，后计算右节点
-
-    // 加法的左边操作数
-    ast_node * left = ir_visit_ast_node(src1_node);
-    if (!left) {
-        // 某个变量没有定值
-        return false;
-    }
-
-    // 加法的右边操作数
-    ast_node * right = ir_visit_ast_node(src2_node);
-    if (!right) {
-        // 某个变量没有定值
-        return false;
-    }
-    BinaryInstruction * mulInst;
-    StoreInstruction * LstoInst = nullptr;
-    StoreInstruction * RstoInst = nullptr;
-
-    if (left->node_type == ast_operator_type::AST_OP_ARRAY_ACCESS) {
-        LstoInst = new StoreInstruction(module->getCurrentFunction(), left->val, true);
-    }
-    if (right->node_type == ast_operator_type::AST_OP_ARRAY_ACCESS) {
-        RstoInst = new StoreInstruction(module->getCurrentFunction(), right->val, true);
-    }
     IRInstOperator irOp = (node->node_type == ast_operator_type::AST_OP_LAND_EXP) ? IRInstOperator::IRINST_OP_AND_I
                                                                                   : IRInstOperator::IRINST_OP_OR_I;
+    ast_node * src1_node = node->sons[0];
+    ast_node * src2_node = node->sons[1];
+    // int op1 = src1_node->integer_val;
+    // int op2 = src2_node->integer_val;
+    // // 优化x=2+3变成x=5
+    // if (src1_node->node_type == ast_operator_type::AST_OP_LEAF_LITERAL_UINT &&
+    //     src2_node->node_type == ast_operator_type::AST_OP_LEAF_LITERAL_UINT) {
+    //     ConstFloat * val =
+    //         module->newConstFloat((Node_Type == ast_operator_type::AST_OP_LAND_EXP) ? (op1 && op2) : (op1 || op2));
+    //     node->val = val;
+    //     node->type = src1_node->type->isFloatType() ? src1_node->type : src2_node->type;
+    //     return true;
+    // }
+    // // 针对const进行优化
+    // Value * Var1 = nullptr;
+    // Value * Var2 = nullptr;
+    // int leftV;
+    // int rightV;
+    // if (!src1_node->name.empty()) {
+    //     Var1 = module->findVar(src1_node->name);
+    //     if (Var1->isConst()) {
+    //         leftV = Var1->real_int;
+    //     }
+    // }
+    // if (!src2_node->name.empty()) {
+    //     Var2 = module->findVar(src2_node->name);
+    //     if (Var2->isConst()) {
+    //         rightV = Var2->real_int;
+    //     }
+    // }
+    // if (Var1 && Var1->isConst() && Var2 && Var2->isConst()) {
+    //     ConstInt * val = module->newConstInt(
+    //         (Node_Type == ast_operator_type::AST_OP_LAND_EXP) ? (int) leftV && (int) rightV : (int) leftV || (int)
+    //         op2);
+    //     node->val = val;
+    //     node->type = src1_node->type;
+    //     return true;
+    // }
+    // if (src1_node->node_type == ast_operator_type::AST_OP_LEAF_LITERAL_UINT ||
+    //     src2_node->node_type == ast_operator_type::AST_OP_LEAF_LITERAL_UINT) {
+    //     if (Var1 && Var1->isConst()) {
+    //         ConstInt * val =
+    //             module->newConstInt((Node_Type == ast_operator_type::AST_OP_LAND_EXP) ? ((int) leftV && (int) op2)
+    //                                                                                   : ((int) leftV || (int) op2));
+    //         node->val = val;
+    //         node->type = src1_node->type;
+    //         return true;
+    //     } else if (Var2 && Var2->isConst()) {
+    //         ConstInt * val =
+    //             module->newConstInt((Node_Type == ast_operator_type::AST_OP_LAND_EXP) ? ((int) op1 && (int) rightV)
+    //                                                                                   : ((int) op1 || (int) rightV));
+    //         node->val = val;
+    //         node->type = src1_node->type;
+    //         return true;
+    //     }
+    // }
+    // 加法节点，左结合，先计算左节点，后计算右节点
+    Value * resultPtr = module->getCurrentFunction()->getReturnValue();
+    // Value * resultPtr = new AllocaInstruction(module->getCurrentFunction(), IntegerType::getTypeBool());
+    ast_node * left = ir_visit_ast_node(src1_node);
+    if (!left)
+        return false;
+    ast_node * right = ir_visit_ast_node(src2_node);
+    if (!right)
+        return false;
 
-    mulInst = new BinaryInstruction(module->getCurrentFunction(),
-                                    irOp,
-                                    LstoInst ? LstoInst : left->val,
-                                    RstoInst ? RstoInst : right->val,
-                                    IntegerType::getTypeInt());
+    // 3. 生成判断左、右是否为真
+    ConstInt * ZERO = module->newConstInt(0);
+    BinaryInstruction * LEQ_ZERO_Inst = new BinaryInstruction(module->getCurrentFunction(),
+                                                              IRInstOperator::IRINST_OP_NE_I,
+                                                              left->val,
+                                                              ZERO,
+                                                              IntegerType::getTypeBool());
+    BinaryInstruction * REQ_ZERO_Inst = new BinaryInstruction(module->getCurrentFunction(),
+                                                              IRInstOperator::IRINST_OP_NE_I,
+                                                              right->val,
+                                                              ZERO,
+                                                              IntegerType::getTypeBool());
 
+    // 4. 创建各个label
+    LabelInstruction * label_true = new LabelInstruction(module->getCurrentFunction());
+    LabelInstruction * label_false = new LabelInstruction(module->getCurrentFunction());
+    LabelInstruction * label_exit = new LabelInstruction(module->getCurrentFunction());
+    LabelInstruction * label_right = new LabelInstruction(module->getCurrentFunction());
+    LabelInstruction * label_ifelse_true = module->getCurrentFunction()->get_ifelse_Lable1();  // ifelse真分支
+    LabelInstruction * label_ifelse_false = module->getCurrentFunction()->get_ifelse_Lable2(); // ifelse 假分支
+    LabelInstruction * label_ifelse_exit = module->getCurrentFunction()->get_ifelse_exit();    // ifelse的出口指令
+
+    // 5. 生成短路分支
+    BranchifCondition * branch_Inst1;
+    if (node->node_type == ast_operator_type::AST_OP_LAND_EXP) {
+        // && 短路：左假直接跳false，否则判断右
+        branch_Inst1 = new BranchifCondition(module->getCurrentFunction(), LEQ_ZERO_Inst, label_right, label_false);
+    } else {
+        // || 短路：左真直接跳true，否则判断右
+        branch_Inst1 = new BranchifCondition(module->getCurrentFunction(), LEQ_ZERO_Inst, label_true, label_right);
+    }
+    BranchifCondition * branch_Inst2 =
+        new BranchifCondition(module->getCurrentFunction(), REQ_ZERO_Inst, label_true, label_false);
+
+    // 6. 拼接IR
     node->blockInsts.addInst(left->blockInsts);
-    if (LstoInst) {
-        node->blockInsts.addInst(LstoInst);
-    }
-    node->blockInsts.addInst(right->blockInsts);
-    if (RstoInst) {
-        node->blockInsts.addInst(RstoInst);
-    }
-    node->blockInsts.addInst(mulInst);
+    node->blockInsts.addInst(LEQ_ZERO_Inst);
+    node->blockInsts.addInst(branch_Inst1);
 
-    node->val = mulInst;
+    node->blockInsts.addInst(label_right);
+    node->blockInsts.addInst(right->blockInsts);
+    node->blockInsts.addInst(REQ_ZERO_Inst);
+    node->blockInsts.addInst(branch_Inst2);
+
+    // 7. true分支：store 1
+    node->blockInsts.addInst(label_true);
+    node->blockInsts.addInst(new MoveInstruction(module->getCurrentFunction(), resultPtr, module->newConstInt(1)));
+    node->blockInsts.addInst(new GotoInstruction(module->getCurrentFunction(), label_exit));
+
+    // 8. false分支：store 0
+    node->blockInsts.addInst(label_false);
+    node->blockInsts.addInst(new MoveInstruction(module->getCurrentFunction(), resultPtr, module->newConstInt(0)));
+    node->blockInsts.addInst(new GotoInstruction(module->getCurrentFunction(), label_exit));
+
+    // 9. exit分支：load结果
+    node->blockInsts.addInst(label_exit);
+    LoadInstruction * resultVal = new LoadInstruction(module->getCurrentFunction(), resultPtr, true);
+    node->blockInsts.addInst(resultVal);
+    node->val = resultVal;
+
     return true;
+    // ast_node * left = ir_visit_ast_node(src1_node);
+    // if (!left)
+    //     return false;
+    // ast_node * right = ir_visit_ast_node(src2_node);
+    // if (!right)
+    //     return false;
+    // ConstInt * ZERO = module->newConstInt(0);
+    // //这里是通过与零做判断，判断值是否为真
+    // BinaryInstruction * LEQ_ZERO_Inst = new BinaryInstruction(module->getCurrentFunction(),
+    //                                                           IRInstOperator::IRINST_OP_NE_I,
+    //                                                           left->val,
+    //                                                           ZERO,
+    //                                                           IntegerType::getTypeBool());
+    // BinaryInstruction * REQ_ZERO_Inst = new BinaryInstruction(module->getCurrentFunction(),
+    //                                                           IRInstOperator::IRINST_OP_NE_I,
+    //                                                           right->val,
+    //                                                           ZERO,
+    //                                                           IntegerType::getTypeBool());
+
+    // LabelInstruction * label1 = module->getCurrentFunction()->get_ifelse_Lable1();  // ifelse真分支
+    // LabelInstruction * label2 = module->getCurrentFunction()->get_ifelse_Lable2();  // ifelse 假分支
+    // LabelInstruction * exitlabel = module->getCurrentFunction()->get_ifelse_exit(); // ifelse的出口指令
+
+    // //这里是通过与零做判断，判断右值是否为真
+    // LabelInstruction * Rlabel;
+    // Rlabel = new LabelInstruction(module->getCurrentFunction());
+
+    // BranchifCondition * branch_Inst1;
+    // BranchifCondition * branch_Inst2;
+    // //短路求值，根据and和or来区分
+    // if (node->node_type == ast_operator_type::AST_OP_LAND_EXP) {
+    //     //对于ANd
+    //     branch_Inst1 = new BranchifCondition(module->getCurrentFunction(), LEQ_ZERO_Inst, Rlabel, label2);
+    // } else {
+    //     branch_Inst1 = new BranchifCondition(module->getCurrentFunction(), LEQ_ZERO_Inst, label1, label2);
+    // }
+    // //如果第二个条件都为真，说明无论and还是or都是真
+    // branch_Inst2 = new BranchifCondition(module->getCurrentFunction(), REQ_ZERO_Inst, label1, label2);
+    // node->blockInsts.addInst(left->blockInsts);
+    // node->blockInsts.addInst(LEQ_ZERO_Inst);
+    // node->blockInsts.addInst(branch_Inst1);
+
+    // node->blockInsts.addInst(Rlabel);
+    // node->blockInsts.addInst(right->blockInsts);
+    // node->blockInsts.addInst(REQ_ZERO_Inst);
+    // node->blockInsts.addInst(branch_Inst2);
+    // // node->val = mulInst;
+    // return true;
 }
 bool IRGenerator::ir_visitConfExp(ast_node * node)
 {
@@ -1161,87 +1426,95 @@ bool IRGenerator::ir_visitConfExp(ast_node * node)
     Op op = node->op_type;
     ast_node * src1_node = node->sons[0];
     ast_node * src2_node = node->sons[1];
-    int op1 = src1_node->integer_val;
-    int op2 = src2_node->integer_val;
-    // 优化x=2+3变成x=5
-    if (src1_node->node_type == ast_operator_type::AST_OP_LEAF_LITERAL_UINT &&
-        src2_node->node_type == ast_operator_type::AST_OP_LEAF_LITERAL_UINT) {
-        ConstFloat * val = module->newConstFloat((op == Op::GT)    ? (op1 > op2)
-                                                 : (op == Op::LT)  ? (op1 < op2)
-                                                 : (op == Op::EQ)  ? (op1 == op2)
-                                                 : (op == Op::NE)  ? (op1 != op2)
-                                                 : (op == Op::GE)  ? (op1 >= op2)
-                                                 : (op == Op::LE)  ? (op1 <= op2)
-                                                 : (op == Op::AND) ? (op1 && op2)
-                                                 : (op == Op::OR)  ? (op1 || op2)
-                                                                   : 0.0f);
-        node->val = val;
-        node->type = src1_node->type->isFloatType() ? src1_node->type : src2_node->type;
-        return true;
-    }
-    // 针对const进行优化
-    Value * Var1 = nullptr;
-    Value * Var2 = nullptr;
-    int leftV;
-    int rightV;
-    if (!src1_node->name.empty()) {
-        Var1 = module->findVar(src1_node->name);
-        if (Var1->isConst()) {
-            leftV = Var1->real_int;
-        }
-    }
-    if (!src2_node->name.empty()) {
-        Var2 = module->findVar(src2_node->name);
-        if (Var2->isConst()) {
-            rightV = Var2->real_int;
-        }
-    }
-    if (Var1 && Var1->isConst() && Var2 && Var2->isConst()) {
-        ConstInt * val = module->newConstInt((op == Op::GT)    ? ((int) leftV > (int) rightV)
-                                             : (op == Op::LT)  ? ((int) leftV < (int) rightV)
-                                             : (op == Op::EQ)  ? ((int) leftV == (int) rightV)
-                                             : (op == Op::NE)  ? ((int) leftV != (int) rightV)
-                                             : (op == Op::GE)  ? ((int) leftV >= (int) rightV)
-                                             : (op == Op::LE)  ? ((int) leftV <= (int) rightV)
-                                             : (op == Op::AND) ? ((int) leftV && (int) rightV)
-                                             : (op == Op::OR)  ? ((int) leftV || (int) rightV)
-                                                               : 0);
-        node->val = val;
-        node->type = src1_node->type;
-        return true;
-    }
-    if (src1_node->node_type == ast_operator_type::AST_OP_LEAF_LITERAL_UINT ||
-        src2_node->node_type == ast_operator_type::AST_OP_LEAF_LITERAL_UINT) {
-        if (Var1 && Var1->isConst()) {
-            ConstInt * val = module->newConstInt((op == Op::GT)    ? ((int) leftV > (int) op2)
-                                                 : (op == Op::LT)  ? ((int) leftV < (int) op2)
-                                                 : (op == Op::EQ)  ? ((int) leftV == (int) op2)
-                                                 : (op == Op::NE)  ? ((int) leftV != (int) op2)
-                                                 : (op == Op::GE)  ? ((int) leftV >= (int) op2)
-                                                 : (op == Op::LE)  ? ((int) leftV <= (int) op2)
-                                                 : (op == Op::AND) ? ((int) leftV && (int) op2)
-                                                 : (op == Op::OR)  ? ((int) leftV || (int) op2)
-                                                                   : 0);
-            node->val = val;
-            node->type = src1_node->type;
-            return true;
-        } else if (Var2 && Var2->isConst()) {
-            ConstInt * val = module->newConstInt((op == Op::GT)    ? ((int) op1 > (int) rightV)
-                                                 : (op == Op::LT)  ? ((int) op1 < (int) rightV)
-                                                 : (op == Op::EQ)  ? ((int) op1 == (int) rightV)
-                                                 : (op == Op::NE)  ? ((int) op1 != (int) rightV)
-                                                 : (op == Op::GE)  ? ((int) op1 >= (int) rightV)
-                                                 : (op == Op::LE)  ? ((int) op1 <= (int) rightV)
-                                                 : (op == Op::AND) ? ((int) op1 && (int) rightV)
-                                                 : (op == Op::OR)  ? ((int) op1 || (int) rightV)
-                                                                   : 0);
-            node->val = val;
-            node->type = src2_node->type;
-            return true;
-        }
-    }
+    // int op1 = src1_node->integer_val;
+    // int op2 = src2_node->integer_val;
+    // // 优化x=2+3变成x=5
+    // if (src1_node->node_type == ast_operator_type::AST_OP_LEAF_LITERAL_UINT &&
+    //     src2_node->node_type == ast_operator_type::AST_OP_LEAF_LITERAL_UINT) {
+    //     ConstInt * val = module->newConstInt((op == Op::GT)    ? (op1 > op2)
+    //                                          : (op == Op::LT)  ? (op1 < op2)
+    //                                          : (op == Op::EQ)  ? (op1 == op2)
+    //                                          : (op == Op::NE)  ? (op1 != op2)
+    //                                          : (op == Op::GE)  ? (op1 >= op2)
+    //                                          : (op == Op::LE)  ? (op1 <= op2)
+    //                                          : (op == Op::AND) ? (op1 && op2)
+    //                                          : (op == Op::OR)  ? (op1 || op2)
+    //                                                            : 0);
+    //     node->val = val;
+    //     node->type = src1_node->type->isFloatType() ? src1_node->type : src2_node->type;
+    //     return true;
+    // }
+    // // 针对const进行优化
+    // Value * Var1 = nullptr;
+    // Value * Var2 = nullptr;
+    // int leftV;
+    // int rightV;
+    // if (!src1_node->name.empty()) {
+    //     Var1 = module->findVar(src1_node->name);
+    //     if (Var1->isConst()) {
+    //         leftV = Var1->real_int;
+    //     }
+    // }
+    // if (!src2_node->name.empty()) {
+    //     Var2 = module->findVar(src2_node->name);
+    //     if (Var2->isConst()) {
+    //         rightV = Var2->real_int;
+    //     }
+    // }
+    // if (Var1 && Var1->isConst() && Var2 && Var2->isConst()) {
+    //     ConstInt * val = module->newConstInt((op == Op::GT)    ? ((int) leftV > (int) rightV)
+    //                                          : (op == Op::LT)  ? ((int) leftV < (int) rightV)
+    //                                          : (op == Op::EQ)  ? ((int) leftV == (int) rightV)
+    //                                          : (op == Op::NE)  ? ((int) leftV != (int) rightV)
+    //                                          : (op == Op::GE)  ? ((int) leftV >= (int) rightV)
+    //                                          : (op == Op::LE)  ? ((int) leftV <= (int) rightV)
+    //                                          : (op == Op::AND) ? ((int) leftV && (int) rightV)
+    //                                          : (op == Op::OR)  ? ((int) leftV || (int) rightV)
+    //                                                            : 0);
+    //     node->val = val;
+    //     node->type = src1_node->type;
+    //     return true;
+    // }
+    // if (src1_node->node_type == ast_operator_type::AST_OP_LEAF_LITERAL_UINT ||
+    //     src2_node->node_type == ast_operator_type::AST_OP_LEAF_LITERAL_UINT) {
+    //     if (Var1 && Var1->isConst()) {
+    //         ConstInt * val = module->newConstInt((op == Op::GT)    ? ((int) leftV > (int) op2)
+    //                                              : (op == Op::LT)  ? ((int) leftV < (int) op2)
+    //                                              : (op == Op::EQ)  ? ((int) leftV == (int) op2)
+    //                                              : (op == Op::NE)  ? ((int) leftV != (int) op2)
+    //                                              : (op == Op::GE)  ? ((int) leftV >= (int) op2)
+    //                                              : (op == Op::LE)  ? ((int) leftV <= (int) op2)
+    //                                              : (op == Op::AND) ? ((int) leftV && (int) op2)
+    //                                              : (op == Op::OR)  ? ((int) leftV || (int) op2)
+    //                                                                : 0);
+    //         node->val = val;
+    //         node->type = src1_node->type;
+    //         return true;
+    //     } else if (Var2 && Var2->isConst()) {
+    //         ConstInt * val = module->newConstInt((op == Op::GT)    ? ((int) op1 > (int) rightV)
+    //                                              : (op == Op::LT)  ? ((int) op1 < (int) rightV)
+    //                                              : (op == Op::EQ)  ? ((int) op1 == (int) rightV)
+    //                                              : (op == Op::NE)  ? ((int) op1 != (int) rightV)
+    //                                              : (op == Op::GE)  ? ((int) op1 >= (int) rightV)
+    //                                              : (op == Op::LE)  ? ((int) op1 <= (int) rightV)
+    //                                              : (op == Op::AND) ? ((int) op1 && (int) rightV)
+    //                                              : (op == Op::OR)  ? ((int) op1 || (int) rightV)
+    //                                                                : 0);
+    //         node->val = val;
+    //         node->type = src2_node->type;
+    //         return true;
+    //     }
+    // }
     // 加法节点，左结合，先计算左节点，后计算右节点
-
+    IRInstOperator irOp = (op == Op::GT)    ? IRInstOperator::IRINST_OP_GT_I
+                          : (op == Op::EQ)  ? IRInstOperator::IRINST_OP_EQ_I
+                          : (op == Op::LT)  ? IRInstOperator::IRINST_OP_LT_I
+                          : (op == Op::LE)  ? IRInstOperator::IRINST_OP_LE_I
+                          : (op == Op::GE)  ? IRInstOperator::IRINST_OP_GE_I
+                          : (op == Op::NE)  ? IRInstOperator::IRINST_OP_NE_I
+                          : (op == Op::AND) ? IRInstOperator::IRINST_OP_AND_I
+                          : (op == Op::OR)  ? IRInstOperator::IRINST_OP_OR_I
+                                            : IRInstOperator::IRINST_OP_DIV_I;
     // 加法的左边操作数
     ast_node * left = ir_visit_ast_node(src1_node);
     if (!left) {
@@ -1256,30 +1529,38 @@ bool IRGenerator::ir_visitConfExp(ast_node * node)
         return false;
     }
     BinaryInstruction * mulInst;
-    StoreInstruction * LstoInst = nullptr;
-    StoreInstruction * RstoInst = nullptr;
+    LoadInstruction * LstoInst = nullptr;
+    LoadInstruction * RstoInst = nullptr;
 
-    if (left->node_type == ast_operator_type::AST_OP_ARRAY_ACCESS) {
-        LstoInst = new StoreInstruction(module->getCurrentFunction(), left->val, true);
+    // if (left->node_type == ast_operator_type::AST_OP_ARRAY_ACCESS) {
+    //     LstoInst = new LoadInstruction(module->getCurrentFunction(), left->val, true);
+    // }
+    // if (right->node_type == ast_operator_type::AST_OP_ARRAY_ACCESS) {
+    //     RstoInst = new LoadInstruction(module->getCurrentFunction(), right->val, true);
+    // }
+
+    Value * LVal = LstoInst ? LstoInst : left->val;
+    Value * RVal = RstoInst ? RstoInst : right->val;
+    ZextInstruction * Lzertinst = nullptr;
+    ZextInstruction * Rzertinst = nullptr;
+    if (LVal->type->toString() == "i1") {
+        Lzertinst = new ZextInstruction(module->getCurrentFunction(), LVal, IntegerType::getTypeInt());
     }
-    if (right->node_type == ast_operator_type::AST_OP_ARRAY_ACCESS) {
-        RstoInst = new StoreInstruction(module->getCurrentFunction(), right->val, true);
+    if (RVal->type->toString() == "i1") {
+        Rzertinst = new ZextInstruction(module->getCurrentFunction(), RVal, IntegerType::getTypeInt());
     }
-    IRInstOperator irOp = (op == Op::GT)    ? IRInstOperator::IRINST_OP_GT_I
-                          : (op == Op::EQ)  ? IRInstOperator::IRINST_OP_EQ_I
-                          : (op == Op::LT)  ? IRInstOperator::IRINST_OP_LT_I
-                          : (op == Op::LE)  ? IRInstOperator::IRINST_OP_LE_I
-                          : (op == Op::GE)  ? IRInstOperator::IRINST_OP_GE_I
-                          : (op == Op::NE)  ? IRInstOperator::IRINST_OP_NE_I
-                          : (op == Op::AND) ? IRInstOperator::IRINST_OP_AND_I
-                          : (op == Op::OR)  ? IRInstOperator::IRINST_OP_OR_I
-                                            : IRInstOperator::IRINST_OP_DIV_I;
     mulInst = new BinaryInstruction(module->getCurrentFunction(),
                                     irOp,
-                                    LstoInst ? LstoInst : left->val,
-                                    RstoInst ? RstoInst : right->val,
-                                    IntegerType::getTypeInt());
-
+                                    Lzertinst ? Lzertinst : LVal,
+                                    Rzertinst ? Rzertinst : RVal,
+                                    IntegerType::getTypeBool());
+    BranchifCondition * branch_Inst = nullptr;
+    // if (node->parent->node_type == ast_operator_type::AST_OP_IF_ELSE_STMT) {
+    //     LabelInstruction *Lable1, *Lable2;
+    //     Lable1 = module->getCurrentFunction()->get_ifelse_Lable1();
+    //     Lable2 = module->getCurrentFunction()->get_ifelse_Lable2();
+    //     branch_Inst = new BranchifCondition(module->getCurrentFunction(), mulInst, Lable1, Lable2);
+    // }
     node->blockInsts.addInst(left->blockInsts);
     if (LstoInst) {
         node->blockInsts.addInst(LstoInst);
@@ -1288,8 +1569,16 @@ bool IRGenerator::ir_visitConfExp(ast_node * node)
     if (RstoInst) {
         node->blockInsts.addInst(RstoInst);
     }
+    if (Lzertinst) {
+        node->blockInsts.addInst(Lzertinst);
+    }
+    if (Rzertinst) {
+        node->blockInsts.addInst(Rzertinst);
+    }
     node->blockInsts.addInst(mulInst);
-
+    if (branch_Inst != nullptr) {
+        node->blockInsts.addInst(branch_Inst);
+    }
     node->val = mulInst;
     return true;
 }
@@ -1385,6 +1674,10 @@ bool IRGenerator::ir_assign(ast_node * node)
 
     // 赋值运算符的右侧操作数
     ast_node * right = ir_visit_ast_node(son2_node);
+    // if (right->val->isConst()) {
+    //     printf("const variable can not be assigned.");
+    //     return false;
+    // }
     if (!right) {
         // 某个变量没有定值
         return false;
@@ -1601,7 +1894,7 @@ bool IRGenerator::ir_array_var_def_declare(ast_node * node)
     for (auto d: dimensions)
         total_size *= d;
 
-	total_size = total_size * 4; // 每个元素4字节
+    total_size = total_size * 4; // 每个元素4字节
     // 获取数组变量的实际值
     Value * array_val = module->findVarValue(var_name);
     BitcastInstruction * bitcatinst;
@@ -1610,7 +1903,8 @@ bool IRGenerator::ir_array_var_def_declare(ast_node * node)
     if (node->sons.size() > 2 && node->sons[2]->sons.size() > 0) {
         bitcatinst = new BitcastInstruction(module->getCurrentFunction(), array_val, 8);
         node->blockInsts.addInst(bitcatinst);
-        MemsetInstruction * memsetInst = new MemsetInstruction(module->getCurrentFunction(), bitcatinst, 0, total_size, 16);
+        MemsetInstruction * memsetInst =
+            new MemsetInstruction(module->getCurrentFunction(), bitcatinst, 0, total_size, 16);
         node->blockInsts.addInst(memsetInst);
         std::vector<InitElement> flatten_nodes;
         // int linear_index = 0;
@@ -1633,14 +1927,15 @@ bool IRGenerator::ir_array_var_def_declare(ast_node * node)
             GetElementPtrInstruction * gepInst;
             MoveInstruction * movInst;
             std::vector<int> indices = {elem.flatIndex};
+            Value * flatvalue = module->newConstInt(elem.flatIndex);
             if (elem.is_use_val) {
-                gepInst = new GetElementPtrInstruction(module->getCurrentFunction(), bitcatinst, indices);
+                gepInst = new GetElementPtrInstruction(module->getCurrentFunction(), bitcatinst, flatvalue);
                 node->blockInsts.addInst(gepInst);
                 movInst = new MoveInstruction(module->getCurrentFunction(), gepInst, elem.val);
                 node->blockInsts.addInst(movInst);
             } else {
                 //得到要初始化的坐标的位置
-                gepInst = new GetElementPtrInstruction(module->getCurrentFunction(), bitcatinst, indices);
+                gepInst = new GetElementPtrInstruction(module->getCurrentFunction(), bitcatinst, flatvalue);
                 node->blockInsts.addInst(gepInst);
                 movInst = new MoveInstruction(module->getCurrentFunction(),
                                               gepInst,
@@ -1652,7 +1947,8 @@ bool IRGenerator::ir_array_var_def_declare(ast_node * node)
     } else if (node->sons.size() > 2 && node->sons[2]->sons.size() == 0) {
         bitcatinst = new BitcastInstruction(module->getCurrentFunction(), array_val, 8);
         node->blockInsts.addInst(bitcatinst);
-        MemsetInstruction * memsetInst = new MemsetInstruction(module->getCurrentFunction(), bitcatinst, 0, 32, 16);
+        MemsetInstruction * memsetInst =
+            new MemsetInstruction(module->getCurrentFunction(), bitcatinst, 0, total_size, 16);
         node->blockInsts.addInst(memsetInst);
     }
 
@@ -1669,7 +1965,8 @@ bool IRGenerator::ir_array_acess(ast_node * node)
         node = node->sons[0];
     }
     //变量名称
-    std::vector<int32_t> index;
+    // std::vector<int32_t> index;
+    std::vector<ArrayIndex> arrayIndexVector;
     std::vector<int32_t> dim;
     // 第一个儿子是变量名称
     std::string var_name = node->sons[0]->name;
@@ -1680,30 +1977,132 @@ bool IRGenerator::ir_array_acess(ast_node * node)
     for (pIter = node->sons.begin() + 1; pIter != node->sons.end(); ++pIter) {
 
         // 遍历每一个index
-        int temp = ir_const_exp(*pIter);
-        index.push_back(static_cast<int32_t>(temp));
+        if ((*pIter)->sons[0]->node_type == ast_operator_type::AST_OP_LVAL) {
+            bool temp = ir_array_exp_lval(*pIter);
+            arrayIndexVector.push_back({-1, (*pIter)->val});
+        } else if ((*pIter)->sons[0]->node_type == ast_operator_type::AST_OP_LEAF_LITERAL_UINT) {
+            int temp = ir_const_exp(*pIter);
+            arrayIndexVector.push_back({temp, nullptr});
+        } else if ((*pIter)->sons[0]->node_type == ast_operator_type::AST_OP_ADD_EXP ||
+                   (*pIter)->sons[0]->node_type == ast_operator_type::AST_OP_MUL_EXP) {
+            bool temp = ir_visit_ast_node(*pIter);
+            node->blockInsts.addInst((*pIter)->blockInsts);
+            arrayIndexVector.push_back({-2, (*pIter)->val});
+        }
     }
     dim = array_Value->arraydimensionVector;
-    array_Value->arrayIndexVector = index;
+
+    // array_Value->arrayIndexVector = index;
     Value * currentVal = nullptr; // 当前累积的值
     int nowdim = 1;
     GetElementPtrInstruction * gepInst = nullptr;
     int flatindex = 0;
     int mul = 1;
-    for (int i = index.size() - 1; i >= 0; --i) {
-        flatindex += index[i] * mul;
-        mul *= dim[i];
+    BinaryInstruction * mulinst;
+    BinaryInstruction * addinst = nullptr;
+    LoadInstruction * LoadInst;
+    Value * lastInst = nullptr; //下边循环之后的结果
+    for (int i = 0; i < arrayIndexVector.size() - 1; i++) {
+        if (arrayIndexVector[i].idx != -1) {
+            mulinst = new BinaryInstruction(
+                module->getCurrentFunction(),
+                IRInstOperator::IRINST_OP_MUL_I,
+                lastInst ? lastInst : static_cast<Value *>(module->newConstInt((int32_t) arrayIndexVector[i].idx)),
+                module->newConstInt((int32_t) dim[i + 1]),
+                IntegerType::getTypeInt());
+            node->blockInsts.addInst(mulinst);
+
+            if (arrayIndexVector[i + 1].idx != -1) {
+                addinst = new BinaryInstruction(module->getCurrentFunction(),
+                                                IRInstOperator::IRINST_OP_ADD_I,
+                                                mulinst,
+                                                module->newConstInt((int32_t) arrayIndexVector[i + 1].idx),
+                                                IntegerType::getTypeInt());
+            } else {
+                LoadInst = new LoadInstruction(module->getCurrentFunction(), arrayIndexVector[i + 1].value, true);
+                node->blockInsts.addInst(LoadInst);
+                addinst = new BinaryInstruction(module->getCurrentFunction(),
+                                                IRInstOperator::IRINST_OP_ADD_I,
+                                                mulinst,
+                                                LoadInst,
+                                                IntegerType::getTypeInt());
+            }
+            node->blockInsts.addInst(addinst);
+        } else if (arrayIndexVector[i].value) {
+            LoadInst = new LoadInstruction(module->getCurrentFunction(), arrayIndexVector[i].value, true);
+            node->blockInsts.addInst(LoadInst);
+            mulinst = new BinaryInstruction(module->getCurrentFunction(),
+                                            IRInstOperator::IRINST_OP_MUL_I,
+                                            LoadInst,
+                                            module->newConstInt((int32_t) dim[i + 1]),
+                                            IntegerType::getTypeInt());
+            node->blockInsts.addInst(mulinst);
+            if (arrayIndexVector[i + 1].idx != -1) {
+                addinst = new BinaryInstruction(module->getCurrentFunction(),
+                                                IRInstOperator::IRINST_OP_ADD_I,
+                                                mulinst,
+                                                module->newConstInt((int32_t) arrayIndexVector[i + 1].idx),
+                                                IntegerType::getTypeInt());
+            } else {
+                LoadInst = new LoadInstruction(module->getCurrentFunction(), arrayIndexVector[i + 1].value, true);
+                node->blockInsts.addInst(LoadInst);
+                addinst = new BinaryInstruction(module->getCurrentFunction(),
+                                                IRInstOperator::IRINST_OP_ADD_I,
+                                                mulinst,
+                                                LoadInst,
+                                                IntegerType::getTypeInt());
+            }
+            node->blockInsts.addInst(addinst);
+        }
+        lastInst = static_cast<Value *>(addinst);
     }
+    BinaryInstruction * latestaddinst = addinst;
+    if (arrayIndexVector.size() == 1) {
+        if (arrayIndexVector[arrayIndexVector.size() - 1].idx == -1) {
+            LoadInst = new LoadInstruction(module->getCurrentFunction(),
+                                           arrayIndexVector[arrayIndexVector.size() - 1].value,
+                                           true);
+            node->blockInsts.addInst(LoadInst);
+        }
+        latestaddinst = new BinaryInstruction(
+            module->getCurrentFunction(),
+            IRInstOperator::IRINST_OP_ADD_I,
+            addinst ? addinst : static_cast<Value *>(module->newConstInt((int32_t) 0)),
+            (arrayIndexVector[arrayIndexVector.size() - 1].idx == -1) ? static_cast<Value *>(LoadInst)
+            : (arrayIndexVector[arrayIndexVector.size() - 1].idx == -2)
+                ? static_cast<Value *>(arrayIndexVector[arrayIndexVector.size() - 1].value)
+                : static_cast<Value *>(
+                      module->newConstInt((int32_t) arrayIndexVector[arrayIndexVector.size() - 1].idx)),
+            IntegerType::getTypeInt());
+        //处理最后一维度
+        node->blockInsts.addInst(latestaddinst);
+    } else {
+        LoadInst = new LoadInstruction(module->getCurrentFunction(), addinst, true);
+        // node->blockInsts.addInst(LoadInst);
+    }
+
     //展平成为一维度
-    BitcastInstruction * bitcatinst = new BitcastInstruction(module->getCurrentFunction(), array_Value, 32);
+    //形参需要再取里边的地址
+    LoadInstruction * FormalParmLoadInst = nullptr;
+    if (array_Value->is_come_from_formalparm) {
+        FormalParmLoadInst = new LoadInstruction(module->getCurrentFunction(), array_Value, true);
+        node->blockInsts.addInst(FormalParmLoadInst);
+    }
+    BitcastInstruction * bitcatinst =
+        new BitcastInstruction(module->getCurrentFunction(), FormalParmLoadInst ? FormalParmLoadInst : array_Value, 32);
     node->blockInsts.addInst(bitcatinst);
     // gep指令遍历一维数组
-    std::vector<int> indices = {flatindex};
-    gepInst = new GetElementPtrInstruction(module->getCurrentFunction(), bitcatinst, indices);
+    // std::vector<int> indices = {flatindex};
+    gepInst = new GetElementPtrInstruction(module->getCurrentFunction(), bitcatinst, latestaddinst);
     node->blockInsts.addInst(gepInst);
-    LoadInstruction * LoadInst = new LoadInstruction(module->getCurrentFunction(), gepInst, true);
-    node->blockInsts.addInst(LoadInst);
-    currentVal = LoadInst;
+    if (node->parent->node_type == ast_operator_type::AST_OP_ASSIGN_STMT) {
+        currentVal = gepInst;
+    } else {
+        LoadInstruction * LoadInst = new LoadInstruction(module->getCurrentFunction(), gepInst, true);
+        node->blockInsts.addInst(LoadInst);
+        currentVal = LoadInst;
+    }
+
     node->val = currentVal;
     return true;
 }
@@ -1732,7 +2131,13 @@ int IRGenerator::ir_const_exp(ast_node * node)
     // return node->integer_val;
     return node->val->real_int;
 }
-
+//用于数组a[i]的情况
+bool IRGenerator::ir_array_exp_lval(ast_node * node)
+{
+    ast_node * son = node->sons[0];
+    node->val = module->findVar(son->name);
+    return true;
+}
 /// @brief 标识符叶子节点翻译成线性中间IR，变量声明的不走这个语句
 /// @param node AST节点
 /// @return 翻译是否成功，true：成功，false：失败
@@ -1744,10 +2149,51 @@ bool IRGenerator::ir_leaf_node_var_id(ast_node * node)
     // 变量，则需要在符号表中查找对应的值
 
     val = module->findVar(node->name);
+    ConstInt * ZERO = module->newConstInt(0);
     if (node->parent->node_type == ast_operator_type::AST_OP_ASSIGN_STMT) {
         node->val = val;
-    } else {
+    } else if (node->parent->node_type == ast_operator_type::AST_OP_IF_ELSE_STMT) {
+        ///这个是为了解决if (m)的问题
         LoadInstruction * LoadInst = new LoadInstruction(module->getCurrentFunction(), val, true);
+
+        BinaryInstruction * EQ_ZERO_Inst = new BinaryInstruction(module->getCurrentFunction(),
+                                                                 IRInstOperator::IRINST_OP_NE_I,
+                                                                 LoadInst,
+                                                                 ZERO,
+                                                                 IntegerType::getTypeBool());
+        // BranchifCondition * branch_Inst = new BranchifCondition(module->getCurrentFunction(),
+        //                                                         EQ_ZERO_Inst,
+        //                                                         module->getCurrentFunction()->get_ifelse_Lable1(),
+        //                                                         module->getCurrentFunction()->get_ifelse_Lable2());
+        node->val = EQ_ZERO_Inst;
+        node->blockInsts.addInst(LoadInst);
+        node->blockInsts.addInst(EQ_ZERO_Inst);
+        // node->blockInsts.addInst(branch_Inst);
+
+    } else if (val->isConst()) {
+        node->val = val;
+    } else if (node->parent->parent->node_type == ast_operator_type::AST_OP_FUNC_RPARAMS &&
+               val->type->isPointerType()) {
+        BitcastInstruction * bitcatinst;
+        GetElementPtrInstruction * gepInst;
+        LoadInstruction * LoadInst = nullptr;
+        if (module->getCurrentFunction()->name != "main") {
+            LoadInst = new LoadInstruction(module->getCurrentFunction(), val, true);
+            bitcatinst = new BitcastInstruction(module->getCurrentFunction(), LoadInst, 32);
+            gepInst = new GetElementPtrInstruction(module->getCurrentFunction(), bitcatinst, ZERO);
+        } else {
+            bitcatinst = new BitcastInstruction(module->getCurrentFunction(), val, 32);
+            gepInst = new GetElementPtrInstruction(module->getCurrentFunction(), bitcatinst, ZERO);
+        }
+        if (LoadInst)
+            node->blockInsts.addInst(LoadInst);
+        node->blockInsts.addInst(bitcatinst);
+        node->blockInsts.addInst(gepInst);
+        node->val = gepInst;
+
+    } else {
+        LoadInstruction * LoadInst =
+            new LoadInstruction(module->getCurrentFunction(), val, val->getType()->isFloatType() ? false : true);
         node->blockInsts.addInst(LoadInst);
         node->val = LoadInst;
     }
@@ -1769,6 +2215,24 @@ bool IRGenerator::ir_func_call(ast_node * node)
     if (!callee) {
         std::cerr << "Error: function not found: " << func_name << std::endl;
         return false;
+    }
+    //对于被调用函数进行判断，如果是内置函数则需要将函数名加入到module的InFunctionList，然后模块运行时将用到的内置函数优先new出来
+    static std::unordered_map<std::string, int> irMap = {{"@getint", 1},
+                                                         {"@putint", 2},
+                                                         {"@getch", 3},
+                                                         {"@putch", 4},
+                                                         {"@getarray", 5},
+                                                         {"@putarray", 6},
+                                                         {"@getfloat", 7},
+                                                         {"@putfloat", 8},
+                                                         {"@getfarray", 9},
+                                                         {"@putfarray", 10},
+                                                         {"@putstr", 11},
+                                                         {"@putf", 12}};
+    auto it = irMap.find(callee->getIRName());
+    if (it != irMap.end()) {
+        module->InFunctionList[it->second] = true;
+        // InFunction为true则后面需要打印对应的内置函数
     }
 
     std::vector<Value *> args;
@@ -1985,9 +2449,13 @@ bool IRGenerator::ir_global_const_array_def(ast_node * node)
     int total_size = 1;
     for (auto d: dimensions)
         total_size *= d;
-
+	total_size = total_size * 4; // 每个元素4字节
+	
     // 获取数组变量的实际值
     Value * array_val = module->findVarValue(var_name);
+	Instanceof(array_global_val, GlobalVariable *, array_val);
+	array_global_val->setSize(total_size);
+
     // Step 4: 处理显式初始化
     if (node->sons.size() > 2) {
         std::vector<InitElement> flatten_nodes;
@@ -2006,6 +2474,10 @@ bool IRGenerator::ir_global_const_array_def(ast_node * node)
                            level);
         node->blockInsts.addInst(node->sons[2]->blockInsts);
         node->val = array_val;
+    }
+	else
+	{
+        array_global_val->setInBSSSection(true);
     }
 
     return true;
@@ -2034,6 +2506,9 @@ bool IRGenerator::ir_const_array_var_def_declare(ast_node * node)
     int total_size = 1;
     for (auto d: dimensions)
         total_size *= d;
+    total_size = total_size * 4;
+
+	total_size = total_size * 4; // 每个元素4字节
     // 获取数组变量的实际值
     Value * array_val = module->findVarValue(var_name);
     BitcastInstruction * bitcatinst;
@@ -2042,7 +2517,8 @@ bool IRGenerator::ir_const_array_var_def_declare(ast_node * node)
     if (node->sons.size() > 2 && node->sons[2]->sons.size() > 0) {
         bitcatinst = new BitcastInstruction(module->getCurrentFunction(), array_val, 8);
         node->blockInsts.addInst(bitcatinst);
-        MemsetInstruction * memsetInst = new MemsetInstruction(module->getCurrentFunction(), bitcatinst, 0, 32, 16);
+        MemsetInstruction * memsetInst =
+            new MemsetInstruction(module->getCurrentFunction(), bitcatinst, 0, total_size, 16);
         node->blockInsts.addInst(memsetInst);
         std::vector<InitElement> flatten_nodes;
         // int linear_index = 0;
@@ -2065,14 +2541,15 @@ bool IRGenerator::ir_const_array_var_def_declare(ast_node * node)
             GetElementPtrInstruction * gepInst;
             MoveInstruction * movInst;
             std::vector<int> indices = {elem.flatIndex};
+            Value * flatvalue = module->newConstInt(elem.flatIndex);
             if (elem.is_use_val) {
-                gepInst = new GetElementPtrInstruction(module->getCurrentFunction(), bitcatinst, indices);
+                gepInst = new GetElementPtrInstruction(module->getCurrentFunction(), bitcatinst, flatvalue);
                 node->blockInsts.addInst(gepInst);
                 movInst = new MoveInstruction(module->getCurrentFunction(), gepInst, elem.val);
                 node->blockInsts.addInst(movInst);
             } else {
                 //得到要初始化的坐标的位置
-                gepInst = new GetElementPtrInstruction(module->getCurrentFunction(), bitcatinst, indices);
+                gepInst = new GetElementPtrInstruction(module->getCurrentFunction(), bitcatinst, flatvalue);
                 node->blockInsts.addInst(gepInst);
                 movInst = new MoveInstruction(module->getCurrentFunction(),
                                               gepInst,
@@ -2084,7 +2561,8 @@ bool IRGenerator::ir_const_array_var_def_declare(ast_node * node)
     } else if (node->sons.size() > 2 && node->sons[2]->sons.size() == 0) {
         bitcatinst = new BitcastInstruction(module->getCurrentFunction(), array_val, 8);
         node->blockInsts.addInst(bitcatinst);
-        MemsetInstruction * memsetInst = new MemsetInstruction(module->getCurrentFunction(), bitcatinst, 0, 32, 16);
+        MemsetInstruction * memsetInst =
+            new MemsetInstruction(module->getCurrentFunction(), bitcatinst, 0, total_size, 16);
         node->blockInsts.addInst(memsetInst);
     }
     return true;
@@ -2106,17 +2584,20 @@ bool IRGenerator::ir_global_array_var_def_declare(ast_node * node)
         dimensions.push_back(static_cast<int32_t>(temp));
     }
 
+	// 计算数组总大小
+	int total_size = 1;
+	for (auto d: dimensions)
+		total_size *= d;
+	total_size = total_size * 4; // 每个元素4字节
+
     // Step 2: 获取指针类型
     PointerType * pointerType = PointerType::getNonConstPointerType(node->parent->sons[0]->type);
     node->val = module->newArrayValue(pointerType, var_name, dimensions);
 
-    // 计算数组总大小
-    int total_size = 1;
-    for (auto d: dimensions)
-        total_size *= d;
-
     // 获取数组变量的实际值
     Value * array_val = module->findVarValue(var_name);
+	Instanceof(array_global_val, GlobalVariable *, array_val);
+	array_global_val->setSize(total_size);
 
     // Step 4: 处理显式初始化
     if (node->sons.size() > 2) {
@@ -2137,6 +2618,10 @@ bool IRGenerator::ir_global_array_var_def_declare(ast_node * node)
         node->blockInsts.addInst(node->sons[2]->blockInsts);
 
         node->val = array_val;
+    }
+	else
+	{
+        array_global_val->setInBSSSection(true);
     }
 
     return true;

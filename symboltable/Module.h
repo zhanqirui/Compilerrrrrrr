@@ -145,6 +145,20 @@ public:
     Value * findVar(std::string name);
     Value * newconstArray(Type * type, std::string name, std::vector<int32_t> index);
     Value * newglobalconstArray(Type * type, std::string name, std::vector<int32_t> index);
+    void BLOCK_SIMPLE_EN();
+
+    ///
+    /// @brief 将内置函数列表在module的末尾集中打印
+    /// @param str
+    ///
+    /*
+    void newInFunction(std::vector<std::string> & InFunctionList);
+    */
+
+    ///
+    /// @brief 调用的内置函数的列表数组
+    ///
+    std::vector<bool> InFunctionList;
 
 protected:
     /// @brief 根据整数值获取当前符号

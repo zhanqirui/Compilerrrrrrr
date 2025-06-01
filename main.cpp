@@ -284,7 +284,7 @@ static int compile(std::string inputFile, std::string outputFile)
 
         // 创建词法语法分析器
         Antlr4Executor * frontEndExecutor;
-		frontEndExecutor = new Antlr4Executor(inputFile);
+        frontEndExecutor = new Antlr4Executor(inputFile);
 
         // 前端执行：词法分析、语法分析后产生抽象语法树，其root为全局变量ast_root
         // subResult = frontEndExecutor->run();
@@ -342,6 +342,7 @@ static int compile(std::string inputFile, std::string outputFile)
         if (gShowLineIR) {
 
             // 对IR的名字重命名
+            module->BLOCK_SIMPLE_EN();
             module->renameIR();
 
             // 输出IR
