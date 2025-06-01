@@ -967,7 +967,7 @@ bool IRGenerator::ir_mul(ast_node * node)
     Op op = node->op_type;
     ast_node * src1_node = node->sons[0];
     ast_node * src2_node = node->sons[1];
-    
+
     // 加法的左边操作数
 
     ast_node * left = ir_visit_ast_node(src1_node);
@@ -1656,13 +1656,17 @@ bool IRGenerator::ir_array_var_def_declare(ast_node * node)
                            large_rank,
                            level);
         node->blockInsts.addInst(node->sons[2]->blockInsts);
-        bitcatinst = new BitcastInstruction(module->getCurrentFunction(), array_val, 32);
+        Type * baseType = array_val->getType(); // 获取类型
+        PointerType * pointerType = dynamic_cast<PointerType *>(baseType);
+        bool is_int = pointerType->getRootType()->toString() == "float" ? false : true;
+        bitcatinst = new BitcastInstruction(module->getCurrentFunction(), array_val, 32, is_int);
         node->blockInsts.addInst(bitcatinst);
         for (FlattenedArrayElement & elem: array_val->flattenedArray) {
             GetElementPtrInstruction * gepInst;
             MoveInstruction * movInst;
             std::vector<int> indices = {elem.flatIndex};
             Value * flatvalue = module->newConstInt(elem.flatIndex);
+
             if (elem.is_use_val) {
                 gepInst = new GetElementPtrInstruction(module->getCurrentFunction(), bitcatinst, flatvalue);
                 node->blockInsts.addInst(gepInst);
@@ -1672,9 +1676,14 @@ bool IRGenerator::ir_array_var_def_declare(ast_node * node)
                 //得到要初始化的坐标的位置
                 gepInst = new GetElementPtrInstruction(module->getCurrentFunction(), bitcatinst, flatvalue);
                 node->blockInsts.addInst(gepInst);
-                movInst = new MoveInstruction(module->getCurrentFunction(),
-                                              gepInst,
-                                              module->newConstInt((int32_t) elem.intValue));
+                if (is_int)
+                    movInst = new MoveInstruction(module->getCurrentFunction(),
+                                                  gepInst,
+                                                  module->newConstInt((int32_t) elem.intValue));
+                else
+                    movInst = new MoveInstruction(module->getCurrentFunction(),
+                                                  gepInst,
+                                                  module->newConstFloat(elem.floatValue));
                 node->blockInsts.addInst(movInst);
             }
         }
@@ -1838,8 +1847,13 @@ bool IRGenerator::ir_array_acess(ast_node * node)
         FormalParmLoadInst = new LoadInstruction(module->getCurrentFunction(), array_Value, true);
         node->blockInsts.addInst(FormalParmLoadInst);
     }
-    BitcastInstruction * bitcatinst =
-        new BitcastInstruction(module->getCurrentFunction(), FormalParmLoadInst ? FormalParmLoadInst : array_Value, 32);
+    Type * baseType = array_Value->getType(); // 获取类型
+    PointerType * pointerType = dynamic_cast<PointerType *>(baseType);
+    bool is_int = pointerType->getRootType()->toString() == "float" ? false : true;
+    BitcastInstruction * bitcatinst = new BitcastInstruction(module->getCurrentFunction(),
+                                                             FormalParmLoadInst ? FormalParmLoadInst : array_Value,
+                                                             32,
+                                                             is_int);
     node->blockInsts.addInst(bitcatinst);
     // gep指令遍历一维数组
     // std::vector<int> indices = {flatindex};

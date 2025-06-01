@@ -35,7 +35,16 @@ BitcastInstruction::BitcastInstruction(Function * _func, Value * srcVal1, int bi
     addOperand(srcVal1);
     this->bit = bit;
 }
-
+BitcastInstruction::BitcastInstruction(Function * _func, Value * srcVal1, int bit, bool is_int)
+    : Instruction(_func,
+                  IRInstOperator::IRINST_OP_CAST,
+                  (is_int ? (static_cast<Type *>(PointerType::getNonConstPointerType(IntegerType::getTypeInt())))
+                          : (static_cast<Type *>(PointerType::getNonConstPointerType(FloatType::getTypeFloat())))))
+{
+    addOperand(srcVal1);
+    this->bit = bit;
+    this->is_int = is_int;
+}
 /// @brief 转换成字符串显示
 /// @param str 转换后的字符串
 void BitcastInstruction::toString(std::string & str)
@@ -59,5 +68,9 @@ void BitcastInstruction::toString(std::string & str)
     } else {
         arrayType += srcVal1->getType()->toString();
     }
-    str = getIRName() + " = bitcast " + arrayType + "* " + srcVal1->getIRName() + " to i" + std::to_string(bit) + "*";
+    if (is_int)
+        str =
+            getIRName() + " = bitcast " + arrayType + "* " + srcVal1->getIRName() + " to i" + std::to_string(bit) + "*";
+    else
+        str = getIRName() + " = bitcast " + arrayType + "* " + srcVal1->getIRName() + " to float*";
 }

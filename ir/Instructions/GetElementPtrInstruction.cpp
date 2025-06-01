@@ -22,21 +22,22 @@ void GetElementPtrInstruction::toString(std::string & str)
     Value * srcVal2 = getOperand(1);
     std::string arrayType = "";
     // 构造 bitcast 指令的字符串
+    Type * baseType = srcVal1->getType(); // 获取类型
+    PointerType * pointerType = dynamic_cast<PointerType *>(baseType);
 
     const std::vector<int32_t> dims = srcVal1->arraydimensionVector;
     if (!dims.empty()) {
         for (auto it = dims.begin(); it != dims.end(); ++it) {
             arrayType += "[" + std::to_string(*it) + " x ";
         }
-        Type * baseType = srcVal1->getType(); // 获取类型
-        PointerType * pointerType = dynamic_cast<PointerType *>(baseType);
         arrayType += pointerType->getRootType()->toString();
         for (auto it = dims.begin(); it != dims.end(); ++it) {
             arrayType += "]";
         }
-    } else {
+    } else if (pointerType && pointerType->getRootType()->toString() == "float") {
+        arrayType = "float";
+    } else
         arrayType = "i32";
-    }
     str = getIRName() + " = getelementptr inbounds " + arrayType + ", " + arrayType + "* " + srcVal1->getIRName() +
           ", i32 " + srcVal2->getIRName();
     // if (indices.size() == 1) {
