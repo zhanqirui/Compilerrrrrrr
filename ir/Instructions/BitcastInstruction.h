@@ -20,7 +20,7 @@ public:
     /// @param srcVal1 源操作数
     ///
     int bit;
-    BitcastInstruction(Function * _func, Value * srcVal1, int bit);
+    BitcastInstruction(Function * _func, Value * srcVal1, int bit, bool is_int);
 
     /// @brief 转换成字符串
     void toString(std::string & str) override;

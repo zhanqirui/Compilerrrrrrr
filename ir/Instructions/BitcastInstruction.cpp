@@ -26,11 +26,12 @@
 /// @param result 结构操作数
 /// @param srcVal1 源操作数
 ///
-BitcastInstruction::BitcastInstruction(Function * _func, Value * srcVal1, int bit = 8)
-    : Instruction(_func,
-                  IRInstOperator::IRINST_OP_CAST,
-                  (static_cast<Type *>(PointerType::getNonConstPointerType(IntegerType::getTypeInt()))))
-//   (is_int ? static_cast<Type *>(IntegerType::getTypeInt()) : static_cast<Type *>(FloatType::getTypeFloat())))
+BitcastInstruction::BitcastInstruction(Function * _func, Value * srcVal1, int bit = 8, bool is_int = true)
+    : Instruction(
+          _func,
+          IRInstOperator::IRINST_OP_CAST,
+          //   (static_cast<Type *>(PointerType::getNonConstPointerType(IntegerType::getTypeInt()))))
+          (is_int ? static_cast<Type *>(IntegerType::getTypeInt()) : static_cast<Type *>(FloatType::getTypeFloat())))
 {
     addOperand(srcVal1);
     this->bit = bit;
@@ -44,14 +45,14 @@ void BitcastInstruction::toString(std::string & str)
     Value * srcVal1 = getOperand(0);
     std::string arrayType = "";
     // 构造 bitcast 指令的字符串
-
+    Type * baseType = srcVal1->getType(); // 获取类型
+    PointerType * pointerType = dynamic_cast<PointerType *>(baseType);
     const std::vector<int32_t> dims = srcVal1->arraydimensionVector;
     if (!dims.empty()) {
         for (auto it = dims.begin(); it != dims.end(); ++it) {
             arrayType += "[" + std::to_string(*it) + " x ";
         }
-        Type * baseType = srcVal1->getType(); // 获取类型
-        PointerType * pointerType = dynamic_cast<PointerType *>(baseType);
+
         arrayType += pointerType->getRootType()->toString();
         for (size_t i = 0; i < dims.size(); ++i) {
             arrayType += "]";
@@ -59,5 +60,9 @@ void BitcastInstruction::toString(std::string & str)
     } else {
         arrayType += srcVal1->getType()->toString();
     }
-    str = getIRName() + " = bitcast " + arrayType + "* " + srcVal1->getIRName() + " to i" + std::to_string(bit) + "*";
+    if (pointerType->getRootType()->toString() == "float" && bit == 32) {
+        str = getIRName() + " = bitcast " + arrayType + "* " + srcVal1->getIRName() + " to float" + "*";
+    } else
+        str =
+            getIRName() + " = bitcast " + arrayType + "* " + srcVal1->getIRName() + " to i" + std::to_string(bit) + "*";
 }

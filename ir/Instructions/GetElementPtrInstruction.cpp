@@ -24,6 +24,7 @@ void GetElementPtrInstruction::toString(std::string & str)
     // 构造 bitcast 指令的字符串
 
     const std::vector<int32_t> dims = srcVal1->arraydimensionVector;
+
     if (!dims.empty()) {
         for (auto it = dims.begin(); it != dims.end(); ++it) {
             arrayType += "[" + std::to_string(*it) + " x ";
@@ -34,6 +35,8 @@ void GetElementPtrInstruction::toString(std::string & str)
         for (auto it = dims.begin(); it != dims.end(); ++it) {
             arrayType += "]";
         }
+    } else if (srcVal1->type->isFloatType()) {
+        arrayType = "float";
     } else {
         arrayType = "i32";
     }
