@@ -28,6 +28,7 @@
 #include "IRGenerator.h"
 #include "RecursiveDescentExecutor.h"
 #include "Module.h"
+#include "Analysis/CFG.h"
 
 ///
 /// @brief 是否显示帮助信息
@@ -84,7 +85,10 @@ static std::string gCPUTarget = "ARM64";
 static std::string gInputFile;
 
 /// @brief 输出文件，不同的选项输出的内容不同
-static std::string gOutputFile;
+std::string gOutputFile;
+
+/// @brief 输出中间IR和CFG
+static bool gShowCFG = false;
 
 static struct option long_options[] = {{"help", no_argument, 0, 'h'},
                                        {"output", required_argument, 0, 'o'},
@@ -133,7 +137,7 @@ static int ArgsAnalysis(int argc, char * argv[])
     // -O要求必须带有附加整数，指明优化的级别
     // -t要求必须带有目标CPU，指明目标CPU的汇编
     // -c选项在输出汇编时有效，附带输出IR指令内容
-    const char options[] = "ho:STIALDO:t:c";
+    const char options[] = "ho:STIALDO:Ct:c";
     int option_index = 0;
 
     opterr = 1;
@@ -156,6 +160,10 @@ lb_check:
             case 'I':
                 // 产生中间IR
                 gShowLineIR = true;
+                break;
+            case 'C':
+                // 产生CFG
+                gShowCFG = true;
                 break;
             case 'L':
                 // 产生中间IR
@@ -238,6 +246,9 @@ lb_check:
             gOutputFile = "output.png";
         } else if (gShowLineIR) {
             gOutputFile = "output.ir";
+        } else if (gShowCFG) {
+            gOutputFile = "output_CFG.txt";
+
         } else {
             gOutputFile = "output.s";
         }
@@ -335,6 +346,19 @@ static int compile(std::string inputFile, std::string outputFile)
 
             // 输出IR
             module->outputIR(outputFile);
+
+            // 设置返回结果：正常
+            result = 0;
+        }
+
+		if (gShowCFG) {
+
+            // 输出IR
+            module->outputIR(outputFile);
+
+            // 遍历抽象语法树产生线性IR，相关信息保存到符号表中
+            CFG_Generator IR2CFG(module);
+            subResult = IR2CFG.run(true);
 
             // 设置返回结果：正常
             result = 0;

@@ -17,8 +17,14 @@
 #pragma once
 
 #include <vector>
+#include <iostream>
+#include <sstream>
+#include <fstream>
+#include <regex>
 
 #include "Instruction.h"
+
+class Function;
 
 /// @brief 中间IR指令序列管理类
 class InterCode {
@@ -26,6 +32,9 @@ class InterCode {
 protected:
     /// @brief 指令块的指令序列
     std::vector<Instruction *> code;
+
+	/// @brief 按名字保存函数指针
+    std::unordered_map<std::string, Function *> functions_;
 
 public:
     /// @brief 构造函数
@@ -48,4 +57,11 @@ public:
 
     /// @brief 删除所有指令
     void Delete();
+
+    /// @brief 从 .ir 文本读取并粗略解析函数/指令
+    /// @return true 解析成功；false 失败
+    bool parseFromFile(const std::string &filename);
+
+	/// @brief 按名称取得函数；不存在返回 nullptr
+	const Function *getFunction(const std::string &name) const;
 };

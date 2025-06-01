@@ -72,3 +72,8 @@ bool Instruction::hasResultValue()
 {
     return !type->isVoidType();
 }
+
+std::string Instruction::getLabelName() {
+    // 本类继承 Value → getIRName() 已存在
+    return this->getIRName();
+}

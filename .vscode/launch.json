@@ -146,6 +146,83 @@
 				"programOutput": true
 			},
 			"preLaunchTask": "build and qemu run"
+		},
+		{
+			// 可采用GCC或者Clang编译器
+			"name": "Debug CFG",
+			"type": "cppdbg",
+			"request": "launch",
+			"program": "${workspaceFolder}/build/minic",
+			"args": [
+				"-S", // 必选，打开符号显示
+				"-C", // 额外输出 CFG
+				"tests/test1-2.c" // 位置参数：源文件
+			],
+			// 程序的入口（main函数的入口）是否停止
+			"stopAtEntry": true,
+			"cwd": "${workspaceFolder}",
+			"environment": [],
+			"externalConsole": false,
+			// 根据需要修改修改目标架构，这里假定amd64
+			// "targetArchitecture": "amd64",
+			"linux": {
+				"MIMode": "gdb",
+				"miDebuggerPath": "/usr/bin/gdb"
+			},
+			"osx": {
+				"MIMode": "lldb"
+			},
+			"windows": {
+				"MIMode": "gdb"
+			},
+			"setupCommands": [
+				{
+					"description": "Enable pretty-printing for gdb",
+					"text": "-enable-pretty-printing",
+					"ignoreFailures": true
+				},
+				{
+					"description": "Set Disassembly Flavor to Intel",
+					"text": "-gdb-set disassembly-flavor intel",
+					"ignoreFailures": true
+				}
+			],
+			// 不需要编译时可注释掉
+			"preLaunchTask": "CMake: build"
 		}
+		// {
+		// 	/* 调 IR2CFG：gcc/clang + gdb */
+		// 	"name": "Debug IR2CFG",
+		// 	"type": "cppdbg",
+		// 	"request": "launch",
+
+		// 	/* 可选：clang++ + LLDB */
+		// 	/* 把上面三行换成：
+		// 		"type": "lldb",
+		// 		"request": "launch",
+		// 	*/
+
+		// 	"program": "${workspaceFolder}/build/IR2CFG", // 可执行文件
+		// 	"args": ["tests/test1-2.ir", "--dot", "tests/main.dot"],
+		// 	"cwd": "${workspaceFolder}", // 工作目录
+
+		// 	"stopAtEntry": false, // 想在 main() 停住就设 true
+		// 	"externalConsole": false,
+
+		// 	/* ----------- gdb 相关设置 ----------- */
+		// 	"linux": {
+		// 		"MIMode": "gdb",
+		// 		"miDebuggerPath": "/usr/bin/gdb"
+		// 	},
+		// 	"osx": { "MIMode": "lldb" },
+		// 	"windows": { "MIMode": "gdb" },
+
+		// 	/* ★ 若你用 CMake Tools，保持它自动编译 */
+		// 	"preLaunchTask": "CMake: build",
+
+		// 	"setupCommands": [
+		// 		{ "text": "-enable-pretty-printing", "description": "pretty print", "ignoreFailures": true }
+		// 	]
+		// }
 	]
 }

@@ -1,5 +1,8 @@
 cmake_minimum_required(VERSION 3.12)
 
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
 # 设置工程属性，如版本，开发语言等
 project(minic VERSION 1.0.0 LANGUAGES CXX)
 add_compile_options(-Wno-error=unused-variable)
@@ -172,6 +175,12 @@ set(BACKEND_SRCS
 
 # 中间IR(ir)源代码集合
 set(IR_SRCS
+    ir/Analysis/BasicBlock.cpp
+    ir/Analysis/BasicBlock.h
+    ir/Analysis/CFG.cpp
+    ir/Analysis/CFG.h
+    ir/Analysis/DFG.cpp
+    ir/Analysis/DFG.h
 	ir/Generator/IRGenerator.cpp
 	ir/Generator/IRGenerator.h
 	ir/Instructions/ArgInstruction.cpp
@@ -289,13 +298,6 @@ add_executable(${PROJECT_NAME}
 	${UTILS_SRCS}
 )
 
-# 设置语言标准C++17，可根据需要调整
-set_target_properties(${PROJECT_NAME} PROPERTIES
-	CXX_STANDARD 17
-	CXX_EXTENSIONS OFF
-	CXX_STANDARD_REQUIRED ON
-)
-
 # # LLDB调试运行时string不能显示，这是由于clang默认优化时减少调试信息导致的，因此这里指定选项不要优化调试信息
 if("${CMAKE_CXX_COMPILER_ID}" MATCHES "Clang")
 	target_compile_options(${PROJECT_NAME} PRIVATE -fstandalone-debug)
@@ -324,9 +326,11 @@ endif()
 # 引入graphviz库的头文件，防止编译时找不到graphviz的头文件
 target_include_directories(${PROJECT_NAME} PRIVATE
 	${ANTLR4_INCLUDE_DIR}
+	${Graphviz_INCLUDE_DIRS}
 	utils
 	symboltable
 	ir
+	ir/Analysis
 	ir/Generator
 	ir/Types
 	ir/Values
@@ -345,6 +349,11 @@ target_include_directories(${PROJECT_NAME} PRIVATE
 target_link_libraries(${PROJECT_NAME} PRIVATE ${ANTLR4_LIBRARY})
 
 target_link_libraries(${PROJECT_NAME} PRIVATE Threads::Threads)
+
+target_link_libraries(${PROJECT_NAME} PRIVATE ir-core)
+
+# 指定graphviz的库文件以及位置，防止链接时找不到graphviz的库函数
+target_link_libraries(${PROJECT_NAME} PRIVATE ${Graphviz_LIBRARIES})
 
 # 通过flex产生词法分析源代码
 add_custom_target(FLEX_GEN
@@ -429,3 +438,28 @@ set(CPACK_PACKAGE_FILE_NAME "${PROJECT_NAME}-${PROJECT_VERSION}-bin")
 set(CPACK_PACKAGE_DESCRIPTION "minic基本版")
 
 include(CPack)
+
+add_subdirectory(ir/Analysis)
+
+add_executable(IR2CFG tools/IR2CFG.cpp)
+target_link_libraries(IR2CFG PRIVATE ir-Analysis)   # ir-analysis 为 analysis/CMakeLists 里的 target
+
+add_library(ir-core ${IR_SRCS})
+
+target_include_directories(ir-core PUBLIC
+	${Graphviz_INCLUDE_DIRS}
+    ${PROJECT_SOURCE_DIR}/ir
+    ${PROJECT_SOURCE_DIR}/ir/Types
+    ${PROJECT_SOURCE_DIR}/ir/Values
+    ${PROJECT_SOURCE_DIR}/ir/Instructions
+    ${PROJECT_SOURCE_DIR}/ir/Analysis        # 为了直接 include "Analysis/CFG.h"
+	${PROJECT_SOURCE_DIR}/utils
+	${PROJECT_SOURCE_DIR}/frontend
+	${PROJECT_SOURCE_DIR}/backend
+	${PROJECT_SOURCE_DIR}/symboltable
+)
+target_link_libraries(ir-core  PUBLIC ${Graphviz_LIBRARIES})
+
+# 如果需要在头文件里用 USE_GRAPHVIZ 包含/排除代码，给 ir-core 也加：
+target_compile_definitions(ir-core PUBLIC USE_GRAPHVIZ)
+

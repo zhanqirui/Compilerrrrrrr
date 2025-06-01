@@ -267,6 +267,10 @@
 		"thread": "cpp",
 		"cinttypes": "cpp",
 		"*.def": "cpp",
-		"optional": "cpp"
+		"optional": "cpp",
+		"codecvt": "cpp",
+		"regex": "cpp",
+		"iomanip": "cpp",
+		"filesystem": "cpp"
 	}
 }

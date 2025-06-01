@@ -14,11 +14,53 @@
 /// </table>
 ///
 #include "IRCode.h"
+#include "Function.h"
+#include "Instructions/LabelInstruction.h"
 
-/// @brief 析构函数
-InterCode::~InterCode()
-{
+using std::ifstream;
+using std::getline;
+using std::regex;
+using std::smatch;
+
+/// @brief 析构函数，增加function的释放
+InterCode::~InterCode() {
     Delete();
+    for (auto &kv : functions_) delete kv.second;
+    functions_.clear();
+}
+
+bool InterCode::parseFromFile(const std::string &filename) {
+    std::ifstream ifs(filename);
+    if (!ifs.is_open()) return false;
+
+    std::regex  defRE(R"(^\s*define.*@([^(\s]+))");   // 捕获函数名
+    std::string line;
+    Function   *currFun = nullptr;
+
+    while (std::getline(ifs, line)) {
+        std::smatch m;
+        if (std::regex_search(line, m, defRE)) {          // 遇到 define
+            std::string fname = m[1].str();
+            currFun = new Function(fname);                // 轻量构造
+            functions_[fname] = currFun;
+            currFun->appendRawLine(line);
+            continue;
+        }
+
+        if (currFun) {
+            currFun->appendRawLine(line);
+            if (line.find('}') != std::string::npos) {    // 函数结束
+                currFun->finalizeRaw();
+                currFun = nullptr;
+            }
+        }
+    }
+    return !functions_.empty();
+}
+
+const Function *InterCode::getFunction(const std::string &name) const {
+    auto it = functions_.find(name);
+    return (it == functions_.end()) ? nullptr : it->second;
 }
 
 /// @brief 添加一个指令块，添加到尾部，并清除原来指令块的内容

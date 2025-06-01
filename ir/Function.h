@@ -37,6 +37,18 @@ public:
     /// @param _param
     explicit Function(std::string _name, FunctionType * _type, bool _builtin = false);
 
+	/// @brief 轻量构造：仅有函数名，type = nullptr，供 .ir 解析时使用
+	/// @param _name
+	explicit Function(std::string _name);
+
+	/// @brief 解析阶段临时缓存原始行
+	/// @param line: 每读到一行放进来
+	void appendRawLine(const std::string& line);
+
+	/// @brief 读完整个函数后调用（此处简单清空）
+	void finalizeRaw();
+
+
     ///
     /// @brief 析构函数
     /// @brief 释放函数占用的内存和IR指令代码
@@ -286,4 +298,7 @@ private:
     /// @brief 累计的实参个数，用于ARG指令的统计
     ///
     int32_t realArgCount = 0;
+
+	///@brief 缓存容器，加在文件末尾 private 区
+	std::vector<std::string> rawLines_;
 };

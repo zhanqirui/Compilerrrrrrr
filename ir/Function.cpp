@@ -33,6 +33,12 @@ Function::Function(std::string _name, FunctionType * _type, bool _builtin)
     setAlignment(1);
 }
 
+Function::Function(std::string _name)
+    : GlobalValue(nullptr, std::move(_name)), builtIn(false) {
+    returnType = nullptr;
+    setAlignment(1);
+}
+
 ///
 /// @brief 析构函数
 /// @brief 释放函数占用的内存和IR指令代码
@@ -40,6 +46,14 @@ Function::Function(std::string _name, FunctionType * _type, bool _builtin)
 Function::~Function()
 {
     Delete();
+}
+
+void Function::appendRawLine(const std::string& line) {
+    rawLines_.push_back(line);
+}
+
+void Function::finalizeRaw() {
+    rawLines_.clear();          // 当前阶段仅占位，可在此解析 rawLines_
 }
 
 /// @brief 获取函数返回类型

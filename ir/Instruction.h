@@ -186,6 +186,11 @@ public:
         this->loadRegNo = regId;
     }
 
+	/**
+     * @brief 获取 label 的“可打印”名字
+     */
+    std::string getLabelName();
+
 protected:
     ///
     /// @brief IR指令操作码
@@ -226,4 +231,10 @@ protected:
     /// @brief 变量加载到寄存器中时对应的寄存器编号
     ///
     int32_t loadRegNo = -1;
+
+    /// @brief 目标真出口指令，指向Label指令，主要用于有条件跳转
+    Instruction * trueInst;
+
+    /// @brief 目标假出口指令，指向Label指令，主要用于有条件跳转
+    Instruction * falseInst;
 };
