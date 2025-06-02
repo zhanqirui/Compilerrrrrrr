@@ -24,23 +24,22 @@ define dso_local float @float_abs(float %0) #0 {
   %5 = load float, float* %2, align 4
   %6 = fcmp olt float %5, 0.000000
   %7 = icmp ne i1 %6, 0
-  br i1 %7,  label %8,   label %12
+  br i1 %7,  label %8,   label %11
 
 8:
   %9 = load float, float* %2, align 4
-  %10 = sub nsw float 0, %9
-  %11 = sitofp i32 %10 to float
-  store float %11, float* %3, align 4
-  br label %14
+  %10 = fsub  float 0.000000, %9
+  store float %10, float* %3, align 4
+  br label %13
 
-12:
-  %13 = load float, float* %2, align 4
-  store float %13, float* %3, align 4
-  br label %14
+11:
+  %12 = load float, float* %2, align 4
+  store float %12, float* %3, align 4
+  br label %13
 
-14:
-  %15 = load i32, i32* %3, align 4
-  ret i32 %15
+13:
+  %14 = load float, float* %3, align 4
+  ret float %14
 }
 define dso_local float @circle_area(i32 %0) #0 {
   %2 = alloca i32, align 4
@@ -48,22 +47,25 @@ define dso_local float @circle_area(i32 %0) #0 {
   store float 0x0, float* %3, align 4
   store i32 %0, i32* %2, align 4
   %4 = load i32, i32* %2, align 4
-  %5 = mul nsw float 3.141593, %4
-  %6 = load i32, i32* %2, align 4
-  %7 = mul nsw i32 %5, %6
-  %8 = load i32, i32* %2, align 4
-  %9 = load i32, i32* %2, align 4
-  %10 = mul nsw i32 %8, %9
-  %11 = mul nsw float %10, 3
-  %12 = add nsw i32 %7, %11
-  %13 = sdiv i32 %12, 2
-  %14 = sitofp i32 %13 to float
-  store float %14, float* %3, align 4
-  br label %15
+  %5 = sitofp i32 %4 to float
+  %6 = fmul float 0x400921fb60000000, %5
+  %7 = load i32, i32* %2, align 4
+  %8 = sitofp i32 %7 to float
+  %9 = fmul float %6, %8
+  %10 = load i32, i32* %2, align 4
+  %11 = load i32, i32* %2, align 4
+  %12 = mul nsw i32 %10, %11
+  %13 = sitofp i32 %12 to float
+  %14 = fmul float %13, 0x400921fb60000000
+  %15 = fadd float %9, %14
+  %16 = sitofp i32 2 to float
+  %17 = fdiv float %15, %16
+  store float %17, float* %3, align 4
+  br label %18
 
-15:
-  %16 = load i32, i32* %3, align 4
-  ret i32 %16
+18:
+  %19 = load float, float* %3, align 4
+  ret float %19
 }
 define dso_local i32 @float_eq(float %0, float %1) #0 {
   %3 = alloca float, align 4
@@ -77,9 +79,9 @@ define dso_local i32 @float_eq(float %0, float %1) #0 {
 6:
   %7 = load float, float* %3, align 4
   %8 = load float, float* %4, align 4
-  %9 = sub nsw float %7, %8
-  %10 = call f32 @float_abs(i32 %9)
-  %11 = icmp slt float %10, 0.000001
+  %9 = fsub float %7, %8
+  %10 = call float @float_abs(float %9)
+  %11 = fcmp olt float %10, 0.000000
   %12 = icmp ne i1 %11, 0
   br i1 %12,  label %13,   label %14
 
@@ -205,8 +207,8 @@ define dso_local i32 @main() #0 {
   call void @assert_not(i32 %10)
   %11 = call i32 @float_eq(float @EVAL2, float @EVAL3)
   call void @assert(i32 %11)
-  %12 = call f32 @circle_area(float @RADIUS)
-  %13 = call f32 @circle_area(i32 @FIVE)
+  %12 = call float @circle_area(float @RADIUS)
+  %13 = call float @circle_area(i32 @FIVE)
   %14 = call i32 @float_eq(float %12, float %13)
   call void @assert(i32 %14)
   %15 = call i32 @float_eq(float @CONV1, float @CONV2)
@@ -293,11 +295,11 @@ define dso_local i32 @main() #0 {
   store i32 0, i32* %3, align 4
   %46 = bitcast [10 x float]* %4 to i8*
   call void @llvm.memset.p0i8.i64(i8* align 16 %46, i8 0, i64 40, i1 false)
-  %47 = bitcast [10 x float]* %4 to i32*
-  %48 = getelementptr inbounds i32, i32* %47, i32 0
-  store i32 1, i32* %48, align 4
-  %49 = getelementptr inbounds i32, i32* %47, i32 1
-  store i32 2, i32* %49, align 4
+  %47 = bitcast [10 x float]* %4 to float*
+  %48 = getelementptr inbounds float, float* %47, i32 0
+  store float 0x3ff0000000000000, float* %48, align 4
+  %49 = getelementptr inbounds float, float* %47, i32 1
+  store float 0x4000000000000000, float* %49, align 4
   %50 = bitcast [10 x float]* %4 to i32*
   %51 = getelementptr inbounds i32, i32* %50, i32 0
   %52 = call i32 (...) @getfarray(i32* %51)
@@ -308,63 +310,64 @@ define dso_local i32 @main() #0 {
   %54 = load i32, i32* %2, align 4
   %55 = icmp slt i32 %54, 1000000000
   %56 = icmp ne i1 %55, 0
-  br i1 %56,  label %57,   label %83
+  br i1 %56,  label %57,   label %84
 
 57:
-  %58 = call f32 (...) @getfloat()
+  %58 = call float (...) @getfloat()
   store float %58, float* %6, align 4
   %59 = load float, float* %6, align 4
-  %60 = mul nsw float 3.141593, %59
+  %60 = fmul float 0x400921fb60000000, %59
   %61 = load float, float* %6, align 4
-  %62 = mul nsw float %60, %61
-  %63 = sitofp i32 %62 to float
-  store float %63, float* %7, align 4
-  %64 = load float, float* %6, align 4
-  %65 = call f32 @circle_area(float %64)
-  store float %65, float* %8, align 4
-  %66 = load i32, i32* %3, align 4
-  %67 = add nsw i32 0, %66
-  %68 = bitcast [10 x float]* %4 to i32*
-  %69 = getelementptr inbounds i32, i32* %68, i32 %67
-  %70 = load i32, i32* %69, align 4
-  %71 = load float, float* %6, align 4
-  %72 = add nsw float %70, %71
-  %73 = load i32, i32* %3, align 4
-  %74 = add nsw i32 0, %73
-  %75 = bitcast [10 x float]* %4 to i32*
-  %76 = getelementptr inbounds i32, i32* %75, i32 %74
-  store i32 %72, i32*  %76, align 4
-  %77 = load float, float* %7, align 4
-  call void  @putfloat(float %77)
+  %62 = fmul float %60, %61
+  store float %62, float* %7, align 4
+  %63 = load float, float* %6, align 4
+  %64 = call float @circle_area(float %63)
+  store float %64, float* %8, align 4
+  %65 = load i32, i32* %3, align 4
+  %66 = add nsw i32 0, %65
+  %67 = bitcast [10 x float]* %4 to float*
+  %68 = getelementptr inbounds float, float* %67, i32 %66
+  %69 = load float, float* %68, align 4
+  %70 = load float, float* %6, align 4
+  %71 = fadd float %69, %70
+  %72 = load i32, i32* %3, align 4
+  %73 = add nsw i32 0, %72
+  %74 = bitcast [10 x float]* %4 to float*
+  %75 = getelementptr inbounds float, float* %74, i32 %73
+  store float %71, float*  %75, align 4
+  %76 = load float, float* %7, align 4
+  call void  @putfloat(float %76)
   call void  @putch(i32 32)
-  %78 = load float, float* %8, align 4
-  call void  @putint(float %78)
+  %77 = load float, float* %8, align 4
+  call void  @putint(float %77)
   call void  @putch(i32 10)
-  %79 = load i32, i32* %2, align 4
-  %80 = mul nsw float %79, 10
-  store i32 %80, i32* %2, align 4
-  %81 = load i32, i32* %3, align 4
-  %82 = add nsw i32 %81, 1
-  store i32 %82, i32* %3, align 4
+  %78 = load i32, i32* %2, align 4
+  %79 = sitofp i32 %78 to float
+  %80 = fmul float %79, 0x4024000000000000
+  %81 = fptosi float %80 to i32
+  store i32 %81, i32* %2, align 4
+  %82 = load i32, i32* %3, align 4
+  %83 = add nsw i32 %82, 1
+  store i32 %83, i32* %3, align 4
   br label %53
 
-83:
-  %84 = load i32, i32* %5, align 4
-  %85 = bitcast [10 x float]* %4 to i32*
-  %86 = getelementptr inbounds i32, i32* %85, i32 0
-  call void  @putfarray(i32 %84, i32* %86)
+84:
+  %85 = load i32, i32* %5, align 4
+  %86 = bitcast [10 x float]* %4 to i32*
+  %87 = getelementptr inbounds i32, i32* %86, i32 0
+  call void  @putfarray(i32 %85, i32* %87)
   store i32 0, i32* %1, align 4
-  br label %87
+  br label %88
 
-87:
-  %88 = load i32, i32* %1, align 4
-  ret i32 %88
+88:
+  %89 = load i32, i32* %1, align 4
+  ret i32 %89
 }
 declare void @putint(i32) #1
 declare void @putch(i32) #1
-declare f32 @getfloat(...) #1
-declare void @putfloat(f32) #1
-declare i32 @getfarray(f32*) #1
-declare void @putfarray(i32,f32*) #1
+declare float @getfloat(...) #1
+declare void @putfloat(float) #1
+declare i32 @getfarray(float*) #1
+declare void @putfarray(i32,float*) #1
 
 declare void @llvm.memset.p0i8.i64(i8* nocapture writeonly, i8, i64, i1 immarg) #1

@@ -71,7 +71,7 @@ void FuncCallInstruction::toString(std::string & str)
         if (type->isVoidType()) {
             str = "call void  " + calledFunction->getIRName() + "(";
         } else if (type->isFloatType()) {
-            str = getIRName() + " = call f32 (...) " + calledFunction->getIRName() + "(";
+            str = getIRName() + " = call float (...) " + calledFunction->getIRName() + "(";
         } else {
             str = getIRName() + " = call i32 (...) " + calledFunction->getIRName() + "(";
         }
@@ -84,7 +84,7 @@ void FuncCallInstruction::toString(std::string & str)
         } else if (type->isFloatType()) {
 
             // 函数有返回值要设置到结果变量中
-            str = getIRName() + " = call f32 " + calledFunction->getIRName() + "(";
+            str = getIRName() + " = call float " + calledFunction->getIRName() + "(";
         } else if (type->isIntegerType()) {
             // 函数有返回值要设置到结果变量中
             str = getIRName() + " = call i32 " + calledFunction->getIRName() + "(";
