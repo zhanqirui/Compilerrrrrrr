@@ -967,7 +967,7 @@ bool IRGenerator::ir_mul(ast_node * node)
     Op op = node->op_type;
     ast_node * src1_node = node->sons[0];
     ast_node * src2_node = node->sons[1];
-    
+
     // 加法的左边操作数
 
     ast_node * left = ir_visit_ast_node(src1_node);
@@ -1661,8 +1661,16 @@ bool IRGenerator::ir_array_var_def_declare(ast_node * node)
         for (FlattenedArrayElement & elem: array_val->flattenedArray) {
             GetElementPtrInstruction * gepInst;
             MoveInstruction * movInst;
-            std::vector<int> indices = {elem.flatIndex};
-            Value * flatvalue = module->newConstInt(elem.flatIndex);
+            std::vector<int> indices = {elem.flatIndex}; //这句代码没有用
+            Value * flatvalue = nullptr;
+            /*
+            if (pointerType->getPointeeType()->isFloatType()) {
+                flatvalue = module->newConstFloat(elem.flatIndex);
+            } else {
+                flatvalue = module->newConstInt(elem.flatIndex);
+            }
+            */
+            flatvalue = module->newConstInt(elem.flatIndex);
             if (elem.is_use_val) {
                 gepInst = new GetElementPtrInstruction(module->getCurrentFunction(), bitcatinst, flatvalue);
                 node->blockInsts.addInst(gepInst);
@@ -1678,7 +1686,7 @@ bool IRGenerator::ir_array_var_def_declare(ast_node * node)
                 node->blockInsts.addInst(movInst);
             }
         }
-        // }
+
     } else if (node->sons.size() > 2 && node->sons[2]->sons.size() == 0) {
         bitcatinst = new BitcastInstruction(module->getCurrentFunction(), array_val, 8);
         node->blockInsts.addInst(bitcatinst);
@@ -2289,7 +2297,7 @@ bool IRGenerator::ir_const_array_var_def_declare(ast_node * node)
         for (FlattenedArrayElement & elem: array_val->flattenedArray) {
             GetElementPtrInstruction * gepInst;
             MoveInstruction * movInst;
-            std::vector<int> indices = {elem.flatIndex};
+            std::vector<int> indices = {elem.flatIndex}; //这句代码没有用
             Value * flatvalue = module->newConstInt(elem.flatIndex);
             if (elem.is_use_val) {
                 gepInst = new GetElementPtrInstruction(module->getCurrentFunction(), bitcatinst, flatvalue);
