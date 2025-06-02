@@ -299,6 +299,37 @@ void BinaryInstruction::toString(std::string & str)
             }
             break;
 
+        case IRInstOperator::IRINST_OP_GT_F:
+
+            //浮点大于指令，二元运算
+            if (src1->isConst() || src2->isConst()) {
+                std::string st1, st2;
+                if (src1->isConst()) {
+                    if (src1->type->isFloatType()) {
+                        // st1 = std::to_string(src1->real_float);
+                        st1 = ConstFloat::float2str_llvm(src1->real_float);
+                    } else {
+                        st1 = std::to_string(src1->real_int);
+                    }
+                } else {
+                    st1 = src1->getIRName();
+                }
+                if (src2->isConst()) {
+                    if (src1->type->isFloatType()) {
+                        // st2 = std::to_string(src2->real_float);
+                        st2 = ConstFloat::float2str_llvm(src2->real_float);
+                    } else {
+                        st2 = std::to_string(src2->real_int);
+                    }
+                } else {
+                    st2 = src2->getIRName();
+                }
+                str = getIRName() + " = fcmp ogt " + type_str + st1 + ", " + st2;
+            } else {
+                str = getIRName() + " = fcmp ogt " + type_str + src1->getIRName() + ", " + src2->getIRName();
+            }
+            break;
+
         case IRInstOperator::IRINST_OP_GT_I:
 
             //有符号大于指令，二元运算
@@ -325,6 +356,37 @@ void BinaryInstruction::toString(std::string & str)
                 str = getIRName() + " = icmp sgt " + type_str + st1 + ", " + st2;
             } else {
                 str = getIRName() + " = icmp sgt " + type_str + src1->getIRName() + ", " + src2->getIRName();
+            }
+            break;
+
+        case IRInstOperator::IRINST_OP_GE_F:
+
+            //浮点大于等于指令，二元运算
+            if (src1->isConst() || src2->isConst()) {
+                std::string st1, st2;
+                if (src1->isConst()) {
+                    if (src1->type->isFloatType()) {
+                        // st1 = std::to_string(src1->real_float);
+                        st1 = ConstFloat::float2str_llvm(src1->real_float);
+                    } else {
+                        st1 = std::to_string(src1->real_int);
+                    }
+                } else {
+                    st1 = src1->getIRName();
+                }
+                if (src2->isConst()) {
+                    if (src1->type->isFloatType()) {
+                        // st2 = std::to_string(src2->real_float);
+                        st2 = ConstFloat::float2str_llvm(src2->real_float);
+                    } else {
+                        st2 = std::to_string(src2->real_int);
+                    }
+                } else {
+                    st2 = src2->getIRName();
+                }
+                str = getIRName() + " = fcmp oge " + type_str + st1 + ", " + st2;
+            } else {
+                str = getIRName() + " = fcmp oge " + type_str + src1->getIRName() + ", " + src2->getIRName();
             }
             break;
 
@@ -357,6 +419,37 @@ void BinaryInstruction::toString(std::string & str)
             }
             break;
 
+        case IRInstOperator::IRINST_OP_LT_F:
+
+            // 浮点小于指令，二元运算
+            if (src1->isConst() || src2->isConst()) {
+                std::string st1, st2;
+                if (src1->isConst()) {
+                    if (src1->type->isFloatType()) {
+                        // st1 = std::to_string(src1->real_float);
+                        st1 = ConstFloat::float2str_llvm(src1->real_float);
+                    } else {
+                        st1 = std::to_string(src1->real_int);
+                    }
+                } else {
+                    st1 = src1->getIRName();
+                }
+                if (src2->isConst()) {
+                    if (src1->type->isFloatType()) {
+                        // st2 = std::to_string(src2->real_float);
+                        st2 = ConstFloat::float2str_llvm(src2->real_float);
+                    } else {
+                        st2 = std::to_string(src2->real_int);
+                    }
+                } else {
+                    st2 = src2->getIRName();
+                }
+                str = getIRName() + " = fcmp olt " + type_str + st1 + ", " + st2;
+            } else {
+                str = getIRName() + " = fcmp olt " + type_str + src1->getIRName() + ", " + src2->getIRName();
+            }
+            break;
+
         case IRInstOperator::IRINST_OP_LT_I:
 
             // 有符号小于指令，二元运算
@@ -383,6 +476,37 @@ void BinaryInstruction::toString(std::string & str)
                 str = getIRName() + " = icmp slt " + type_str + st1 + ", " + st2;
             } else {
                 str = getIRName() + " = icmp slt " + type_str + src1->getIRName() + ", " + src2->getIRName();
+            }
+            break;
+
+        case IRInstOperator::IRINST_OP_LE_F:
+
+            // 浮点小于等于指令，二元运算
+            if (src1->isConst() || src2->isConst()) {
+                std::string st1, st2;
+                if (src1->isConst()) {
+                    if (src1->type->isFloatType()) {
+                        // st1 = std::to_string(src1->real_float);
+                        st1 = ConstFloat::float2str_llvm(src1->real_float);
+                    } else {
+                        st1 = std::to_string(src1->real_int);
+                    }
+                } else {
+                    st1 = src1->getIRName();
+                }
+                if (src2->isConst()) {
+                    if (src1->type->isFloatType()) {
+                        // st2 = std::to_string(src2->real_float);
+                        st2 = ConstFloat::float2str_llvm(src2->real_float);
+                    } else {
+                        st2 = std::to_string(src2->real_int);
+                    }
+                } else {
+                    st2 = src2->getIRName();
+                }
+                str = getIRName() + " = fcmp ole " + type_str + st1 + ", " + st2;
+            } else {
+                str = getIRName() + " = fcmp ole " + type_str + src1->getIRName() + ", " + src2->getIRName();
             }
             break;
 
@@ -415,6 +539,37 @@ void BinaryInstruction::toString(std::string & str)
             }
             break;
 
+        case IRInstOperator::IRINST_OP_EQ_F:
+
+            // 浮点相等判断指令，二元运算
+            if (src1->isConst() || src2->isConst()) {
+                std::string st1, st2;
+                if (src1->isConst()) {
+                    if (src1->type->isFloatType()) {
+                        // st1 = std::to_string(src1->real_float);
+                        st1 = ConstFloat::float2str_llvm(src1->real_float);
+                    } else {
+                        st1 = std::to_string(src1->real_int);
+                    }
+                } else {
+                    st1 = src1->getIRName();
+                }
+                if (src2->isConst()) {
+                    if (src1->type->isFloatType()) {
+                        // st2 = std::to_string(src2->real_float);
+                        st2 = ConstFloat::float2str_llvm(src2->real_float);
+                    } else {
+                        st2 = std::to_string(src2->real_int);
+                    }
+                } else {
+                    st2 = src2->getIRName();
+                }
+                str = getIRName() + " = fcmp oeq " + type_str + st1 + ", " + st2;
+            } else {
+                str = getIRName() + " = fcmp oeq " + type_str + src1->getIRName() + ", " + src2->getIRName();
+            }
+            break;
+
         case IRInstOperator::IRINST_OP_EQ_I:
 
             // 相等判断指令，二元运算
@@ -441,6 +596,37 @@ void BinaryInstruction::toString(std::string & str)
                 str = getIRName() + " = icmp eq " + type_str + st1 + ", " + st2;
             } else {
                 str = getIRName() + " = icmp eq " + type_str + src1->getIRName() + ", " + src2->getIRName();
+            }
+            break;
+
+        case IRInstOperator::IRINST_OP_NE_F:
+
+            // 浮点不相等判断指令，二元运算
+            if (src1->isConst() || src2->isConst()) {
+                std::string st1, st2;
+                if (src1->isConst()) {
+                    if (src1->type->isFloatType()) {
+                        // st1 = std::to_string(src1->real_float);
+                        st1 = ConstFloat::float2str_llvm(src1->real_float);
+                    } else {
+                        st1 = std::to_string(src1->real_int);
+                    }
+                } else {
+                    st1 = src1->getIRName();
+                }
+                if (src2->isConst()) {
+                    if (src1->type->isFloatType()) {
+                        // st2 = std::to_string(src2->real_float);
+                        st2 = ConstFloat::float2str_llvm(src2->real_float);
+                    } else {
+                        st2 = std::to_string(src2->real_int);
+                    }
+                } else {
+                    st2 = src2->getIRName();
+                }
+                str = getIRName() + " = fcmp one " + type_str + st1 + ", " + st2;
+            } else {
+                str = getIRName() + " = fcmp one " + type_str + src1->getIRName() + ", " + src2->getIRName();
             }
             break;
 

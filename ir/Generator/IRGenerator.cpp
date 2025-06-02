@@ -1199,17 +1199,6 @@ bool IRGenerator::ir_visitConfExp(ast_node * node)
     Op op = node->op_type;
     ast_node * src1_node = node->sons[0];
     ast_node * src2_node = node->sons[1];
-
-    // 加法节点，左结合，先计算左节点，后计算右节点
-    IRInstOperator irOp = (op == Op::GT)    ? IRInstOperator::IRINST_OP_GT_I
-                          : (op == Op::EQ)  ? IRInstOperator::IRINST_OP_EQ_I
-                          : (op == Op::LT)  ? IRInstOperator::IRINST_OP_LT_I
-                          : (op == Op::LE)  ? IRInstOperator::IRINST_OP_LE_I
-                          : (op == Op::GE)  ? IRInstOperator::IRINST_OP_GE_I
-                          : (op == Op::NE)  ? IRInstOperator::IRINST_OP_NE_I
-                          : (op == Op::AND) ? IRInstOperator::IRINST_OP_AND_I
-                          : (op == Op::OR)  ? IRInstOperator::IRINST_OP_OR_I
-                                            : IRInstOperator::IRINST_OP_DIV_I;
     // 加法的左边操作数
     ast_node * left = ir_visit_ast_node(src1_node);
     if (!left) {
@@ -1222,6 +1211,29 @@ bool IRGenerator::ir_visitConfExp(ast_node * node)
     if (!right) {
         // 某个变量没有定值
         return false;
+    }
+    IRInstOperator irOp;
+    if (left->val->getType()->isFloatType() || right->val->getType()->isFloatType()) {
+        irOp = (op == Op::GT)    ? IRInstOperator::IRINST_OP_GT_F
+               : (op == Op::EQ)  ? IRInstOperator::IRINST_OP_EQ_F
+               : (op == Op::LT)  ? IRInstOperator::IRINST_OP_LT_F
+               : (op == Op::LE)  ? IRInstOperator::IRINST_OP_LE_F
+               : (op == Op::GE)  ? IRInstOperator::IRINST_OP_GE_F
+               : (op == Op::NE)  ? IRInstOperator::IRINST_OP_NE_F
+               : (op == Op::AND) ? IRInstOperator::IRINST_OP_AND_F
+               : (op == Op::OR)  ? IRInstOperator::IRINST_OP_OR_F
+                                 : IRInstOperator::IRINST_OP_DIV_F;
+    } else {
+        // 加法节点，左结合，先计算左节点，后计算右节点
+        irOp = (op == Op::GT)    ? IRInstOperator::IRINST_OP_GT_I
+               : (op == Op::EQ)  ? IRInstOperator::IRINST_OP_EQ_I
+               : (op == Op::LT)  ? IRInstOperator::IRINST_OP_LT_I
+               : (op == Op::LE)  ? IRInstOperator::IRINST_OP_LE_I
+               : (op == Op::GE)  ? IRInstOperator::IRINST_OP_GE_I
+               : (op == Op::NE)  ? IRInstOperator::IRINST_OP_NE_I
+               : (op == Op::AND) ? IRInstOperator::IRINST_OP_AND_I
+               : (op == Op::OR)  ? IRInstOperator::IRINST_OP_OR_I
+                                 : IRInstOperator::IRINST_OP_DIV_I;
     }
     BinaryInstruction * mulInst;
     LoadInstruction * LstoInst = nullptr;
