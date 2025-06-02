@@ -38,7 +38,7 @@ bool CFG_Generator::label_inst(Instruction * ir_inst)
     //新建并更换当前function的block
     //并把label作为当前block的唯一索引，添加到block入口中
     auto new_block = getCurrentFunction()->newBlock();
-    getCurrentFunction()->addEntry2Block(label_name, new_block);
+    getCurrentFunction()->addLabel2Block(label_name, new_block);
     getCurrentFunction()->currentBlock = new_block;
 
     // label塞入当前块内
@@ -95,6 +95,95 @@ bool CFG_Generator::default_expr_inst(Instruction * ir_inst)
     return true;
 }
 
+/// @brief CFG代码块合并，合并前缀和后缀为1的block
+void CFG_Generator::block_merge()
+{
+    // 逐个函数处理
+    for (CFG_function * cfg_func : functions) {
+		std::unordered_map<std::string, bool> del_block;
+
+		// 注意：可能在循环里删除 block，因此用索引而非 range-for
+		for (std::size_t i = 0; i < cfg_func->blocks.size(); ++i) {
+			CFG_block * cfg_block = cfg_func->blocks[i];
+
+            bool changed = false;
+
+			do {
+				// to_block是决定要不要删除的，cfg_block是to_block的前一个，是一定会保留的
+                changed = false;
+
+				if (cfg_block->exits.size() != 1)
+                    break; // 最后一个了
+
+                const std::string exit_label = cfg_block->exits[0];
+                auto target_it = cfg_func->blockMap.find(exit_label);
+                if (target_it == cfg_func->blockMap.end())
+                    break; // 不在同一函数里，跳过
+
+                CFG_block * to_block = target_it->second;
+                if (cfg_block == to_block)
+                    break; // 自环，不合并
+
+                // 只处理 单入口和出口 的基本块
+                if (to_block->prepos_entries.size() != 1 || to_block->blk_label.size() != 1)
+                    break;
+
+                const std::string now_blk_label = cfg_block->blk_label[0];
+                if (del_block.find(now_blk_label) != del_block.end())
+                    break; // 已经标记为删除，跳过
+
+                // 指令迁移
+                cfg_block->irInstructions.pop_back();
+                cfg_block->irInstructions.insert(cfg_block->irInstructions.begin(),
+                                                to_block->irInstructions.begin() + 1,
+                                                to_block->irInstructions.end());
+
+                // 出口标签迁移
+                cfg_block->exits = to_block->exits;
+
+                // // 更新所有后驱的入口
+                // for (std::string & lbl : to_block->exits)
+                // {
+                // 	auto next_it = cfg_func->blockMap.find(lbl);
+                // 	CFG_block * next_block = next_it->second;
+                // 	next_block->blk_label = to_block->blk_label;
+                // }
+
+                // 记录需要删除的冗余块
+                del_block[to_block->blk_label[0]] = true;
+                changed = true;
+            } while (changed == true);
+        }
+
+        // 删除标记的冗余块
+		for (const auto & del_blk : del_block) {
+			const std::string & del_blk_label = del_blk.first;
+			auto it = cfg_func->blockMap.find(del_blk_label);
+			if (it != cfg_func->blockMap.end()) {
+				CFG_block * block_to_delete = it->second;
+				cfg_func->blocks.erase(std::remove(cfg_func->blocks.begin(), cfg_func->blocks.end(), block_to_delete), cfg_func->blocks.end());
+				cfg_func->blockMap.erase(del_blk_label);
+				delete block_to_delete;
+			}
+		}
+    }
+}
+
+void CFG_Generator::add_prepose_entries2Block()
+{
+	for (CFG_function * cfg_func : this->functions) {
+		for (CFG_block * cfg_block : cfg_func->blocks) {
+			for (const std::string & exit_label : cfg_block->exits) {
+				auto it = cfg_func->blockMap.find(exit_label);
+				if (it != cfg_func->blockMap.end()) {
+					CFG_block * to_block = it->second;
+					to_block->prepos_entries.push_back(cfg_block->blk_label[0]);
+				}
+			}
+		}
+	}
+}
+
 /// @brief 运行产生CFG
 /// @param print_flag true:生成并打印;false:只生成CFG
 /// @return 翻译是否成功，true：成功，false：失败
@@ -126,6 +215,10 @@ bool CFG_Generator::run(bool print_flag)
         }
     }
 
+	add_prepose_entries2Block();
+
+    block_merge();
+
     //下面遍历func和func中的block，生成CFG
     //遍历函数
     for (auto cfg_func: functions) {
@@ -139,8 +232,8 @@ bool CFG_Generator::run(bool print_flag)
         //遍历block，创建所有node
         for (auto cfg_block: cfg_func->blocks) {
             //创建节点
-            // Agnode_t * n1 = agnode(g, cfg_block->entries[0].data(), 1);
-			Agnode_t *n1 = agnode(g, const_cast<char*>(cfg_block->entries[0].c_str()), 1);
+            // Agnode_t * n1 = agnode(g, cfg_block->blk_label[0].data(), 1);
+			Agnode_t *n1 = agnode(g, const_cast<char*>(cfg_block->blk_label[0].c_str()), 1);
             std::string all_ir_str;
             //把ir添加进去
             for (const auto & ir: cfg_block->irInstructions) {

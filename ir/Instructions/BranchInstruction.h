@@ -52,6 +52,18 @@ public:
     ///
     [[nodiscard]] LabelInstruction * getFalseTarget() const;
 
+	Instruction * getTrueLabel()
+    {
+        return this->trueTarget;
+    }
+
+    /// @brief 获取假出口
+    /// @return FalseLabel
+    Instruction * getFalseLabel()
+    {
+        return this->falseTarget;
+    }
+
 private:
     ///
     /// @brief 条件为真时跳转到的目标Label指令

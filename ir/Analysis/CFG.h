@@ -24,7 +24,8 @@
 // CFG_block类
 class CFG_block {
 public:
-    std::vector<std::string> entries;     // 存储该block所有的入口
+    std::vector<std::string> blk_label;
+	std::vector<std::string> prepos_entries;	// 存储该block所有的入口
     std::vector<std::string> exits;       // 存储该block所有的出口
     std::vector<Instruction *> irInstructions; // 存储所有的ir指令
 
@@ -40,8 +41,8 @@ public:
 
     std::string name; //函数的名字
 
-    std::vector<CFG_block *> blocks;                       // 存储该函数的所有CFG_block
-    std::unordered_map<std::string, CFG_block *> blockMap; // entries到block的映射
+    std::vector<CFG_block *> blocks;
+    std::unordered_map<std::string, CFG_block *> blockMap; // blk_label到block的映射
 
     //用来画图
     std::vector<Agnode_t *> nodes; // 存储该函数的所有CFG_block
@@ -63,15 +64,15 @@ public:
         return new_block;
     }
 
-    /// @brief 向Block中添加entries
-    /// @param entry 入口,是一个字符串
+    /// @brief 向Block中添加blk_label
+    /// @param label 入口,是一个字符串
     /// @param cfg_block 对应的cfg_block
     /// @return 指向新block的指针
-    bool addEntry2Block(std::string entry, CFG_block * cfg_block)
+    bool addLabel2Block(std::string label, CFG_block * cfg_block)
     {
         //向block中添加入口
-        cfg_block->entries.push_back(entry);
-        blockMap[entry] = cfg_block;
+        cfg_block->blk_label.push_back(label);
+        blockMap[label] = cfg_block;
         return true;
     }
 
@@ -155,6 +156,12 @@ public:
     {
         return currentFunction;
     }
+
+    /// @brief CFG代码块后缀合并，合并后缀为1的block
+    void block_merge();
+
+    /// @brief 向Block中添加prepos_entries
+    void add_prepose_entries2Block();
 
     /// @brief 运行产生CFG
     /// @param print_flag true:生成并打印;false:只生成CFG

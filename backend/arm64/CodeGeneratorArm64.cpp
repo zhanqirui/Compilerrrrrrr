@@ -306,7 +306,7 @@ void CodeGeneratorArm64::adjustFormalParamInsts(Function * func)
     for (int k = 0; k < (int) params.size() && k <= 7; k++) {
 
         // 前四个设置分配寄存器
-		simpleRegisterAllocator.bitmapSet(k);
+		reg_allocator.bitmapSet(k);
         params[k]->setRegId(k);
     }
 
@@ -375,7 +375,7 @@ void CodeGeneratorArm64::adjustFuncCallInsts(Function * func)
                     Instruction * assignInst =
                         new MoveInstruction(func, PlatformArm64::intRegVal[k], callInst->getOperand(k));
 
-                    simpleRegisterAllocator.bitmapSet(k);
+                    reg_allocator.bitmapSet(k);
                     callInst->setOperand(k, PlatformArm64::intRegVal[k]);
 
                     // 函数调用指令前插入后，pIter仍指向函数调用指令

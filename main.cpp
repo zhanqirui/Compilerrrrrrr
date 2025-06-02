@@ -354,6 +354,10 @@ static int compile(std::string inputFile, std::string outputFile)
 
 		if (gShowCFG) {
 
+            // 对IR的名字重命名
+            module->BLOCK_SIMPLE_EN();
+            module->renameIR();
+
             // 输出IR
             module->outputIR(outputFile);
 

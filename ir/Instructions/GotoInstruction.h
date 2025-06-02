@@ -47,14 +47,14 @@ public:
     /// @return TrueLabel
     Instruction * getTrueLabel()
     {
-        return trueInst;
+        return this->target;
     }
 
     /// @brief 获取假出口
     /// @return FalseLabel
     Instruction * getFalseLabel()
     {
-        return falseInst;
+        return this->target;
     }
 
 

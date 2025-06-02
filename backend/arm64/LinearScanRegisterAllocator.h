@@ -53,10 +53,10 @@ public:
     /// 查询历史使用情况（生成保存现场指令时使用）
     const std::bitset<PlatformArm64::maxUsableRegNum>& everUsedBitmap() const { return usedBitmap; }
 
-private:
-    /// 内部工具：同时在 regBitmap 与 usedBitmap 中置位
+	/// 内部工具：同时在 regBitmap 与 usedBitmap 中置位
     void bitmapSet(int32_t no);
 
+private:
     std::bitset<PlatformArm64::maxUsableRegNum> regBitmap;   // 当前活跃寄存器位图
     std::bitset<PlatformArm64::maxUsableRegNum> usedBitmap;  // 曾经使用过的寄存器位图
     std::vector<Value*> regValues;                           // 当前活跃变量列表

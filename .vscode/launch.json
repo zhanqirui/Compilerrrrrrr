@@ -156,7 +156,7 @@
 			"args": [
 				"-S", // 必选，打开符号显示
 				"-C", // 额外输出 CFG
-				"tests/test1-2.c" // 位置参数：源文件
+				"tests/test1-1.c" // 位置参数：源文件
 			],
 			// 程序的入口（main函数的入口）是否停止
 			"stopAtEntry": true,
