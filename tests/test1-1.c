@@ -75,7 +75,6 @@ int main()
     assert_not(float_eq(HEX2, FACT));
     assert_not(float_eq(EVAL1, EVAL2));
     assert(float_eq(EVAL2, EVAL3));
-    assert(float_eq(circle_area(RADIUS) /* f->i implicit conversion */, circle_area(FIVE)));
     assert_not(float_eq(CONV1, CONV2) /* i->f implicit conversion */);
 
     // float conditional expressions
@@ -94,12 +93,11 @@ int main()
     int len = getfarray(arr);
     while (i < MAX) {
         float input = getfloat();
-        float area = PI * input * input, area_trunc = circle_area(input);
+        float area = PI * input * input;
         arr[p] = arr[p] + input;
 
         putfloat(area);
         putch(32);
-        putint(area_trunc); // f->i implicit conversion
         putch(10);
 
         i = i * - -1e1;

@@ -44,6 +44,7 @@
 #include "GetElementPtrInstruction.h"
 #include "ZextInstruction.h"
 #include "CastInstruction.h"
+#include "PointerType.h"
 #define Instanceof(res, type, var) auto res = dynamic_cast<type>(var)
 
 /// @brief 构造函数
@@ -775,7 +776,8 @@ bool IRGenerator::ir_leaf_value_uint(ast_node * node)
 bool IRGenerator::ir_add(ast_node * node)
 {
     Op op = node->op_type;
-    ConstInt * ZERO = module->newConstInt(0);
+    ConstInt * ZEROInt = module->newConstInt(0);
+    ConstFloat * ZEROFloat = module->newConstFloat(0);
     ast_node * src1_node = node->sons[0];
     ast_node * src2_node = node->sons[1];
     //针对not情况
@@ -788,7 +790,7 @@ bool IRGenerator::ir_add(ast_node * node)
         LabelInstruction * label_exit = new LabelInstruction(module->getCurrentFunction());
         BinaryInstruction * BinInst = new BinaryInstruction(module->getCurrentFunction(),
                                                             IRInstOperator::IRINST_OP_NE_I,
-                                                            ZERO,
+                                                            ZEROInt,
                                                             right->val,
                                                             IntegerType::getTypeInt());
         branch_Inst = new BranchifCondition(module->getCurrentFunction(), BinInst, label_true, label_false);
@@ -855,21 +857,25 @@ bool IRGenerator::ir_add(ast_node * node)
         if (val->type->toString() == "i1") {
             zertinst = new ZextInstruction(module->getCurrentFunction(), val, IntegerType::getTypeInt());
         }
+        Value * result = zertinst ? zertinst : val;
+        bool is_int = result->type->isIntegerType();
         if (src1_node->op_type == Op::NEG) {
             addInst = new BinaryInstruction(module->getCurrentFunction(),
-                                            IRInstOperator::IRINST_OP_SUB_I,
-                                            ZERO,
+                                            is_int ? IRInstOperator::IRINST_OP_SUB_I : IRInstOperator::IRINST_OP_SUB_F,
+                                            is_int ? static_cast<Value *>(ZEROInt) : static_cast<Value *>(ZEROFloat),
                                             zertinst ? zertinst : val,
-                                            IntegerType::getTypeInt());
+                                            (is_int ? static_cast<Type *>(IntegerType::getTypeInt())
+                                                    : static_cast<Type *>(FloatType::getTypeFloat())));
             // 针对const int N=-1优化
             addInst->real_float = -right->val->real_float;
             addInst->real_int = -right->val->real_int;
         } else {
             addInst = new BinaryInstruction(module->getCurrentFunction(),
-                                            IRInstOperator::IRINST_OP_ADD_I,
-                                            ZERO,
+                                            is_int ? IRInstOperator::IRINST_OP_ADD_I : IRInstOperator::IRINST_OP_ADD_F,
+                                            is_int ? static_cast<Value *>(ZEROInt) : static_cast<Value *>(ZEROFloat),
                                             zertinst ? zertinst : val,
-                                            IntegerType::getTypeInt());
+                                            (is_int ? static_cast<Type *>(IntegerType::getTypeInt())
+                                                    : static_cast<Type *>(FloatType::getTypeFloat())));
             // 针对const int N=1优化
             addInst->real_float = right->val->real_float;
             addInst->real_int = right->val->real_int;
@@ -1392,14 +1398,25 @@ bool IRGenerator::ir_assign(ast_node * node)
     node->blockInsts.addInst(right->blockInsts);
     node->blockInsts.addInst(left->blockInsts);
     MoveInstruction * movInst = nullptr;
-    if (right->val->type->isFloatType() && left->val->type->isIntegerType()) {
+    const Type * left_type = left->val->type;
+    if (left_type->isPointerType()) {
+        left_type = static_cast<const PointerType *>(left_type)->getPointeeType();
+    }
+    bool left_isint = left_type->isIntegerType();
+
+    const Type * right_type = right->val->type;
+    if (right_type->isPointerType()) {
+        right_type = static_cast<const PointerType *>(right_type)->getPointeeType();
+    }
+    bool right_isint = right_type->isIntegerType();
+    if (!right_isint && left_isint) {
         CastInstruction * castInst = new CastInstruction(module->getCurrentFunction(),
                                                          CastInstruction::FPTOSI,
                                                          right->val,
                                                          IntegerType::getTypeInt());
         node->blockInsts.addInst(castInst);
         node->blockInsts.addInst(new MoveInstruction(module->getCurrentFunction(), left->val, castInst));
-    } else if (right->val->type->isIntegerType() && left->val->type->isFloatType()) {
+    } else if (right_isint && !left_isint) {
         CastInstruction * castInst = new CastInstruction(module->getCurrentFunction(),
                                                          CastInstruction::SITOFP,
                                                          right->val,
@@ -1409,9 +1426,7 @@ bool IRGenerator::ir_assign(ast_node * node)
     } else {
         node->blockInsts.addInst(new MoveInstruction(module->getCurrentFunction(), left->val, right->val));
     }
-    // movInst = new MoveInstruction(module->getCurrentFunction(), left->val, right->val);
 
-    // 这里假定赋值的类型是一致的
     if (node->parent->node_type == ast_operator_type::AST_OP_IF_ELSE_STMT) {
         node->val = labelInst;
     } else {
@@ -1734,6 +1749,9 @@ bool IRGenerator::ir_array_acess(ast_node * node)
     Value * array_Value = module->findVar(var_name);
 
     std::vector<ast_node *>::iterator pIter;
+    Type * baseType = array_Value->getType(); // 获取类型
+    PointerType * pointerType = dynamic_cast<PointerType *>(baseType);
+    bool is_int = pointerType->getRootType()->toString() == "float" ? false : true;
     //遍历每一个下标
     for (pIter = node->sons.begin() + 1; pIter != node->sons.end(); ++pIter) {
 
@@ -1858,12 +1876,10 @@ bool IRGenerator::ir_array_acess(ast_node * node)
     //形参需要再取里边的地址
     LoadInstruction * FormalParmLoadInst = nullptr;
     if (array_Value->is_come_from_formalparm) {
-        FormalParmLoadInst = new LoadInstruction(module->getCurrentFunction(), array_Value, true);
+        FormalParmLoadInst = new LoadInstruction(module->getCurrentFunction(), array_Value, is_int);
         node->blockInsts.addInst(FormalParmLoadInst);
     }
-    Type * baseType = array_Value->getType(); // 获取类型
-    PointerType * pointerType = dynamic_cast<PointerType *>(baseType);
-    bool is_int = pointerType->getRootType()->toString() == "float" ? false : true;
+
     BitcastInstruction * bitcatinst = new BitcastInstruction(module->getCurrentFunction(),
                                                              FormalParmLoadInst ? FormalParmLoadInst : array_Value,
                                                              32,
@@ -1961,7 +1977,10 @@ bool IRGenerator::ir_leaf_node_var_id(ast_node * node)
             bitcatinst = new BitcastInstruction(module->getCurrentFunction(), LoadInst, 32, true);
             gepInst = new GetElementPtrInstruction(module->getCurrentFunction(), bitcatinst, ZERO);
         } else {
-            bitcatinst = new BitcastInstruction(module->getCurrentFunction(), val, 32, true);
+            Type * baseType = val->getType(); // 获取类型
+            PointerType * pointerType = dynamic_cast<PointerType *>(baseType);
+            bool is_int = pointerType->getRootType()->toString() == "float" ? false : true;
+            bitcatinst = new BitcastInstruction(module->getCurrentFunction(), val, 32, is_int);
             gepInst = new GetElementPtrInstruction(module->getCurrentFunction(), bitcatinst, ZERO);
         }
         if (LoadInst)

@@ -22,13 +22,13 @@ define dso_local float @float_abs(float %0) #0 {
 
 4:
   %5 = load float, float* %2, align 4
-  %6 = fcmp olt float %5, 0.000000
+  %6 = fcmp olt float %5, 0x0
   %7 = icmp ne i1 %6, 0
   br i1 %7,  label %8,   label %11
 
 8:
   %9 = load float, float* %2, align 4
-  %10 = fsub  float 0.000000, %9
+  %10 = fsub float 0x0, %9
   store float %10, float* %3, align 4
   br label %13
 
@@ -81,7 +81,7 @@ define dso_local i32 @float_eq(float %0, float %1) #0 {
   %8 = load float, float* %4, align 4
   %9 = fsub float %7, %8
   %10 = call float @float_abs(float %9)
-  %11 = fcmp olt float %10, 0.000000
+  %11 = fcmp olt float %10, 0x3eb0c6f7a0000000
   %12 = icmp ne i1 %11, 0
   br i1 %12,  label %13,   label %14
 
@@ -199,24 +199,30 @@ define dso_local i32 @main() #0 {
   %5 = alloca i32, align 4
   %6 = alloca float, align 4
   %7 = alloca float, align 4
-  %8 = alloca float, align 4
   store i32 0, i32* %1, align 4
-  %9 = call i32 @float_eq(float @HEX2, float @FACT)
+  %8 = call i32 @float_eq(float 0x3fb4000000000000, float 0xc0e01d0000000000)
+  call void @assert_not(i32 %8)
+  %9 = call i32 @float_eq(float 0x4057c21fc0000000, float 0x4041475ce0000000)
   call void @assert_not(i32 %9)
-  %10 = call i32 @float_eq(float @EVAL1, float @EVAL2)
-  call void @assert_not(i32 %10)
-  %11 = call i32 @float_eq(float @EVAL2, float @EVAL3)
-  call void @assert(i32 %11)
-  %12 = call float @circle_area(float @RADIUS)
-  %13 = call float @circle_area(i32 @FIVE)
-  %14 = call i32 @float_eq(float %12, float %13)
-  call void @assert(i32 %14)
-  %15 = call i32 @float_eq(float @CONV1, float @CONV2)
-  call void @assert_not(i32 %15)
+  %10 = call i32 @float_eq(float 0x4041475ce0000000, float 0x4041475ce0000000)
+  call void @assert(i32 %10)
+  %11 = call i32 @float_eq(float 0x406d200000000000, float 0x40affe0000000000)
+  call void @assert_not(i32 %11)
+  br label %12
+
+12:
+  %13 = icmp ne float 1.500000, 0.000000
+  br i1 %13,  label %14,   label %15
+
+14:
+  call void @ok()
+  br label %15
+
+15:
   br label %16
 
 16:
-  %17 = icmp ne float 1.500000, 0.000000
+  %17 = icmp ne float 3.300000, 0.000000
   br i1 %17,  label %18,   label %19
 
 18:
@@ -227,143 +233,126 @@ define dso_local i32 @main() #0 {
   br label %20
 
 20:
-  %21 = icmp ne float 3.300000, 0.000000
-  br i1 %21,  label %22,   label %23
+  %21 = icmp ne float 0.000000, 0.000000
+  br i1 %21,  label %22,   label %25
 
 22:
-  call void @ok()
-  br label %23
-
-23:
-  br label %24
+  %23 = icmp ne i32 3, 0
+  br i1 %23,  label %24,   label %25
 
 24:
-  %25 = icmp ne float 0.000000, 0.000000
-  br i1 %25,  label %26,   label %29
+  store i32 1, i32* %1, align 4
+  br label %26
+
+25:
+  store i32 0, i32* %1, align 4
+  br label %26
 
 26:
-  %27 = icmp ne i32 3, 0
-  br i1 %27,  label %28,   label %29
-
-28:
-  store i32 1, i32* %1, align 4
-  br label %30
+  %27 = load i32, i32* %1, align 4
+  %28 = icmp ne i32 %27, 0
+  br i1 %28,  label %29,   label %30
 
 29:
-  store i32 0, i32* %1, align 4
+  call void @error()
   br label %30
 
 30:
-  %31 = load i32, i32* %1, align 4
-  %32 = icmp ne i32 %31, 0
-  br i1 %32,  label %33,   label %34
+  br label %31
+
+31:
+  %32 = icmp ne i32 0, 0
+  br i1 %32,  label %35,   label %33
 
 33:
-  call void @error()
-  br label %34
-
-34:
-  br label %35
+  %34 = icmp ne float 0.300000, 0.000000
+  br i1 %34,  label %35,   label %36
 
 35:
-  %36 = icmp ne i32 0, 0
-  br i1 %36,  label %39,   label %37
+  store i32 1, i32* %1, align 4
+  br label %37
+
+36:
+  store i32 0, i32* %1, align 4
+  br label %37
 
 37:
-  %38 = icmp ne float 0.300000, 0.000000
-  br i1 %38,  label %39,   label %40
-
-39:
-  store i32 1, i32* %1, align 4
-  br label %41
+  %38 = load i32, i32* %1, align 4
+  %39 = icmp ne i32 %38, 0
+  br i1 %39,  label %40,   label %41
 
 40:
-  store i32 0, i32* %1, align 4
+  call void @ok()
   br label %41
 
 41:
-  %42 = load i32, i32* %1, align 4
-  %43 = icmp ne i32 %42, 0
-  br i1 %43,  label %44,   label %45
-
-44:
-  call void @ok()
-  br label %45
-
-45:
   store i32 1, i32* %2, align 4
   store i32 0, i32* %3, align 4
-  %46 = bitcast [10 x float]* %4 to i8*
-  call void @llvm.memset.p0i8.i64(i8* align 16 %46, i8 0, i64 40, i1 false)
-  %47 = bitcast [10 x float]* %4 to float*
-  %48 = getelementptr inbounds float, float* %47, i32 0
-  store float 0x3ff0000000000000, float* %48, align 4
-  %49 = getelementptr inbounds float, float* %47, i32 1
-  store float 0x4000000000000000, float* %49, align 4
-  %50 = bitcast [10 x float]* %4 to i32*
-  %51 = getelementptr inbounds i32, i32* %50, i32 0
-  %52 = call i32 (...) @getfarray(i32* %51)
-  store i32 %52, i32* %5, align 4
-  br label %53
+  %42 = bitcast [10 x float]* %4 to i8*
+  call void @llvm.memset.p0i8.i64(i8* align 16 %42, i8 0, i64 40, i1 false)
+  %43 = bitcast [10 x float]* %4 to float*
+  %44 = getelementptr inbounds float, float* %43, i32 0
+  store float 0x3ff0000000000000, float* %44, align 4
+  %45 = getelementptr inbounds float, float* %43, i32 1
+  store float 0x4000000000000000, float* %45, align 4
+  %46 = bitcast [10 x float]* %4 to float*
+  %47 = getelementptr inbounds float, float* %46, i32 0
+  %48 = call i32 (...) @getfarray(float* %47)
+  store i32 %48, i32* %5, align 4
+  br label %49
+
+49:
+  %50 = load i32, i32* %2, align 4
+  %51 = icmp slt i32 %50, 1000000000
+  %52 = icmp ne i1 %51, 0
+  br i1 %52,  label %53,   label %77
 
 53:
-  %54 = load i32, i32* %2, align 4
-  %55 = icmp slt i32 %54, 1000000000
-  %56 = icmp ne i1 %55, 0
-  br i1 %56,  label %57,   label %84
-
-57:
-  %58 = call float (...) @getfloat()
-  store float %58, float* %6, align 4
-  %59 = load float, float* %6, align 4
-  %60 = fmul float 0x400921fb60000000, %59
-  %61 = load float, float* %6, align 4
-  %62 = fmul float %60, %61
-  store float %62, float* %7, align 4
-  %63 = load float, float* %6, align 4
-  %64 = call float @circle_area(float %63)
-  store float %64, float* %8, align 4
-  %65 = load i32, i32* %3, align 4
-  %66 = add nsw i32 0, %65
-  %67 = bitcast [10 x float]* %4 to float*
-  %68 = getelementptr inbounds float, float* %67, i32 %66
-  %69 = load float, float* %68, align 4
-  %70 = load float, float* %6, align 4
-  %71 = fadd float %69, %70
-  %72 = load i32, i32* %3, align 4
-  %73 = add nsw i32 0, %72
-  %74 = bitcast [10 x float]* %4 to float*
-  %75 = getelementptr inbounds float, float* %74, i32 %73
-  store float %71, float*  %75, align 4
-  %76 = load float, float* %7, align 4
-  call void  @putfloat(float %76)
+  %54 = call float (...) @getfloat()
+  store float %54, float* %6, align 4
+  %55 = load float, float* %6, align 4
+  %56 = fmul float 0x400921fb60000000, %55
+  %57 = load float, float* %6, align 4
+  %58 = fmul float %56, %57
+  store float %58, float* %7, align 4
+  %59 = load i32, i32* %3, align 4
+  %60 = add nsw i32 0, %59
+  %61 = bitcast [10 x float]* %4 to float*
+  %62 = getelementptr inbounds float, float* %61, i32 %60
+  %63 = load float, float* %62, align 4
+  %64 = load float, float* %6, align 4
+  %65 = fadd float %63, %64
+  %66 = load i32, i32* %3, align 4
+  %67 = add nsw i32 0, %66
+  %68 = bitcast [10 x float]* %4 to float*
+  %69 = getelementptr inbounds float, float* %68, i32 %67
+  store float %65, float*  %69, align 4
+  %70 = load float, float* %7, align 4
+  call void  @putfloat(float %70)
   call void  @putch(i32 32)
-  %77 = load float, float* %8, align 4
-  call void  @putint(float %77)
   call void  @putch(i32 10)
-  %78 = load i32, i32* %2, align 4
-  %79 = sitofp i32 %78 to float
-  %80 = fmul float %79, 0x4024000000000000
-  %81 = fptosi float %80 to i32
-  store i32 %81, i32* %2, align 4
-  %82 = load i32, i32* %3, align 4
-  %83 = add nsw i32 %82, 1
-  store i32 %83, i32* %3, align 4
-  br label %53
+  %71 = load i32, i32* %2, align 4
+  %72 = sitofp i32 %71 to float
+  %73 = fmul float %72, 0x4024000000000000
+  %74 = fptosi float %73 to i32
+  store i32 %74, i32* %2, align 4
+  %75 = load i32, i32* %3, align 4
+  %76 = add nsw i32 %75, 1
+  store i32 %76, i32* %3, align 4
+  br label %49
 
-84:
-  %85 = load i32, i32* %5, align 4
-  %86 = bitcast [10 x float]* %4 to i32*
-  %87 = getelementptr inbounds i32, i32* %86, i32 0
-  call void  @putfarray(i32 %85, i32* %87)
+77:
+  %78 = load i32, i32* %5, align 4
+  %79 = bitcast [10 x float]* %4 to float*
+  %80 = getelementptr inbounds float, float* %79, i32 0
+  call void  @putfarray(i32 %78, float* %80)
   store i32 0, i32* %1, align 4
-  br label %88
+  br label %81
 
-88:
-  %89 = load i32, i32* %1, align 4
-  ret i32 %89
+81:
+  %82 = load i32, i32* %1, align 4
+  ret i32 %82
 }
-declare void @putint(i32) #1
 declare void @putch(i32) #1
 declare float @getfloat(...) #1
 declare void @putfloat(float) #1
