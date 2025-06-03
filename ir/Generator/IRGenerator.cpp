@@ -508,11 +508,20 @@ bool IRGenerator::ir_if_else(ast_node * node)
         module->getCurrentFunction()->set_ifelse_Lable2(static_cast<LabelInstruction *>(branch2->val));
         //条件后判断，现有branch1的label，才能短路求值
         cond = ir_visit_ast_node(node->sons[0]);
-        NEQ_ZERO_Inst = new BinaryInstruction(module->getCurrentFunction(),
-                                              IRInstOperator::IRINST_OP_NE_I,
-                                              cond->val,
-                                              ZERO,
-                                              IntegerType::getTypeBool());
+        if (cond->val->getType()->isFloatType()) {
+            NEQ_ZERO_Inst = new BinaryInstruction(module->getCurrentFunction(),
+                                                  IRInstOperator::IRINST_OP_NE_F,
+                                                  cond->val,
+                                                  ZERO,
+                                                  IntegerType::getTypeBool());
+        } else {
+            NEQ_ZERO_Inst = new BinaryInstruction(module->getCurrentFunction(),
+                                                  IRInstOperator::IRINST_OP_NE_I,
+                                                  cond->val,
+                                                  ZERO,
+                                                  IntegerType::getTypeBool());
+        }
+
         branch_Inst = new BranchifCondition(module->getCurrentFunction(),
                                             NEQ_ZERO_Inst,
                                             static_cast<Value *>(branch1->val),
@@ -537,12 +546,19 @@ bool IRGenerator::ir_if_else(ast_node * node)
         module->getCurrentFunction()->set_ifelse_Lable1(static_cast<LabelInstruction *>(branch1->val));
         module->getCurrentFunction()->set_ifelse_Lable2(exitLabelInst);
         cond = ir_visit_ast_node(node->sons[0]);
-
-        NEQ_ZERO_Inst = new BinaryInstruction(module->getCurrentFunction(),
-                                              IRInstOperator::IRINST_OP_NE_I,
-                                              cond->val,
-                                              ZERO,
-                                              IntegerType::getTypeBool());
+        if (cond->val->getType()->isFloatType()) {
+            NEQ_ZERO_Inst = new BinaryInstruction(module->getCurrentFunction(),
+                                                  IRInstOperator::IRINST_OP_NE_F,
+                                                  cond->val,
+                                                  ZERO,
+                                                  IntegerType::getTypeBool());
+        } else {
+            NEQ_ZERO_Inst = new BinaryInstruction(module->getCurrentFunction(),
+                                                  IRInstOperator::IRINST_OP_NE_I,
+                                                  cond->val,
+                                                  ZERO,
+                                                  IntegerType::getTypeBool());
+        }
         branch_Inst = new BranchifCondition(module->getCurrentFunction(),
                                             NEQ_ZERO_Inst,
                                             static_cast<Value *>(branch1->val),
@@ -584,11 +600,21 @@ bool IRGenerator::ir_while(ast_node * node)
     node->blockInsts.addInst(entryLabelInst);
     ConstInt * ZERO = module->newConstInt(0);
     ast_node * cond = ir_visit_ast_node(node->sons[0]);
-    BinaryInstruction * NEQ_ZERO_Inst = new BinaryInstruction(module->getCurrentFunction(),
-                                                              IRInstOperator::IRINST_OP_NE_I,
-                                                              cond->val,
-                                                              ZERO,
-                                                              IntegerType::getTypeBool());
+    BinaryInstruction * NEQ_ZERO_Inst = nullptr;
+    if (cond->val->getType()->isFloatType()) {
+        NEQ_ZERO_Inst = new BinaryInstruction(module->getCurrentFunction(),
+                                              IRInstOperator::IRINST_OP_NE_F,
+                                              cond->val,
+                                              ZERO,
+                                              IntegerType::getTypeBool());
+    } else {
+        NEQ_ZERO_Inst = new BinaryInstruction(module->getCurrentFunction(),
+                                              IRInstOperator::IRINST_OP_NE_I,
+                                              cond->val,
+                                              ZERO,
+                                              IntegerType::getTypeBool());
+    }
+
     // cond->blocks是放的最后计算的变量，%t2= icmp gt %l1,100中的t2.
     node->blockInsts.addInst(cond->blockInsts);
     node->blockInsts.addInst(NEQ_ZERO_Inst);
@@ -1136,16 +1162,34 @@ bool IRGenerator::ir_visitLogitExp(ast_node * node)
 
     // 3. 生成判断左、右是否为真
     ConstInt * ZERO = module->newConstInt(0);
-    BinaryInstruction * LEQ_ZERO_Inst = new BinaryInstruction(module->getCurrentFunction(),
-                                                              IRInstOperator::IRINST_OP_NE_I,
-                                                              left->val,
-                                                              ZERO,
-                                                              IntegerType::getTypeBool());
-    BinaryInstruction * REQ_ZERO_Inst = new BinaryInstruction(module->getCurrentFunction(),
-                                                              IRInstOperator::IRINST_OP_NE_I,
-                                                              right->val,
-                                                              ZERO,
-                                                              IntegerType::getTypeBool());
+    BinaryInstruction * LEQ_ZERO_Inst = nullptr;
+    BinaryInstruction * REQ_ZERO_Inst = nullptr;
+    if (right->val->getType()->isFloatType()) {
+        REQ_ZERO_Inst = new BinaryInstruction(module->getCurrentFunction(),
+                                              IRInstOperator::IRINST_OP_NE_F,
+                                              right->val,
+                                              ZERO,
+                                              IntegerType::getTypeBool());
+    } else {
+        REQ_ZERO_Inst = new BinaryInstruction(module->getCurrentFunction(),
+                                              IRInstOperator::IRINST_OP_NE_I,
+                                              right->val,
+                                              ZERO,
+                                              IntegerType::getTypeBool());
+    }
+    if (left->val->getType()->isFloatType()) {
+        LEQ_ZERO_Inst = new BinaryInstruction(module->getCurrentFunction(),
+                                              IRInstOperator::IRINST_OP_NE_F,
+                                              left->val,
+                                              ZERO,
+                                              IntegerType::getTypeBool());
+    } else {
+        LEQ_ZERO_Inst = new BinaryInstruction(module->getCurrentFunction(),
+                                              IRInstOperator::IRINST_OP_NE_I,
+                                              left->val,
+                                              ZERO,
+                                              IntegerType::getTypeBool());
+    }
 
     // 4. 创建各个label
     LabelInstruction * label_true = new LabelInstruction(module->getCurrentFunction());
@@ -2038,13 +2082,48 @@ bool IRGenerator::ir_func_call(ast_node * node)
     if (node->sons.size() > 1 && node->sons[1]) {
         ast_node * param_node = node->sons[1];
         if (param_node->node_type == ast_operator_type::AST_OP_FUNC_RPARAMS) {
+            //函数传参也存在隐式类型转换，所以在传参前需要对类型进行判断，如果类型不一样也要进行隐式类型转换
             // 多参数
+            int i = 0;
+            std::vector<FormalParam *> originParam = callee->getParams();
             for (auto arg_ast: param_node->sons) {
                 ast_node * arg_node = ir_visit_ast_node(arg_ast);
                 if (!arg_node)
                     return false;
                 node->blockInsts.addInst(arg_node->blockInsts);
-                args.push_back(arg_node->val);
+                Value * tempVal = arg_node->val;
+                ast_node * temp = arg_node;
+                if (originParam[i] && !originParam[i]->getType()->isPointerType()) {
+                    if (originParam[i]->getType() != tempVal->getType()) {
+                        if (temp->val->isConst()) {
+                            if (temp->val->getType()->isIntegerType()) {
+                                Constant * initValue = module->newConstFloat((float) (temp->integer_val));
+                                temp->val = initValue;
+                            } else {
+                                Constant * initValue = module->newConstInt((int) (temp->float_val));
+                                temp->val = initValue;
+                            }
+                        } else {
+                            if (temp->val->getType()->isIntegerType()) {
+                                CastInstruction * castInst = new CastInstruction(module->getCurrentFunction(),
+                                                                                 CastInstruction::SITOFP,
+                                                                                 temp->val,
+                                                                                 FloatType::getTypeFloat());
+                                node->blockInsts.addInst(castInst);
+                                temp->val = castInst;
+                            } else {
+                                CastInstruction * castInst = new CastInstruction(module->getCurrentFunction(),
+                                                                                 CastInstruction::FPTOSI,
+                                                                                 temp->val,
+                                                                                 IntegerType::getTypeInt());
+                                node->blockInsts.addInst(castInst);
+                                temp->val = castInst;
+                            }
+                        }
+                    }
+                }
+                args.push_back(temp->val);
+                i++;
             }
         } else {
             // 兼容单参数直接是表达式的情况
