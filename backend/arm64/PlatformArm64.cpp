@@ -1,11 +1,28 @@
 #include "PlatformArm64.h"
 #include "IntegerType.h"
+#include "FloatType.h" // 新增，假设存在
 
 const std::string PlatformArm64::regName[PlatformArm64::maxRegNum] = {
     "x0", "x1", "x2", "x3", "x4", "x5", "x6", "x7",
     "x8", "x9", "x10", "x11", "x12", "x13", "x14", "x15",
     "x16", "x17", "x18", "x19", "x20", "x21", "x22", "x23",
     "x24", "x25", "x26", "x27", "x28", "x29", "lr", "sp"
+};
+
+const std::string PlatformArm64::regNameW[PlatformArm64::maxRegNum] = {
+	"w0", "w1", "w2", "w3", "w4", "w5", "w6", "w7",
+	"w8", "w9", "w10", "w11", "w12", "w13", "w14", "w15",
+	"w16", "w17", "w18", "w19", "w20", "w21", "w22", "w23",
+	"w24", "w25", "w26", "w27", "w28", "w29",  // fp -> w29
+	"lr" ,  // lr -> w30
+	"sp"   // sp -> w31
+};
+
+const std::string PlatformArm64::regNameS[PlatformArm64::maxRegNum] = {
+    "s0", "s1", "s2", "s3", "s4", "s5", "s6", "s7",
+    "s8", "s9", "s10", "s11", "s12", "s13", "s14", "s15",
+    "s16", "s17", "s18", "s19", "s20", "s21", "s22", "s23",
+    "s24", "s25", "s26", "s27", "s28", "s29", "s30", "s31"
 };
 
 RegVariable * PlatformArm64::intRegVal[PlatformArm64::maxRegNum] = {
@@ -41,6 +58,41 @@ RegVariable * PlatformArm64::intRegVal[PlatformArm64::maxRegNum] = {
     new RegVariable(IntegerType::getTypeInt(), PlatformArm64::regName[29], 29), // fp
     new RegVariable(IntegerType::getTypeInt(), PlatformArm64::regName[30], 30), // lr
     new RegVariable(IntegerType::getTypeInt(), PlatformArm64::regName[31], 31), // sp
+};
+
+RegVariable * PlatformArm64::floatRegVal[PlatformArm64::maxRegNum] = {
+    new RegVariable(FloatType::getTypeFloat(), PlatformArm64::regNameS[0], 0),
+    new RegVariable(FloatType::getTypeFloat(), PlatformArm64::regNameS[1], 1),
+    new RegVariable(FloatType::getTypeFloat(), PlatformArm64::regNameS[2], 2),
+    new RegVariable(FloatType::getTypeFloat(), PlatformArm64::regNameS[3], 3),
+    new RegVariable(FloatType::getTypeFloat(), PlatformArm64::regNameS[4], 4),
+    new RegVariable(FloatType::getTypeFloat(), PlatformArm64::regNameS[5], 5),
+    new RegVariable(FloatType::getTypeFloat(), PlatformArm64::regNameS[6], 6),
+    new RegVariable(FloatType::getTypeFloat(), PlatformArm64::regNameS[7], 7),
+    new RegVariable(FloatType::getTypeFloat(), PlatformArm64::regNameS[8], 8),
+    new RegVariable(FloatType::getTypeFloat(), PlatformArm64::regNameS[9], 9),
+    new RegVariable(FloatType::getTypeFloat(), PlatformArm64::regNameS[10], 10),
+    new RegVariable(FloatType::getTypeFloat(), PlatformArm64::regNameS[11], 11),
+    new RegVariable(FloatType::getTypeFloat(), PlatformArm64::regNameS[12], 12),
+    new RegVariable(FloatType::getTypeFloat(), PlatformArm64::regNameS[13], 13),
+    new RegVariable(FloatType::getTypeFloat(), PlatformArm64::regNameS[14], 14),
+    new RegVariable(FloatType::getTypeFloat(), PlatformArm64::regNameS[15], 15),
+    new RegVariable(FloatType::getTypeFloat(), PlatformArm64::regNameS[16], 16),
+    new RegVariable(FloatType::getTypeFloat(), PlatformArm64::regNameS[17], 17),
+    new RegVariable(FloatType::getTypeFloat(), PlatformArm64::regNameS[18], 18),
+    new RegVariable(FloatType::getTypeFloat(), PlatformArm64::regNameS[19], 19),
+    new RegVariable(FloatType::getTypeFloat(), PlatformArm64::regNameS[20], 20),
+    new RegVariable(FloatType::getTypeFloat(), PlatformArm64::regNameS[21], 21),
+    new RegVariable(FloatType::getTypeFloat(), PlatformArm64::regNameS[22], 22),
+    new RegVariable(FloatType::getTypeFloat(), PlatformArm64::regNameS[23], 23),
+    new RegVariable(FloatType::getTypeFloat(), PlatformArm64::regNameS[24], 24),
+    new RegVariable(FloatType::getTypeFloat(), PlatformArm64::regNameS[25], 25),
+    new RegVariable(FloatType::getTypeFloat(), PlatformArm64::regNameS[26], 26),
+    new RegVariable(FloatType::getTypeFloat(), PlatformArm64::regNameS[27], 27),
+    new RegVariable(FloatType::getTypeFloat(), PlatformArm64::regNameS[28], 28),
+    new RegVariable(FloatType::getTypeFloat(), PlatformArm64::regNameS[29], 29),
+    new RegVariable(FloatType::getTypeFloat(), PlatformArm64::regNameS[30], 30),
+    new RegVariable(FloatType::getTypeFloat(), PlatformArm64::regNameS[31], 31),
 };
 
 void PlatformArm64::roundLeftShiftTwoBit(unsigned int & num) {

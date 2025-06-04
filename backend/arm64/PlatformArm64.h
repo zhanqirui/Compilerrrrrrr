@@ -25,6 +25,8 @@
 // 链接寄存器LR
 #define ARM64_LR_REG_NO 30
 
+#define ARM64_TMP_FLOAT_REG_NO 16
+
 /// @brief ARM64平台信息
 class PlatformArm64 {
 
@@ -43,5 +45,10 @@ public:
     static const int maxUsableRegNum = 16; // x0-x15 可用通用寄存器
 
     static const std::string regName[maxRegNum];
+	static const std::string regNameW[maxRegNum];
     static RegVariable * intRegVal[PlatformArm64::maxRegNum];
+
+    // 新增：浮点数寄存器支持
+    static const std::string regNameS[maxRegNum]; // s0-s31
+    static RegVariable * floatRegVal[PlatformArm64::maxRegNum];
 };
