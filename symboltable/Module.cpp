@@ -19,6 +19,7 @@
 #include "ScopeStack.h"
 #include "Common.h"
 #include "VoidType.h"
+#include "PointerType.h"
 
 Module::Module(std::string _name) : InFunctionList(13, false), name(_name)
 {
@@ -39,9 +40,16 @@ Module::Module(std::string _name) : InFunctionList(13, false), name(_name)
 
     newFunction("putch", VoidType::getType(), {new FormalParam{IntegerType::getTypeInt(), ""}}, true);
 
-    newFunction("getarray", IntegerType::getTypeInt(), {new FormalParam{IntegerType::getTypeInt(), ""}}, true);
+    newFunction("getarray",
+                IntegerType::getTypeInt(),
+                {new FormalParam{PointerType::getNonConstPointerType(IntegerType::getTypeInt()), ""}},
+                true);
 
-    newFunction("putarray", VoidType::getType(), {new FormalParam{IntegerType::getTypeInt(), ""}}, true);
+    newFunction("putarray",
+                VoidType::getType(),
+                {new FormalParam{IntegerType::getTypeInt(), ""},
+                 new FormalParam{PointerType::getNonConstPointerType(IntegerType::getTypeInt()), ""}},
+                true);
 
     newFunction("getfloat", FloatType::getTypeFloat(), {}, true);
 
@@ -49,9 +57,16 @@ Module::Module(std::string _name) : InFunctionList(13, false), name(_name)
 
     //后面几个形参列表不知道怎么加了
 
-    newFunction("getfarray", IntegerType::getTypeInt(), {new FormalParam{FloatType::getTypeFloat(), ""}}, true);
+    newFunction("getfarray",
+                IntegerType::getTypeInt(),
+                {new FormalParam{PointerType::getNonConstPointerType(FloatType::getTypeFloat()), ""}},
+                true);
 
-    newFunction("putfarray", VoidType::getType(), {new FormalParam{IntegerType::getTypeInt(), ""}}, true);
+    newFunction("putfarray",
+                VoidType::getType(),
+                {new FormalParam{IntegerType::getTypeInt(), ""},
+                 new FormalParam{PointerType::getNonConstPointerType(FloatType::getTypeFloat()), ""}},
+                true);
 
     newFunction("putstr", VoidType::getType(), {new FormalParam{IntegerType::getTypeInt(), ""}}, true);
 

@@ -73,7 +73,10 @@ void FuncCallInstruction::toString(std::string & str)
         } else if (type->isFloatType()) {
             str = getIRName() + " = call float (...) " + calledFunction->getIRName() + "(";
         } else {
-            str = getIRName() + " = call i32 (...) " + calledFunction->getIRName() + "(";
+            if (calledFunction->getIRName() == "@getfarray") //这里我不知道别的函数要不要改，这里先进行特判
+                str = getIRName() + " = call i32 (float*) " + calledFunction->getIRName() + "(";
+            else
+                str = getIRName() + " = call i32 (...) " + calledFunction->getIRName() + "(";
         }
     } else {
 

@@ -1507,7 +1507,7 @@ bool IRGenerator::ir_scalar_init(ast_node * node)
             Value * fVal = module->newConstFloat(right->val->real_float);
             movInst = new MoveInstruction(module->getCurrentFunction(), left_val_node->val, fVal);
         } else {
-            Value * i32Val = module->newConstInt((int) right->val->real_float);
+            Value * i32Val = module->newConstInt((int) right->val->real_int);
             movInst = new MoveInstruction(module->getCurrentFunction(), left_val_node->val, i32Val);
         }
         node->blockInsts.addInst(movInst);
@@ -1858,11 +1858,13 @@ bool IRGenerator::ir_array_acess(ast_node * node)
                 node->blockInsts.addInst(addinst);
             } else if (arrayIndexVector[i].value) {
                 LoadInst = new LoadInstruction(module->getCurrentFunction(), arrayIndexVector[i].value, true);
-                node->blockInsts.addInst(LoadInst);
+                if (!lastInst)
+                    node->blockInsts.addInst(LoadInst);
                 mulinst = new BinaryInstruction(module->getCurrentFunction(),
                                                 IRInstOperator::IRINST_OP_MUL_I,
-                                                LoadInst,
+                                                lastInst ? lastInst : LoadInst,
                                                 module->newConstInt((int32_t) dim[i + 1]),
+                                                // mulinst,
                                                 IntegerType::getTypeInt());
                 node->blockInsts.addInst(mulinst);
                 if (arrayIndexVector[i + 1].idx != -1) {
@@ -2085,7 +2087,7 @@ bool IRGenerator::ir_func_call(ast_node * node)
             //函数传参也存在隐式类型转换，所以在传参前需要对类型进行判断，如果类型不一样也要进行隐式类型转换
             // 多参数
             int i = 0;
-            std::vector<FormalParam *> originParam = callee->getParams();
+            std::vector<FormalParam *> originParam = callee->getParams(); //得到调用函数的形参
             for (auto arg_ast: param_node->sons) {
                 ast_node * arg_node = ir_visit_ast_node(arg_ast);
                 if (!arg_node)
@@ -2097,10 +2099,10 @@ bool IRGenerator::ir_func_call(ast_node * node)
                     if (originParam[i]->getType() != tempVal->getType()) {
                         if (temp->val->isConst()) {
                             if (temp->val->getType()->isIntegerType()) {
-                                Constant * initValue = module->newConstFloat((float) (temp->integer_val));
+                                Constant * initValue = module->newConstFloat((float) (tempVal->real_int));
                                 temp->val = initValue;
                             } else {
-                                Constant * initValue = module->newConstInt((int) (temp->float_val));
+                                Constant * initValue = module->newConstInt((int) (tempVal->real_float));
                                 temp->val = initValue;
                             }
                         } else {
