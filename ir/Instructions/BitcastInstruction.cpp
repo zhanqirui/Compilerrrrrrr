@@ -28,7 +28,7 @@
 ///
 BitcastInstruction::BitcastInstruction(Function * _func, Value * srcVal1, int bit = 8)
     : Instruction(_func,
-                  IRInstOperator::IRINST_OP_CAST,
+                  IRInstOperator::IRINST_OP_BITCAST,
                   (static_cast<Type *>(PointerType::getNonConstPointerType(IntegerType::getTypeInt()))))
 //   (is_int ? static_cast<Type *>(IntegerType::getTypeInt()) : static_cast<Type *>(FloatType::getTypeFloat())))
 {

@@ -39,6 +39,22 @@ enum class IRInstOperator : std::int8_t {
     IRINST_OP_SUB_I,
     IRINST_OP_MUL_I,
     IRINST_OP_DIV_I,
+
+	/// @brief 浮点数的加减乘除指令，二元运算
+	IRINST_OP_ADD_F,
+	IRINST_OP_SUB_F,
+	IRINST_OP_MUL_F,
+	IRINST_OP_DIV_F,
+
+	/// @brief 浮点数的比较指令，二元运算
+	IRINST_OP_GT_F,  //>
+	IRINST_OP_LT_F,  //<
+	IRINST_OP_LE_F,  //<=
+	IRINST_OP_GE_F,  //>=
+	IRINST_OP_EQ_F,  //==
+	IRINST_OP_NE_F,  //!=
+
+
     /// @brief 赋值指令，一元运算
     IRINST_OP_ASSIGN,
     IRINST_OP_GT_I,  //>
@@ -64,6 +80,8 @@ enum class IRInstOperator : std::int8_t {
     IRINST_OP_LOAD,
 
 	IRINST_OP_GEP,
+
+	IRINST_OP_BITCAST,
 
 	IRINST_OP_CAST,
 
