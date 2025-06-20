@@ -270,7 +270,7 @@ void Function::toString(std::string & str)
         //修改为LLVM的alloca语句
         str += "  ";
         const std::vector<int32_t> dims = var->arraydimensionVector;
-        if (!dims.empty()) {
+        if (!dims.empty()&&dims[0]!=-3) {
             std::string arrayType = "";
             for (auto it = dims.begin(); it != dims.end(); ++it) {
                 arrayType += "[" + std::to_string(*it) + " x ";

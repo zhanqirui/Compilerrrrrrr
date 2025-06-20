@@ -348,12 +348,26 @@ bool IRGenerator::ir_function_formal_params(ast_node * node)
         std::string param_name = param_node->name;
         Value * var = nullptr;
         if (param_node->is_array) {
+            //形参数组
             PointerType * ptrType = PointerType::getNonConstPointerType(
                 param_node->array_element_type ? param_node->array_element_type : param_type);
             var = module->newVarValue(ptrType, param_name);
-
             param_type = ptrType;
+            std::vector<int32_t> dimensions;
+            if (param_node->sons[2]) {
+                auto dim = param_node->sons[2];
+                for (auto dimsons: dim->sons) {
+                    if ((dimsons->sons).size() == 0) {
+                        dimensions.push_back(static_cast<int32_t>(-3)); //代表着int model(int a[][5])这种情况
+                    } else {
+                        int temp = ir_const_exp(dimsons);
+                        dimensions.push_back(static_cast<int32_t>(temp));
+                    }
+                }
+                var->arraydimensionVector = dimensions;
+            }
         } else {
+            //非数组形参
             var = module->newVarValue(param_type, param_name);
         }
         var->is_come_from_formalparm = true;
@@ -710,7 +724,7 @@ bool IRGenerator::ir_return(ast_node * node)
     // node->blockInsts.addInst(new GotoInstruction(currentFunc, currentFunc->getExitLabel()));
     if (node->parent->node_type == ast_operator_type::AST_OP_IF_ELSE_STMT) {
         node->val = labelInst;
-    } else {
+    } else if(right){
         node->val = right->val;
     }
     module->getCurrentFunction()->is_real_return = !(isReturnInIfElse(node));
@@ -1933,11 +1947,26 @@ bool IRGenerator::ir_array_acess(ast_node * node)
     node->blockInsts.addInst(bitcatinst);
     // gep指令遍历一维数组
     // std::vector<int> indices = {flatindex};
-    gepInst = new GetElementPtrInstruction(module->getCurrentFunction(), bitcatinst, latestaddinst);
+    BinaryInstruction * flatInst = nullptr;
+    if (arrayIndexVector.size() != dim.size() && !array_Value->is_come_from_formalparm) {
+        for (int i = arrayIndexVector.size(); i < dim.size(); i++) {
+            flatInst = new BinaryInstruction(module->getCurrentFunction(),
+                                             IRInstOperator::IRINST_OP_MUL_I,
+                                             latestaddinst,
+                                             module->newConstInt((int32_t) dim[i]),
+                                             IntegerType::getTypeInt());
+            node->blockInsts.addInst(flatInst);
+        }
+        gepInst = new GetElementPtrInstruction(module->getCurrentFunction(), bitcatinst, flatInst);
+    } else {
+        gepInst = new GetElementPtrInstruction(module->getCurrentFunction(), bitcatinst, latestaddinst);
+    }
+
     node->blockInsts.addInst(gepInst);
-    if (node->parent->node_type == ast_operator_type::AST_OP_ASSIGN_STMT) {
+    if (node->parent->node_type == ast_operator_type::AST_OP_ASSIGN_STMT || flatInst) {
         currentVal = gepInst;
     } else {
+        //函数内的形参需要load再使用
         LoadInstruction * LoadInst = new LoadInstruction(module->getCurrentFunction(), gepInst, is_int);
         node->blockInsts.addInst(LoadInst);
         currentVal = LoadInst;
