@@ -27,6 +27,13 @@ void CastInstruction::toString(std::string & str)
             op = "cast";
             break;
     }
-    str = getIRName() + " = " + op + " " + src->getType()->toString() + " " + src->getIRName() + " to " +
-          type->toString();
+    if (src->isConst() && src->type->isIntegerType()) {
+        str = getIRName() + " = " + op + " " + src->getType()->toString() + " " + std::to_string(src->real_int) +
+              " to " + type->toString();
+    } else if (src->isConst() && src->type->isFloatType()) {
+        str = getIRName() + " = " + op + " " + src->getType()->toString() + " " + std::to_string(src->real_float) +
+              " to " + type->toString();
+    } else
+        str = getIRName() + " = " + op + " " + src->getType()->toString() + " " + src->getIRName() + " to " +
+              type->toString();
 }

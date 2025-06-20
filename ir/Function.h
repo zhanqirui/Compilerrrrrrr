@@ -211,6 +211,8 @@ public:
     {
         params.insert(params.end(), paramList.begin(), paramList.end());
     }
+    Value * getDuanluValue();
+    void setDuanluValue(Value * val);
     LabelInstruction * block_entry_Lable = nullptr;
     LabelInstruction * block_exit_Lable = nullptr;
     LabelInstruction * ifelse_Lable1 = nullptr;
@@ -264,6 +266,7 @@ private:
     /// @brief 函数返回值变量，不能是临时变量，必须是局部变量
     ///
     Value * returnValue = nullptr;
+    Value * duanluValue = nullptr;
 
     ///
     /// @brief 由于局部变量、前4个形参需站内空间分配而导致的栈帧大小

@@ -31,46 +31,46 @@ Module::Module(std::string _name) : InFunctionList(13, false), name(_name)
 
     /*在模块开头加内置函数，但是具体打印涉及到有无使用*/
     // 加入内置函数getint
-    newFunction("getint", IntegerType::getTypeInt(), {}, true);
+    // newFunction("getint", IntegerType::getTypeInt(), {}, true);
 
-    // 加入内置函数putint
-    newFunction("putint", VoidType::getType(), {new FormalParam{IntegerType::getTypeInt(), ""}}, true);
+    // // 加入内置函数putint
+    // newFunction("putint", VoidType::getType(), {new FormalParam{IntegerType::getTypeInt(), ""}}, true);
 
-    newFunction("getch", IntegerType::getTypeInt(), {}, true);
+    // newFunction("getch", IntegerType::getTypeInt(), {}, true);
 
-    newFunction("putch", VoidType::getType(), {new FormalParam{IntegerType::getTypeInt(), ""}}, true);
+    // newFunction("putch", VoidType::getType(), {new FormalParam{IntegerType::getTypeInt(), ""}}, true);
 
-    newFunction("getarray",
-                IntegerType::getTypeInt(),
-                {new FormalParam{PointerType::getNonConstPointerType(IntegerType::getTypeInt()), ""}},
-                true);
+    // newFunction("getarray",
+    //             IntegerType::getTypeInt(),
+    //             {new FormalParam{PointerType::getNonConstPointerType(IntegerType::getTypeInt()), ""}},
+    //             true);
 
-    newFunction("putarray",
-                VoidType::getType(),
-                {new FormalParam{IntegerType::getTypeInt(), ""},
-                 new FormalParam{PointerType::getNonConstPointerType(IntegerType::getTypeInt()), ""}},
-                true);
+    // newFunction("putarray",
+    //             VoidType::getType(),
+    //             {new FormalParam{IntegerType::getTypeInt(), ""},
+    //              new FormalParam{PointerType::getNonConstPointerType(IntegerType::getTypeInt()), ""}},
+    //             true);
 
-    newFunction("getfloat", FloatType::getTypeFloat(), {}, true);
+    // newFunction("getfloat", FloatType::getTypeFloat(), {}, true);
 
-    newFunction("putfloat", VoidType::getType(), {new FormalParam{FloatType::getTypeFloat(), ""}}, true);
+    // newFunction("putfloat", VoidType::getType(), {new FormalParam{FloatType::getTypeFloat(), ""}}, true);
 
-    //后面几个形参列表不知道怎么加了
+    // //后面几个形参列表不知道怎么加了
 
-    newFunction("getfarray",
-                IntegerType::getTypeInt(),
-                {new FormalParam{PointerType::getNonConstPointerType(FloatType::getTypeFloat()), ""}},
-                true);
+    // newFunction("getfarray",
+    //             IntegerType::getTypeInt(),
+    //             {new FormalParam{PointerType::getNonConstPointerType(FloatType::getTypeFloat()), ""}},
+    //             true);
 
-    newFunction("putfarray",
-                VoidType::getType(),
-                {new FormalParam{IntegerType::getTypeInt(), ""},
-                 new FormalParam{PointerType::getNonConstPointerType(FloatType::getTypeFloat()), ""}},
-                true);
+    // newFunction("putfarray",
+    //             VoidType::getType(),
+    //             {new FormalParam{IntegerType::getTypeInt(), ""},
+    //              new FormalParam{PointerType::getNonConstPointerType(FloatType::getTypeFloat()), ""}},
+    //             true);
 
-    newFunction("putstr", VoidType::getType(), {new FormalParam{IntegerType::getTypeInt(), ""}}, true);
+    // newFunction("putstr", VoidType::getType(), {new FormalParam{IntegerType::getTypeInt(), ""}}, true);
 
-    newFunction("putf", VoidType::getType(), {new FormalParam{IntegerType::getTypeInt(), ""}}, true);
+    // newFunction("putf", VoidType::getType(), {new FormalParam{IntegerType::getTypeInt(), ""}}, true);
 }
 
 /// @brief 进入作用域，如进入函数体块、语句块等

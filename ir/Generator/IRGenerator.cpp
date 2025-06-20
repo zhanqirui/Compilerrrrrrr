@@ -272,6 +272,7 @@ bool IRGenerator::ir_function_define(ast_node * node)
 
     // 新建一个Value，用于保存函数的返回值，如果没有返回值可不用申请
     LocalVariable * retValue = nullptr;
+    LocalVariable * duanluValue = nullptr;
     if (!type_node->type->isVoidType()) {
         if (type_node->type->isIntegerType()) {
             // 保存函数返回值变量到函数信息中，在return语句翻译时需要设置值到这个变量中
@@ -291,7 +292,8 @@ bool IRGenerator::ir_function_define(ast_node * node)
         retValue = static_cast<LocalVariable *>(module->newVarValue(IntegerType::getTypeInt()));
     }
     newFunc->setReturnValue(retValue);
-
+    duanluValue = static_cast<LocalVariable *>(module->newVarValue(IntegerType::getTypeInt()));
+    newFunc->setDuanluValue(duanluValue);
     // 函数内已经进入作用域，内部不再需要做变量的作用域管理
     block_node->needScope = false;
 
@@ -724,7 +726,7 @@ bool IRGenerator::ir_return(ast_node * node)
     // node->blockInsts.addInst(new GotoInstruction(currentFunc, currentFunc->getExitLabel()));
     if (node->parent->node_type == ast_operator_type::AST_OP_IF_ELSE_STMT) {
         node->val = labelInst;
-    } else if(right){
+    } else if (right) {
         node->val = right->val;
     }
     module->getCurrentFunction()->is_real_return = !(isReturnInIfElse(node));
@@ -758,10 +760,28 @@ bool IRGenerator::ir_continue(ast_node * node)
 
     Function * currentFunc = module->getCurrentFunction();
     GotoInstruction * inst = new GotoInstruction(currentFunc, currentFunc->getblock_entry_Lable());
-    node->blockInsts.addInst(inst);
-    node->val = inst;
+    LabelInstruction * label_inst;
+    if (node->parent->node_type == ast_operator_type::AST_OP_IF_ELSE_STMT) {
+        label_inst = new LabelInstruction(module->getCurrentFunction());
+        node->blockInsts.addInst(label_inst);
+        node->blockInsts.addInst(inst);
+        node->val = label_inst;
+    } else {
+        node->blockInsts.addInst(inst);
+        node->val = inst;
+    }
+
     return true;
 }
+// bool IRGenerator::ir_continue(ast_node * node)
+// {
+
+//     Function * currentFunc = module->getCurrentFunction();
+//     GotoInstruction * inst = new GotoInstruction(currentFunc, currentFunc->getblock_entry_Lable());
+//     node->blockInsts.addInst(inst);
+//     node->val = inst;
+//     return true;
+// }
 /// @brief 类型叶子节点翻译成线性中间IR
 /// @param node AST节点
 /// @return 翻译是否成功，true：成功，false：失败
@@ -822,7 +842,7 @@ bool IRGenerator::ir_add(ast_node * node)
     ast_node * src2_node = node->sons[1];
     //针对not情况
     if (node->node_type == ast_operator_type::AST_OP_UNARY_EXP && src1_node->op_type == Op::NOT) {
-        Value * resultPtr = module->getCurrentFunction()->getReturnValue();
+        Value * resultPtr = module->getCurrentFunction()->getDuanluValue();
         ast_node * right = ir_visit_ast_node(src2_node);
         BranchifCondition * branch_Inst = nullptr;
         LabelInstruction * label_true = new LabelInstruction(module->getCurrentFunction());
@@ -1165,7 +1185,7 @@ bool IRGenerator::ir_visitLogitExp(ast_node * node)
     ast_node * src2_node = node->sons[1];
 
     // 加法节点，左结合，先计算左节点，后计算右节点
-    Value * resultPtr = module->getCurrentFunction()->getReturnValue();
+    Value * resultPtr = module->getCurrentFunction()->getDuanluValue();
     // Value * resultPtr = new AllocaInstruction(module->getCurrentFunction(), IntegerType::getTypeBool());
     ast_node * left = ir_visit_ast_node(src1_node);
     if (!left)
@@ -1320,18 +1340,25 @@ bool IRGenerator::ir_visitConfExp(ast_node * node)
     if (RVal->type->toString() == "i1") {
         Rzertinst = new ZextInstruction(module->getCurrentFunction(), RVal, IntegerType::getTypeInt());
     }
-    mulInst = new BinaryInstruction(module->getCurrentFunction(),
-                                    irOp,
-                                    Lzertinst ? Lzertinst : LVal,
-                                    Rzertinst ? Rzertinst : RVal,
-                                    IntegerType::getTypeBool());
+    auto L = Lzertinst ? Lzertinst : LVal;
+    auto R = Rzertinst ? Rzertinst : RVal;
+    CastInstruction *LC = nullptr, *RC = nullptr;
+    if (L->getType()->isFloatType() || R->getType()->isFloatType()) {
+        if (L->getType()->isIntegerType())
+            LC = new CastInstruction(module->getCurrentFunction(),
+                                     CastInstruction::SITOFP,
+                                     L,
+                                     FloatType::getTypeFloat());
+        if (R->getType()->isIntegerType())
+            RC = new CastInstruction(module->getCurrentFunction(),
+                                     CastInstruction::SITOFP,
+                                     R,
+                                     FloatType::getTypeFloat());
+    }
+    mulInst =
+        new BinaryInstruction(module->getCurrentFunction(), irOp, LC ? LC : L, RC ? RC : R, IntegerType::getTypeBool());
     BranchifCondition * branch_Inst = nullptr;
-    // if (node->parent->node_type == ast_operator_type::AST_OP_IF_ELSE_STMT) {
-    //     LabelInstruction *Lable1, *Lable2;
-    //     Lable1 = module->getCurrentFunction()->get_ifelse_Lable1();
-    //     Lable2 = module->getCurrentFunction()->get_ifelse_Lable2();
-    //     branch_Inst = new BranchifCondition(module->getCurrentFunction(), mulInst, Lable1, Lable2);
-    // }
+
     node->blockInsts.addInst(left->blockInsts);
     if (LstoInst) {
         node->blockInsts.addInst(LstoInst);
@@ -1346,6 +1373,10 @@ bool IRGenerator::ir_visitConfExp(ast_node * node)
     if (Rzertinst) {
         node->blockInsts.addInst(Rzertinst);
     }
+    if (LC)
+        node->blockInsts.addInst(LC);
+    if (RC)
+        node->blockInsts.addInst(RC);
     node->blockInsts.addInst(mulInst);
     if (branch_Inst != nullptr) {
         node->blockInsts.addInst(branch_Inst);
@@ -1420,9 +1451,14 @@ bool IRGenerator::ir_variable_declare(ast_node * node)
 bool IRGenerator::ir_assign(ast_node * node)
 {
     LabelInstruction * labelInst = nullptr;
+    LabelInstruction * label_inst = nullptr;
     if (node->parent->node_type == ast_operator_type::AST_OP_IF_ELSE_STMT) {
         labelInst = new LabelInstruction(module->getCurrentFunction());
         node->blockInsts.addInst(labelInst);
+    }
+    if (node->parent->node_type == ast_operator_type::AST_OP_WHILE) {
+        label_inst = new LabelInstruction(module->getCurrentFunction());
+        node->blockInsts.addInst(label_inst);
     }
     ast_node * son1_node = node->sons[0];
     ast_node * son2_node = node->sons[1];
@@ -1490,7 +1526,12 @@ bool IRGenerator::ir_assign(ast_node * node)
     } else {
         node->val = movInst;
     }
-
+    if (node->parent->node_type == ast_operator_type::AST_OP_WHILE) {
+        GotoInstruction * inst =
+            new GotoInstruction(module->getCurrentFunction(), module->getCurrentFunction()->getblock_entry_Lable());
+        node->blockInsts.addInst(inst);
+        node->val = label_inst;
+    }
     return true;
 }
 
@@ -1589,6 +1630,10 @@ void IRGenerator::flatten_array_init(std::string name,
 
         ast_node * exp_node = node->sons[0];
         ast_node * element_node = ir_visit_ast_node(exp_node);
+        if (exp_node->sons[0]->node_type == ast_operator_type::AST_OP_UNARY_EXP) {
+            exp_node->sons[0] = exp_node->sons[0]->sons[1];
+            // exp_node->sons[0]
+        }
         if (exp_node->sons[0]->node_type != ast_operator_type::AST_OP_LEAF_LITERAL_UINT) {
             module->getCurrentFunction()->is_const_func_var = false;
         }
@@ -1825,8 +1870,16 @@ bool IRGenerator::ir_array_acess(ast_node * node)
                    (*pIter)->sons[0]->node_type == ast_operator_type::AST_OP_MUL_EXP ||
                    (*pIter)->sons[0]->node_type == ast_operator_type::AST_OP_ARRAY_ACCESS) {
             bool temp = ir_visit_ast_node(*pIter);
-            node->blockInsts.addInst((*pIter)->blockInsts);
-            arrayIndexVector.push_back({-2, (*pIter)->val});
+            if ((*pIter)->val->isConst()) {
+                arrayIndexVector.push_back({(*pIter)->val->real_int, nullptr});
+            } else {
+                node->blockInsts.addInst((*pIter)->blockInsts);
+                arrayIndexVector.push_back({-2, (*pIter)->val});
+            }
+        } else if ((*pIter)->sons[0]->node_type == ast_operator_type::AST_OP_FUNC_CALL) {
+            ast_node * temp = ir_visit_ast_node((*pIter)->sons[0]);
+            node->blockInsts.addInst(temp->blockInsts);
+            arrayIndexVector.push_back({-2, temp->val});
         }
     }
     dim = array_Value->arraydimensionVector;
@@ -1845,7 +1898,7 @@ bool IRGenerator::ir_array_acess(ast_node * node)
     //这里需要新增对数组维度的判断，如果是空数组size为0原本会报错报空指针
     if (arrayIndexVector.size() >= 2) {
         for (int i = 0; i < arrayIndexVector.size() - 1; i++) {
-            if (arrayIndexVector[i].idx != -1) {
+            if (arrayIndexVector[i].idx >= 0) {
                 mulinst = new BinaryInstruction(
                     module->getCurrentFunction(),
                     IRInstOperator::IRINST_OP_MUL_I,
@@ -1854,46 +1907,67 @@ bool IRGenerator::ir_array_acess(ast_node * node)
                     IntegerType::getTypeInt());
                 node->blockInsts.addInst(mulinst);
 
-                if (arrayIndexVector[i + 1].idx != -1) {
+                if (arrayIndexVector[i + 1].idx >= 0) {
                     addinst = new BinaryInstruction(module->getCurrentFunction(),
                                                     IRInstOperator::IRINST_OP_ADD_I,
                                                     mulinst,
                                                     module->newConstInt((int32_t) arrayIndexVector[i + 1].idx),
                                                     IntegerType::getTypeInt());
                 } else {
-                    LoadInst = new LoadInstruction(module->getCurrentFunction(), arrayIndexVector[i + 1].value, true);
-                    node->blockInsts.addInst(LoadInst);
-                    addinst = new BinaryInstruction(module->getCurrentFunction(),
-                                                    IRInstOperator::IRINST_OP_ADD_I,
-                                                    mulinst,
-                                                    LoadInst,
-                                                    IntegerType::getTypeInt());
+                    if (arrayIndexVector[i + 1].idx == -1) {
+                        LoadInst =
+                            new LoadInstruction(module->getCurrentFunction(), arrayIndexVector[i + 1].value, true);
+                        node->blockInsts.addInst(LoadInst);
+                        addinst = new BinaryInstruction(module->getCurrentFunction(),
+                                                        IRInstOperator::IRINST_OP_ADD_I,
+                                                        mulinst,
+                                                        LoadInst,
+                                                        IntegerType::getTypeInt());
+                    } else if (arrayIndexVector[i + 1].idx == -2) {
+
+                        addinst = new BinaryInstruction(module->getCurrentFunction(),
+                                                        IRInstOperator::IRINST_OP_ADD_I,
+                                                        mulinst,
+                                                        arrayIndexVector[i + 1].value,
+                                                        IntegerType::getTypeInt());
+                    }
                 }
                 node->blockInsts.addInst(addinst);
             } else if (arrayIndexVector[i].value) {
-                LoadInst = new LoadInstruction(module->getCurrentFunction(), arrayIndexVector[i].value, true);
-                if (!lastInst)
+
+                if (!lastInst && arrayIndexVector[i].idx != -2) {
+                    LoadInst = new LoadInstruction(module->getCurrentFunction(), arrayIndexVector[i].value, true);
                     node->blockInsts.addInst(LoadInst);
-                mulinst = new BinaryInstruction(module->getCurrentFunction(),
-                                                IRInstOperator::IRINST_OP_MUL_I,
-                                                lastInst ? lastInst : LoadInst,
-                                                module->newConstInt((int32_t) dim[i + 1]),
-                                                // mulinst,
-                                                IntegerType::getTypeInt());
+                } else {
+                    LoadInst = nullptr;
+                }
+
+                mulinst =
+                    new BinaryInstruction(module->getCurrentFunction(),
+                                          IRInstOperator::IRINST_OP_MUL_I,
+                                          lastInst ? (lastInst) : (LoadInst ? LoadInst : arrayIndexVector[i].value),
+                                          module->newConstInt((int32_t) dim[i + 1]),
+                                          // mulinst,
+                                          IntegerType::getTypeInt());
                 node->blockInsts.addInst(mulinst);
-                if (arrayIndexVector[i + 1].idx != -1) {
+                if (arrayIndexVector[i + 1].idx >= 0) {
                     addinst = new BinaryInstruction(module->getCurrentFunction(),
                                                     IRInstOperator::IRINST_OP_ADD_I,
                                                     mulinst,
                                                     module->newConstInt((int32_t) arrayIndexVector[i + 1].idx),
                                                     IntegerType::getTypeInt());
                 } else {
-                    LoadInst = new LoadInstruction(module->getCurrentFunction(), arrayIndexVector[i + 1].value, true);
-                    node->blockInsts.addInst(LoadInst);
+                    if (arrayIndexVector[i + 1].idx == -1) {
+                        LoadInst =
+                            new LoadInstruction(module->getCurrentFunction(), arrayIndexVector[i + 1].value, true);
+                        node->blockInsts.addInst(LoadInst);
+                    }
+
                     addinst = new BinaryInstruction(module->getCurrentFunction(),
                                                     IRInstOperator::IRINST_OP_ADD_I,
                                                     mulinst,
-                                                    LoadInst,
+                                                    arrayIndexVector[i + 1].idx == -1 ? LoadInst
+                                                                                      : arrayIndexVector[i + 1].value,
                                                     IntegerType::getTypeInt());
                 }
                 node->blockInsts.addInst(addinst);
@@ -1910,8 +1984,8 @@ bool IRGenerator::ir_array_acess(ast_node * node)
             node->blockInsts.addInst(LoadInst);
         }
         /*
-        idx == -1：说明这个下标是变量（左值），它的值通过 LoadInstruction 加载。
-        idx == -2：说明这是一个表达式（如 a[i+1]），已经在前面通过 ir_visit_ast_node 转换成了 Value*。
+        idx == -1：说明这个下标是变量（左值），它的值通过 LoadInstruction 加载。 t[i]
+        idx == -2：说明这是一个表达式（如 a[i+1]），已经在前面通过 ir_visit_ast_node 转换成了 Value*。 t[x % 2] = 1;
         否则，说明是一个常量数字（如 a[3]），直接创建常量值。
         */
         latestaddinst = new BinaryInstruction(
@@ -2047,9 +2121,12 @@ bool IRGenerator::ir_leaf_node_var_id(ast_node * node)
         GetElementPtrInstruction * gepInst;
         LoadInstruction * LoadInst = nullptr;
         if (module->getCurrentFunction()->name != "main" && val->is_come_from_formalparm) {
+            Type * baseType = val->getType(); // 获取类型
+            PointerType * pointerType = dynamic_cast<PointerType *>(baseType);
+            bool is_int = pointerType->getRootType()->toString() == "float" ? false : true;
             //如果是数组类型指针则不能直接load，会将数组大指针load出来，实际应该load第一个元素的地址
-            LoadInst = new LoadInstruction(module->getCurrentFunction(), val, true);
-            bitcatinst = new BitcastInstruction(module->getCurrentFunction(), LoadInst, 32, true);
+            LoadInst = new LoadInstruction(module->getCurrentFunction(), val, is_int);
+            bitcatinst = new BitcastInstruction(module->getCurrentFunction(), LoadInst, 32, is_int);
             gepInst = new GetElementPtrInstruction(module->getCurrentFunction(), bitcatinst, ZERO);
         } else {
             Type * baseType = val->getType(); // 获取类型

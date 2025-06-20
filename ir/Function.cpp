@@ -270,7 +270,7 @@ void Function::toString(std::string & str)
         //修改为LLVM的alloca语句
         str += "  ";
         const std::vector<int32_t> dims = var->arraydimensionVector;
-        if (!dims.empty()&&dims[0]!=-3) {
+        if (!dims.empty() && dims[0] != -3) {
             std::string arrayType = "";
             for (auto it = dims.begin(); it != dims.end(); ++it) {
                 arrayType += "[" + std::to_string(*it) + " x ";
@@ -359,7 +359,17 @@ Value * Function::getReturnValue()
 {
     return returnValue;
 }
+void Function::setDuanluValue(Value * val)
+{
+    duanluValue = val;
+}
 
+/// @brief 获取函数返回值变量
+/// @return 返回值变量
+Value * Function::getDuanluValue()
+{
+    return duanluValue;
+}
 /// @brief 获取最大栈帧深度
 /// @return 栈帧深度
 int Function::getMaxDep()

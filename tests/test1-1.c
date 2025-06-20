@@ -84,17 +84,13 @@ int N4__mE___[6][50] = {{83, 97, 97, 98, 97, 114, 117},
 
                          105}};
 int
-
     saY_HeI10_To[40] = {32,
                         115,
                         97,
                         121,
-
                         115,
-
                         32,
                         104,
-
                         101,
                         108,
                         108,
@@ -114,9 +110,7 @@ int putstr(int str[])
     iNd__1X = 0;
     while (str[iNd__1X]) {
 
-        putch(
-
-            str[iNd__1X]);
+        putch(str[iNd__1X]);
         iNd__1X = iNd__1X
 
                   + 1
@@ -124,4 +118,68 @@ int putstr(int str[])
             ;
     }
     return iNd__1X;
+}
+int main(/* no param */)
+{
+    putstr(__HELLO);
+    int i = 0; /* say
+
+
+              hello to
+           kemono friends
+          ~ */
+    while (
+
+        1) {
+
+        int _ = i
+
+                / 6
+
+            ;
+        int __ = i % 6
+
+            ;
+
+        if (
+
+            _
+
+            !=
+
+            __) {
+            putstr(
+
+                N4__mE___
+
+                    [_]);
+            putstr(saY_HeI10_To);
+            putstr(N4__mE___[
+
+                __])
+
+                ;
+
+            putstr(RET);
+        }
+        /*
+             do
+
+            linear
+        modulo
+        to find 	the 	 next pair of friends  */
+        i = (i *
+
+                 17
+
+             + 23) %
+
+            32
+
+            ;
+        if (i == 0) {
+            break;
+        }
+    }
+    return 0;
 }
