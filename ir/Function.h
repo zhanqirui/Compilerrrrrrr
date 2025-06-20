@@ -211,6 +211,11 @@ public:
     {
         params.insert(params.end(), paramList.begin(), paramList.end());
     }
+    void clearParams()
+    {
+        params.clear();
+    }
+
     Value * getDuanluValue();
     void setDuanluValue(Value * val);
     LabelInstruction * block_entry_Lable = nullptr;
@@ -224,12 +229,13 @@ public:
     bool is_use_memset = false;
     bool is_use_memcpy = false;
     void removeLocalVarByName(const std::string & name);
+    bool builtIn = false;
+    Type * returnType;
 
 private:
     ///
     /// @brief 函数的返回值类型，有点冗余，可删除，直接从type中取得即可
     ///
-    Type * returnType;
 
     ///
     /// @brief 形式参数列表
@@ -239,7 +245,6 @@ private:
     ///
     /// @brief 是否是内置函数或者外部库函数
     ///
-    bool builtIn = false;
 
     ///
     /// @brief 线性IR指令块，可包含多条IR指令

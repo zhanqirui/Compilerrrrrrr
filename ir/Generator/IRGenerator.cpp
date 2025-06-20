@@ -211,9 +211,11 @@ bool IRGenerator::ir_function_define(ast_node * node)
     // 创建一个新的函数定义
     Function * newFunc = module->newFunction(name_node->name, type_node->type);
     if (!newFunc) {
+        newFunc = module->findFunction(name_node->name);
+        newFunc->returnType = type_node->type;
+        newFunc->builtIn = false;
+        newFunc->clearParams();
         // 新定义的函数已经存在，则失败返回。
-        // TODO 自行追加语义错误处理
-        return false;
     }
 
     // 当前函数设置有效，变更为当前的函数
@@ -2180,7 +2182,7 @@ bool IRGenerator::ir_func_call(ast_node * node)
                                                          {"@putstr", 11},
                                                          {"@putf", 12}};
     auto it = irMap.find(callee->getIRName());
-    if (it != irMap.end()) {
+    if (it != irMap.end() && callee->isBuiltin() == true) {
         module->InFunctionList[it->second] = true;
         // InFunction为true则后面需要打印对应的内置函数
     }
@@ -2219,7 +2221,7 @@ bool IRGenerator::ir_func_call(ast_node * node)
                                                                                  FloatType::getTypeFloat());
                                 node->blockInsts.addInst(castInst);
                                 temp->val = castInst;
-                            } else {
+                            } else if (temp->val->getType()->isFloatType()) {
                                 CastInstruction * castInst = new CastInstruction(module->getCurrentFunction(),
                                                                                  CastInstruction::FPTOSI,
                                                                                  temp->val,
