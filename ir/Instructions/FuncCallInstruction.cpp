@@ -17,7 +17,7 @@
 #include "Function.h"
 #include "Common.h"
 #include "Type.h"
-
+#include "ConstFloat.h"
 /// @brief 含有参数的函数调用
 /// @param srcVal 函数的实参Value
 /// @param result 保存返回值的Value
@@ -71,9 +71,12 @@ void FuncCallInstruction::toString(std::string & str)
         if (type->isVoidType()) {
             str = "call void  " + calledFunction->getIRName() + "(";
         } else if (type->isFloatType()) {
-            str = getIRName() + " = call f32 (...) " + calledFunction->getIRName() + "(";
+            str = getIRName() + " = call float (...) " + calledFunction->getIRName() + "(";
         } else {
-            str = getIRName() + " = call i32 (...) " + calledFunction->getIRName() + "(";
+            if (calledFunction->getIRName() == "@getfarray") //这里我不知道别的函数要不要改，这里先进行特判
+                str = getIRName() + " = call i32 (float*) " + calledFunction->getIRName() + "(";
+            else
+                str = getIRName() + " = call i32 (...) " + calledFunction->getIRName() + "(";
         }
     } else {
 
@@ -84,7 +87,7 @@ void FuncCallInstruction::toString(std::string & str)
         } else if (type->isFloatType()) {
 
             // 函数有返回值要设置到结果变量中
-            str = getIRName() + " = call f32 " + calledFunction->getIRName() + "(";
+            str = getIRName() + " = call float " + calledFunction->getIRName() + "(";
         } else if (type->isIntegerType()) {
             // 函数有返回值要设置到结果变量中
             str = getIRName() + " = call i32 " + calledFunction->getIRName() + "(";
@@ -109,8 +112,13 @@ void FuncCallInstruction::toString(std::string & str)
         for (int32_t k = 0; k < argCount; ++k) {
 
             auto operand = getOperand(k);
-
-            str += operand->getType()->toString() + " " + operand->getIRName();
+            if (operand->isConst()) {
+                if (operand->getType()->toString() == "float")
+                    str += operand->getType()->toString() + " " + ConstFloat::float2str_llvm(operand->real_float);
+                else
+                    str += operand->getType()->toString() + " " + std::to_string(operand->real_int);
+            } else
+                str += operand->getType()->toString() + " " + operand->getIRName();
 
             if (k != (argCount - 1)) {
                 str += ", ";

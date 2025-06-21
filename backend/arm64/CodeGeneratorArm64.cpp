@@ -227,7 +227,7 @@ void CodeGeneratorArm64::genCodeSection(Function * func)
             std::string str;
             getIRValueStr(localVar, str);
             if (!str.empty()) {
-                fprintf(fp, "%s\n", str.c_str());
+                fprintf(fp, "//%s\n", str.c_str());
             }
         }
 
@@ -237,7 +237,7 @@ void CodeGeneratorArm64::genCodeSection(Function * func)
                 std::string str;
                 getIRValueStr(inst, str);
                 if (!str.empty()) {
-                    fprintf(fp, "%s\n", str.c_str());
+                    fprintf(fp, "//%s\n", str.c_str());
                 }
             }
         }
@@ -255,71 +255,52 @@ void CodeGeneratorArm64::registerAllocation(Function * func)
         return;
     }
 
-    // 最简单/朴素的寄存器分配策略：局部变量和临时变量都保存在栈内，全局变量在静态存储.data区中
-    // R0,R1,R2和R3寄存器不需要保护，可直接使用
-    // SP寄存器预留，不需要保护，但需要保证值的正确性
-    // R4-R10, fp(11), lx(14)都需要保护，没有函数调用的函数可不用保护lx寄存器
-    // 被保留的寄存器主要有：
-    //  (1) FP寄存器用于栈寻址，即R11
-    //  (2) LX寄存器用于函数调用，即R14。没有函数调用的函数可不用保护lx寄存器
-    //  (3) R10寄存器用于立即数过大时要通过寄存器寻址，这里简化处理进行预留
+    // ARM64平台寄存器约定：
+    // x0-x7: 参数和返回值寄存器(调用者保存)
+    // x8-x18: 临时寄存器(调用者保存)
+    // x19-x28: 被调用者保存的寄存器
+    // x29(fp): 帧指针
+    // x30(lr): 链接寄存器(返回地址)
+    // sp: 栈指针
 
     std::vector<int32_t> & protectedRegNo = func->getProtectedReg();
     protectedRegNo.clear();
-    protectedRegNo.push_back(ARM64_FP_REG_NO);
+    protectedRegNo.push_back(ARM64_FP_REG_NO);  // x29
     if (func->getExistFuncCall()) {
-        protectedRegNo.push_back(ARM64_LR_REG_NO);
+        protectedRegNo.push_back(ARM64_LR_REG_NO);  // x30
     }
 
-    // 调整函数调用指令，主要是前四个寄存器传值，后面用栈传递
-    // 为了更好的进行寄存器分配，可以进行对函数调用的指令进行预处理
-    // 当然也可以不做处理，不过性能更差。这个处理是可选的。
+    // 先分配局部变量的栈空间
+    stackAlloc(func);
+    
+    // 再调整函数调用指令，为调用其他函数准备参数
     adjustFuncCallInsts(func);
 
-    // 为局部变量和临时变量在栈内分配空间，指定偏移，进行栈空间的分配
-    stackAlloc(func);
-
-    // 函数形参要求前四个寄存器分配，后面的参数采用栈传递，实现实参的值传递给形参
-    // 这一步是必须的
+    // 最后处理函数形参
     adjustFormalParamInsts(func);
-
-#if 0
-    // 临时输出调整后的IR指令，用于查看当前的寄存器分配、栈内变量分配、实参入栈等信息的正确性
-    std::string irCodeStr;
-    func->toString(irCodeStr);
-    std::cout << irCodeStr << std::endl;
-#endif
 }
 
 /// @brief 寄存器分配前对函数内的指令进行调整，以便方便寄存器分配
 /// @param func 要处理的函数
 void CodeGeneratorArm64::adjustFormalParamInsts(Function * func)
 {
-    // 函数形参的前四个实参值临时变量采用的是寄存器传值
-    // 前四个之后通过栈传递
-
-    // 请注意这里所得的所有形参都是对应的实参的值关联的临时变量
-    // 如果不是不能使用这里的代码
+    // 函数形参的前八个实参采用寄存器传值 (x0-x7)
     auto & params = func->getParams();
 
-    // 形参的前八个通过寄存器来传值R0-R7
+    // 形参的前八个通过寄存器来传值x0-x7
     for (int k = 0; k < (int) params.size() && k <= 7; k++) {
-
-        // 前四个设置分配寄存器
-		simpleRegisterAllocator.bitmapSet(k);
+        // 前八个设置分配寄存器
+        simpleRegisterAllocator.bitmapSet(k);
         params[k]->setRegId(k);
     }
 
-    // 根据ARM版C语言的调用约定，除前4个外的实参进行值传递，逆序入栈
-    int64_t fp_esp = func->getMaxDep() + (func->getProtectedReg().size() * 4);
-    for (int k = 4; k < (int) params.size(); k++) {
-
-        // 目前假定变量大小都是4字节。实际要根据类型来计算
-
-        params[k]->setMemoryAddr(ARM64_FP_REG_NO, fp_esp);
-
-        // 增加4字节
-        fp_esp += 4;
+    // 根据ARM64版C语言的调用约定，除前8个外的实参进行值传递
+    // 这些参数位于调用者的栈帧中，通过FP+正偏移量访问
+    int64_t param_offset = 16;  // 从FP+16开始访问参数(跳过保存的FP和LR)
+    for (int k = 8; k < (int) params.size(); k++) {
+        // ARM64架构下变量需要8字节对齐
+        params[k]->setMemoryAddr(ARM64_FP_REG_NO, param_offset);  // 使用FP基址寄存器，正偏移量
+        param_offset += 8;  // ARM64平台参数大小为8字节
     }
 }
 
@@ -327,48 +308,45 @@ void CodeGeneratorArm64::adjustFormalParamInsts(Function * func)
 /// @param func 要处理的函数
 void CodeGeneratorArm64::adjustFuncCallInsts(Function * func)
 {
-    std::vector<Instruction *> newInsts;
-
     // 当前函数的指令列表
     auto & insts = func->getInterCode().getInsts();
 
-    // 函数返回值用R0寄存器，若函数调用有返回值，则赋值R0到对应寄存器
+    // 获取已分配的局部变量栈帧大小
+    int32_t local_vars_size = func->getMaxDep();
+    
+    // 为函数调用参数预留的栈空间从局部变量区域之后开始
+    // 这样避免与局部变量区域冲突
+    int param_area_base = local_vars_size;
+
+    // 函数返回值用x0寄存器
     for (auto pIter = insts.begin(); pIter != insts.end(); pIter++) {
-
-        // 检查是否是函数调用指令，并且含有返回值
+        // 检查是否是函数调用指令
         if (Instanceof(callInst, FuncCallInstruction *, *pIter)) {
-
-            // 实参前八个要寄存器传值，其它参数通过栈传递
-
-            // 前八个的后面参数采用栈传递
-            int esp = 0;
+            // 处理超过8个的参数，它们需要通过栈传递
+            // 参数区域偏移量从局部变量区域之后开始
+            int param_offset = param_area_base;
+            
             for (int32_t k = 8; k < callInst->getOperandsNum(); k++) {
-
                 auto arg = callInst->getOperand(k);
 
                 // 新建一个内存变量，用于栈传值到形参变量中
+                // 注意：这里使用SP作为基址寄存器，偏移量从局部变量区域之后开始
                 LocalVariable * newVal = func->newLocalVarValue(IntegerType::getTypeInt());
-                newVal->setMemoryAddr(ARM64_SP_REG_NO, esp);
-                esp += 8;
+                newVal->setMemoryAddr(ARM64_SP_REG_NO, param_offset);  // 使用SP + 局部变量区域大小 + 参数偏移
+                param_offset += 8;  // ARM64平台参数大小为8字节
 
                 Instruction * assignInst = new MoveInstruction(func, newVal, arg);
-
                 callInst->setOperand(k, newVal);
-
-                // 函数调用指令前插入后，pIter仍指向函数调用指令
                 pIter = insts.insert(pIter, assignInst);
                 pIter++;
             }
 
+            // 处理前8个参数，它们通过寄存器传递
             for (int k = 0; k < callInst->getOperandsNum() && k < 8; k++) {
-
-                // 检查实参的类型是否是临时变量。
-                // 如果是临时变量，该变量可更改为寄存器变量即可，或者设置寄存器号
-                // 如果不是，则必须开辟一个寄存器变量，然后赋值即可
                 auto arg = callInst->getOperand(k);
 
                 if (arg->getRegId() == k) {
-                    // 则说明寄存器已经是实参传递的寄存器，不用创建赋值指令
+                    // 寄存器已经正确，不需要额外处理
                     continue;
                 } else {
                     // 创建临时变量，指定寄存器
@@ -377,132 +355,106 @@ void CodeGeneratorArm64::adjustFuncCallInsts(Function * func)
 
                     simpleRegisterAllocator.bitmapSet(k);
                     callInst->setOperand(k, PlatformArm64::intRegVal[k]);
-
-                    // 函数调用指令前插入后，pIter仍指向函数调用指令
                     pIter = insts.insert(pIter, assignInst);
                     pIter++;
                 }
             }
 
-            for (int k = 0; k < callInst->getOperandsNum(); k++) {
-
-                auto arg = callInst->getOperand(k);
-
-                // 再产生ARG指令
-                pIter = insts.insert(pIter, new ArgInstruction(func, arg));
-                pIter++;
-            }
-
-            // 有arg指令后可不用参数，展示不删除
-            // args.clear();
-
-            // 赋值指令
+            // 处理函数返回值
             if (callInst->hasResultValue()) {
-
                 if (callInst->getRegId() == 0) {
-                    // 结果变量的寄存器和返回值寄存器一样，则什么都不需要做
-                    ;
+                    // 结果已在x0中，不需要额外处理
                 } else {
-                    // 其它情况，需要产生赋值指令
-                    // 新建一个赋值操作
+                    // 将x0中的返回值移动到目标位置
                     Instruction * assignInst = new MoveInstruction(func, callInst, PlatformArm64::intRegVal[0]);
-
-                    // 函数调用指令的下一个指令的前面插入指令，因为有Exit指令，+1肯定有效
                     pIter = insts.insert(pIter + 1, assignInst);
                 }
             }
         }
     }
+    
+    // 计算所有函数调用中需要的最大参数空间
+    int max_args_space = 0;
+    for (auto inst: insts) {
+        if (Instanceof(callInst, FuncCallInstruction *, inst)) {
+            int args_cnt = callInst->getOperandsNum();
+            if (args_cnt > 8) {
+                // 只计算超过8个参数后需要栈传递的部分
+                int args_space = (args_cnt - 8) * 8;
+                max_args_space = std::max(max_args_space, args_space);
+            }
+        }
+    }
+    
+    // 记录调用其他函数时需要的最大参数数量
+    func->setMaxFuncCallArgCnt(max_args_space / 8 + 8);
 }
 
 /// @brief 栈空间分配
 /// @param func 要处理的函数
 void CodeGeneratorArm64::stackAlloc(Function * func)
 {
-    // 遍历函数内的所有指令，查找没有寄存器分配的变量，然后进行栈内空间分配
-
-    // 这里对临时变量和局部变量都在栈上进行分配,但形参对应实参的临时变量(FormalParam类型)不需要考虑
-
-    int32_t sp_esp = 0;
-
+    // 确定使用哪种栈帧布局
+    bool useFramePointer = !func->getProtectedReg().empty();
+    
+    // 栈变量分配起始偏移量
+    int32_t var_offset = 0;
+    
     // 获取函数变量列表
     std::vector<LocalVariable *> & vars = func->getVarValues();
 
+    // 遍历所有局部变量进行栈空间分配
     for (auto var: vars) {
-
-        // 对于简单类型的寄存器分配策略，假定临时变量和局部变量都保存在栈中，属于内存
-        // 而对于图着色等，临时变量一般是寄存器，局部变量也可能修改为寄存器
-        // TODO 考虑如何进行分配使得临时变量尽量保存在寄存器中，作为优化点考虑
-
-        // regId不为-1，则说明该变量分配为寄存器
-        // baseRegNo不等于-1，则说明该变量肯定在栈上，属于内存变量，之前肯定已经分配过
+        // 只处理未分配寄存器且未分配内存地址的变量
         if ((var->getRegId() == -1) && (!var->getMemoryAddr())) {
-
             int32_t size;
-            // 该变量没有分配寄存器
-			Type * type = var->getType();
-			if(type->isPointerType()) {
+            Type * type = var->getType();
+            
+            // 计算变量大小
+            if(type->isPointerType()) {
+                // 数组类型，计算总大小
                 int32_t dims = 1;
                 for(auto dim: var->arraydimensionVector) {
-					dims *= dim;
-				}
-				size = dims * 4;
-			}	
-			else
-			{
-				size = var->getType()->getSize();
-			}
+                    dims *= dim;
+                }
+                size = dims * 8;  // ARM64指针/数组元素大小为8字节
+            } else {
+                size = var->getType()->getSize();
+            }
             
-
-            // // 32位ARM平台按照4字节的大小整数倍分配局部变量
-            // size += (4 - size % 4) % 4;
-			// 64位arm平台
-			// 64位ARM平台按照8字节的大小整数倍分配局部变量
-			size += (8 - size % 8) % 8;
-
-
-            // 这里要注意检查变量栈的偏移范围。一般采用机制寄存器+立即数方式间接寻址
-            // 若立即数满足要求，可采用基址寄存器+立即数变量的方式访问变量
-            // 否则，需要先把偏移量放到寄存器中，然后机制寄存器+偏移寄存器来寻址
-            // 之后需要对所有使用到该Value的指令在寄存器分配前要变换。
-
-            // 局部变量偏移设置
-            var->setMemoryAddr(ARM64_FP_REG_NO, sp_esp);
-
-            // 累计当前作用域大小
-            sp_esp += size;
-        }
-    }
-
-    // 遍历指令中临时变量
-    for (auto inst: func->getInterCode().getInsts()) {
-
-        if (inst->hasResultValue()) {
-            // 有值
-
-            int32_t size = inst->getType()->getSize();
-
-            // 32位ARM平台按照4字节的大小整数倍分配局部变量
+            // 64位ARM平台按照8字节对齐
             size += (8 - size % 8) % 8;
 
-            // 这里要注意检查变量栈的偏移范围。一般采用机制寄存器+立即数方式间接寻址
-            // 若立即数满足要求，可采用基址寄存器+立即数变量的方式访问变量
-            // 否则，需要先把偏移量放到寄存器中，然后机制寄存器+偏移寄存器来寻址
-            // 之后需要对所有使用到该Value的指令在寄存器分配前要变换。
-
-            // 局部变量偏移设置
-            inst->setMemoryAddr(ARM64_FP_REG_NO, sp_esp);
-
-            // 累计当前作用域大小
-            sp_esp += size;
+            // 所有局部变量通过SP的正偏移量访问
+            // 这与生成的标准汇编代码一致
+            var->setMemoryAddr(ARM64_SP_REG_NO, var_offset);
+            
+            // 累加偏移量，确保下一个变量不会与当前变量重叠
+            var_offset += size;
         }
     }
 
-    // 设置函数的最大栈帧深度，在加上实参内存传值的空间
-    // 请注意若支持浮点数，则必须保持栈内空间8字节对齐
-    // --- 保证16字节对齐 ---
-    if (sp_esp % 16 != 0) {
-        sp_esp += 16 - (sp_esp % 16);
+    // 遍历指令中临时变量，与局部变量采用相同的分配策略
+    for (auto inst: func->getInterCode().getInsts()) {
+        if (inst->hasResultValue() && inst->getRegId() == -1 && !inst->getMemoryAddr()) {
+            int32_t size = inst->getType()->getSize();
+            
+            // 64位ARM平台按照8字节对齐
+            size += (8 - size % 8) % 8;
+
+            // 临时变量也通过SP的正偏移量访问
+            inst->setMemoryAddr(ARM64_SP_REG_NO, var_offset);
+            
+            // 累加偏移量，确保不重叠
+            var_offset += size;
+        }
     }
-    func->setMaxDep(sp_esp);
+
+    // 确保栈帧16字节对齐(ARM64 ABI要求)
+    if (var_offset % 16 != 0) {
+        var_offset += 16 - (var_offset % 16);
+    }
+    
+    // 记录函数的局部变量区域总大小
+    func->setMaxDep(var_offset);
 }

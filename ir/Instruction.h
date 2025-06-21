@@ -69,6 +69,12 @@ enum class IRInstOperator : std::int8_t {
     IRINST_OP_MOD_I, //%
     IRINST_OP_BRANCH_I,
 
+    IRINST_OP_AND_F, //& or &&
+    IRINST_OP_OR_F,  //| or ||
+    IRINST_OP_NOT_F, //!
+    IRINST_OP_MOD_F, //%
+    IRINST_OP_BRANCH_F,
+
     /// @brief 函数调用，多目运算，个数不限
     IRINST_OP_FUNC_CALL,
 
@@ -83,9 +89,9 @@ enum class IRInstOperator : std::int8_t {
 
 	IRINST_OP_BITCAST,
 
-	IRINST_OP_CAST,
+    IRINST_OP_CAST,
 
-	IRINST_OP_STORE,
+    IRINST_OP_STORE,
 
     /// @brief 最大指令码，也是无效指令
     IRINST_OP_MAX,

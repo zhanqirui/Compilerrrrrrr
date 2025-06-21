@@ -27,7 +27,6 @@ struct ArmInst {
 class ILocArm64 {
     std::list<ArmInst *> code;
     Module * module;
-    void load_imm(int rs_reg_no, int64_t num);
     void load_symbol(int rs_reg_no, std::string name);
     void leaStack(int rs_reg_no, int base_reg_no, int offset);
 
@@ -37,23 +36,30 @@ public:
     void comment(std::string str);
     std::string toStr(int64_t num, bool flag = true);
     std::list<ArmInst *> & getCode();
-    void load_base(int rs_reg_no, int base_reg_no, int disp);
+    void load_base_i(int rs_reg_no, int base_reg_no, int disp);
+	void load_base_f(int rs_reg_no, int base_reg_no, int disp);
 	void load_array_base(int rs_reg_no, int base_reg_no, int disp);
-	void store_src_to_dest_addr(int src_reg_no, int dest_reg_no);
-    void store_base(int src_reg_no, int base_reg_no, int disp, int tmp_reg_no);
+	void load_imm(int rs_reg_no, int64_t num);
+    void load_imm_float(int rs_reg_no, float constant);
+    void store_base_i(int src_reg_no, int base_reg_no, int disp, int tmp_reg_no);
+	void store_base_f(int src_reg_no, int base_reg_no, int disp, int tmp_reg_no);
     void label(std::string name);
     void inst(std::string op, std::string rs=PlatformArm64::regName[ARM64_LR_REG_NO]);
     void inst(std::string op, std::string rs, std::string arg1);
     void inst(std::string op, std::string rs, std::string arg1, std::string arg2);
-    void load_var(int rs_reg_no, Value * var);
+    void load_var(int rs_reg_no, Value * var, bool is_float_var=false);
     void lea_var(int rs_reg_no, Value * var);
-    void store_var(int src_reg_no, Value * var, int addr_reg_no);
+    void store_var(int src_reg_no, Value * var, int addr_reg_no, bool is_float_var = false);
     void mov_reg(int rs_reg_no, int src_reg_no);
     void call_fun(std::string name);
     void allocStack(Function * func, int tmp_reg_No);
-    void ldr_args(Function * fun);
     void nop();
     void jump(std::string label);
     void outPut(FILE * file, bool outputEmpty = false);
     void deleteUsedLabel();
+
+    // 新增：浮点数相关接口
+    void load_var_float(int rs_reg_no, Value * var);
+    void store_var_float(int src_reg_no, Value * var, int addr_reg_no);
+    void mov_reg_float(int rs_reg_no, int src_reg_no);
 };

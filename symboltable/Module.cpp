@@ -19,6 +19,7 @@
 #include "ScopeStack.h"
 #include "Common.h"
 #include "VoidType.h"
+#include "PointerType.h"
 
 Module::Module(std::string _name) : InFunctionList(13, false), name(_name)
 {
@@ -39,9 +40,16 @@ Module::Module(std::string _name) : InFunctionList(13, false), name(_name)
 
     newFunction("putch", VoidType::getType(), {new FormalParam{IntegerType::getTypeInt(), ""}}, true);
 
-    newFunction("getarray", IntegerType::getTypeInt(), {new FormalParam{IntegerType::getTypeInt(), ""}}, true);
+    newFunction("getarray",
+                IntegerType::getTypeInt(),
+                {new FormalParam{PointerType::getNonConstPointerType(IntegerType::getTypeInt()), ""}},
+                true);
 
-    newFunction("putarray", VoidType::getType(), {new FormalParam{IntegerType::getTypeInt(), ""}}, true);
+    newFunction("putarray",
+                VoidType::getType(),
+                {new FormalParam{IntegerType::getTypeInt(), ""},
+                 new FormalParam{PointerType::getNonConstPointerType(IntegerType::getTypeInt()), ""}},
+                true);
 
     newFunction("getfloat", FloatType::getTypeFloat(), {}, true);
 
@@ -49,9 +57,16 @@ Module::Module(std::string _name) : InFunctionList(13, false), name(_name)
 
     //后面几个形参列表不知道怎么加了
 
-    newFunction("getfarray", IntegerType::getTypeInt(), {new FormalParam{FloatType::getTypeFloat(), ""}}, true);
+    newFunction("getfarray",
+                IntegerType::getTypeInt(),
+                {new FormalParam{PointerType::getNonConstPointerType(FloatType::getTypeFloat()), ""}},
+                true);
 
-    newFunction("putfarray", VoidType::getType(), {new FormalParam{IntegerType::getTypeInt(), ""}}, true);
+    newFunction("putfarray",
+                VoidType::getType(),
+                {new FormalParam{IntegerType::getTypeInt(), ""},
+                 new FormalParam{PointerType::getNonConstPointerType(FloatType::getTypeFloat()), ""}},
+                true);
 
     newFunction("putstr", VoidType::getType(), {new FormalParam{IntegerType::getTypeInt(), ""}}, true);
 
@@ -501,16 +516,16 @@ void Module::outputIR(const std::string & filePath)
                     fprintf(fp, "declare void @putarray(i32,i32*) #1\n");
                     break;
                 case 7:
-                    fprintf(fp, "declare f32 @getfloat(...) #1\n");
+                    fprintf(fp, "declare float @getfloat(...) #1\n");
                     break;
                 case 8:
-                    fprintf(fp, "declare void @putfloat(f32) #1\n");
+                    fprintf(fp, "declare void @putfloat(float) #1\n");
                     break;
                 case 9:
-                    fprintf(fp, "declare i32 @getfarray(f32*) #1\n");
+                    fprintf(fp, "declare i32 @getfarray(float*) #1\n");
                     break;
                 case 10:
-                    fprintf(fp, "declare void @putfarray(i32,f32*) #1\n");
+                    fprintf(fp, "declare void @putfarray(i32,float*) #1\n");
                     break;
                 case 11:
                     fprintf(fp, "declare i32 @putstr(...) #1\n");

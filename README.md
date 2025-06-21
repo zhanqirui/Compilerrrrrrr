@@ -46,6 +46,6 @@ clang -o tests/test1-1 tests/test1-1.ll tests/std.c
 
 ./tests/test1-1
 
-./build/minic -S -I -A -o ./tests/test1-3.ll ./tests/test1-3.c
-lli tests/test1-3.ll
+./build/minic -S -I -A -o ./tests/test1-7.ll ./tests/test1-7.c
+lli tests/test1-7.ll
 echo $?

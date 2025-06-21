@@ -32,8 +32,10 @@ protected:
 	void translate_load(Instruction * inst);
 	void translate_gep(Instruction * inst);
 	void translate_cast(Instruction * inst);
-	void translate_memset(Instruction * inst);
-	void translate_store(Instruction * inst);
+    void translate_bitcast(Instruction * inst);
+    void translate_memset(Instruction * inst);
+    void translate_ZEXT(Instruction * inst);
+    void translate_store(Instruction * inst);
     void translate_label(Instruction * inst);
     void translate_goto(Instruction * inst);
     void outputIRInstruction(Instruction * inst);
@@ -57,6 +59,19 @@ protected:
     void translate_cmp(Instruction * inst, IRInstOperator op);
     void translate_func_call(Instruction * inst);
     void translate_arg(Instruction * inst);
+
+    // 新增：浮点数指令选择接口
+    void translate_fadd(Instruction * inst);
+    void translate_fsub(Instruction * inst);
+    void translate_fmul(Instruction * inst);
+    void translate_fdiv(Instruction * inst);
+    void translate_fcmp(Instruction * inst, IRInstOperator op);
+    void translate_feq(Instruction * inst);
+    void translate_fne(Instruction * inst);
+    void translate_flt(Instruction * inst);
+    void translate_fle(Instruction * inst);
+    void translate_fgt(Instruction * inst);
+    void translate_fge(Instruction * inst);
 
     typedef void (InstSelectorArm64::*translate_handler)(Instruction *);
     map<IRInstOperator, translate_handler> translator_handlers;

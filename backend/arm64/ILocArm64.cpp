@@ -1,5 +1,6 @@
 #include <cstdio>
 #include <string>
+#include <cstring> 
 #include "ILocArm64.h"
 #include "Common.h"
 #include "Function.h"
@@ -118,8 +119,34 @@ void ILocArm64::comment(std::string str) { emit("//", str); }
 // 将一个立即数（常量）加载到指定寄存器。
 void ILocArm64::load_imm(int rs_reg_no, int64_t constant)
 {
-    // ARM64: movz/movk 组合加载64位立即数，简化为mov
-    emit("mov", PlatformArm64::regName[rs_reg_no], toStr(constant));
+	// ARM64: movz/movk 组合加载64位立即数，简化为mov
+	if(constant < 65536 && constant > -65536) {
+		emit("mov", PlatformArm64::regName[rs_reg_no], toStr(constant));
+	}
+	else{
+		emit("ldr", PlatformArm64::regName[rs_reg_no], "=" + toStr(constant, false));
+	}
+    
+    
+}
+
+void ILocArm64::load_imm_float(int rs_reg_no, float constant)
+{
+	    // 1. 将 float 常量按 IEEE 754 位模式解释为 uint32_t
+		uint32_t bits;
+		std::memcpy(&bits, &constant, sizeof(bits));
+	
+		// 2. 生成指令：将 bits 拆成 mov + movk 的组合加载到通用寄存器（如 wTmp）
+		int wTmp = ARM64_TMP_REG_NO; 
+	
+		uint16_t lower16 = bits & 0xFFFF;
+		uint16_t mid16   = (bits >> 16) & 0xFFFF;
+	
+		emit("mov",  PlatformArm64::regNameW[wTmp], toStr(lower16));
+		emit("movk", PlatformArm64::regNameW[wTmp], toStr(mid16), "lsl " + toStr(16)); // 左移16位
+	
+		// 3. 将整数位模式 move 到浮点寄存器 s[rs_reg_no]
+		emit("fmov", PlatformArm64::regNameS[rs_reg_no], PlatformArm64::regNameW[wTmp]);
 }
 
 // 将符号（如全局变量地址）加载到寄存器。
@@ -131,7 +158,7 @@ void ILocArm64::load_symbol(int rs_reg_no, std::string name)
 }
 
 //从基址寄存器加偏移（或加寄存器）地址处加载内存到寄存器。
-void ILocArm64::load_base(int rs_reg_no, int base_reg_no, int disp)
+void ILocArm64::load_base_i(int rs_reg_no, int base_reg_no, int disp)
 {
     std::string rsReg = PlatformArm64::regName[rs_reg_no];
     std::string base = PlatformArm64::regName[base_reg_no];
@@ -144,6 +171,23 @@ void ILocArm64::load_base(int rs_reg_no, int base_reg_no, int disp)
     base = "[" + base + "]";
     emit("ldr", rsReg, base);
 }
+
+//从基址寄存器加偏移（或加寄存器）地址处加载内存到寄存器。
+void ILocArm64::load_base_f(int rs_reg_no, int base_reg_no, int disp)
+{
+    std::string rsReg = PlatformArm64::regNameS[rs_reg_no];
+    std::string base = PlatformArm64::regName[base_reg_no];
+	std::string tmp = PlatformArm64::regName[ARM64_TMP_REG_NO];
+    if (PlatformArm64::isDisp(disp)) {
+        if (disp) base += "," + toStr(disp);
+    } else {
+        load_imm(ARM64_TMP_REG_NO, disp);
+        base += "," + tmp;
+    }
+    base = "[" + base + "]";
+    emit("ldr", rsReg, base);
+}
+
 
 void ILocArm64::load_array_base(int rs_reg_no, int base_reg_no, int disp)
 {
@@ -160,7 +204,7 @@ void ILocArm64::load_array_base(int rs_reg_no, int base_reg_no, int disp)
 
 
 // 将寄存器内容存储到基址寄存器加偏移（或加寄存器）地址处。
-void ILocArm64::store_base(int src_reg_no, int base_reg_no, int disp, int tmp_reg_no)
+void ILocArm64::store_base_i(int src_reg_no, int base_reg_no, int disp, int tmp_reg_no)
 {
     std::string base = PlatformArm64::regName[base_reg_no];
     if (PlatformArm64::isDisp(disp)) {
@@ -173,6 +217,19 @@ void ILocArm64::store_base(int src_reg_no, int base_reg_no, int disp, int tmp_re
     emit("str", PlatformArm64::regName[src_reg_no], base);
 }
 
+void ILocArm64::store_base_f(int src_reg_no, int base_reg_no, int disp, int tmp_reg_no)
+{
+    std::string base = PlatformArm64::regName[base_reg_no];
+    if (PlatformArm64::isDisp(disp)) {
+        if (disp) base += "," + toStr(disp);
+    } else {
+        load_imm(tmp_reg_no, disp);
+        base += "," + PlatformArm64::regName[tmp_reg_no];
+    }
+    base = "[" + base + "]";
+    emit("str", PlatformArm64::regNameS[src_reg_no], base);
+}
+
 //寄存器之间的数据传送。
 void ILocArm64::mov_reg(int rs_reg_no, int src_reg_no)
 {
@@ -180,20 +237,40 @@ void ILocArm64::mov_reg(int rs_reg_no, int src_reg_no)
 }
 
 // 将变量的值加载到寄存器
-void ILocArm64::load_var(int rs_reg_no, Value * src_var)
+void ILocArm64::load_var(int rs_reg_no, Value * src_var, bool is_float_var)
 {
-    if (Instanceof(constVal, ConstInt *, src_var)) {
-        load_imm(rs_reg_no, constVal->getVal());
-    } else if (src_var->getRegId() != -1) {
+    if (Instanceof(constIntVal, ConstInt *, src_var)) {
+        load_imm(rs_reg_no, constIntVal->getVal());
+	}
+	else if(Instanceof(constFloatVal, ConstFloat *, src_var))
+	{
+		load_imm_float(rs_reg_no, constFloatVal->getVal());
+	}
+    else if (src_var->getRegId() != -1) {
         int32_t src_regId = src_var->getRegId();
         if (src_regId != rs_reg_no) {
-            emit("mov", PlatformArm64::regName[rs_reg_no], PlatformArm64::regName[src_regId]);
+			if(is_float_var) {
+				// 如果是浮点类型，使用fmov
+				emit("fmov", PlatformArm64::regNameS[rs_reg_no], PlatformArm64::regNameS[src_regId]);
+			} else {
+				// 否则使用mov
+            	emit("mov", PlatformArm64::regName[rs_reg_no], PlatformArm64::regName[src_regId]);
+			}
         }
     } else if (Instanceof(globalVar, GlobalVariable *, src_var)) {
         load_symbol(rs_reg_no, globalVar->getName());
 		//对于数组全局变量，直接加载地址，不用load
 		if(!src_var->isArray())
-        	emit("ldr", PlatformArm64::regName[rs_reg_no], "[" + PlatformArm64::regName[rs_reg_no] + "]");
+		{
+			if(is_float_var) {
+				// 如果是浮点类型，使用ldr s寄存器
+				emit("ldr", PlatformArm64::regNameS[rs_reg_no], "[" + PlatformArm64::regName[rs_reg_no] + "]");
+			} else {
+				// 否则使用ldr
+				emit("ldr", PlatformArm64::regName[rs_reg_no], "[" + PlatformArm64::regName[rs_reg_no] + "]");
+			}
+		}
+        	
     } else {
         int32_t var_baseRegId = -1;
         int64_t var_offset = -1;
@@ -205,8 +282,13 @@ void ILocArm64::load_var(int rs_reg_no, Value * src_var)
 			// 数组变量的地址加载到寄存器
 			load_array_base(rs_reg_no, var_baseRegId, var_offset);
 		}
-		else
-        	load_base(rs_reg_no, var_baseRegId, var_offset);
+		else if(src_var->getType()->isFloatType()) {
+			// 如果是浮点类型，使用ldr s寄存器
+			load_base_f(rs_reg_no, var_baseRegId, var_offset);
+		} else {
+			// 否则使用ldr
+        	load_base_i(rs_reg_no, var_baseRegId, var_offset);
+		}
     }
 }
 
@@ -223,16 +305,28 @@ void ILocArm64::lea_var(int rs_reg_no, Value * var)
 }
 
 // 将寄存器的值存储到变量（内存/全局/局部/寄存器变量）。
-void ILocArm64::store_var(int src_reg_no, Value * dest_var, int tmp_reg_no)
+void ILocArm64::store_var(int src_reg_no, Value * dest_var, int tmp_reg_no, bool is_float_var)
 {
     if (dest_var->getRegId() != -1) {
         int dest_reg_id = dest_var->getRegId();
         if (src_reg_no != dest_reg_id) {
-            emit("mov", PlatformArm64::regName[dest_reg_id], PlatformArm64::regName[src_reg_no]);
+			if(is_float_var) {
+				// 如果是浮点类型，使用fmov
+				emit("fmov", PlatformArm64::regNameS[dest_reg_id], PlatformArm64::regNameS[src_reg_no]);
+			} else {
+
+            	emit("mov", PlatformArm64::regName[dest_reg_id], PlatformArm64::regName[src_reg_no]);
+			}
         }
     } else if (Instanceof(globalVar, GlobalVariable *, dest_var)) {
         load_symbol(tmp_reg_no, globalVar->getName());
-        emit("str", PlatformArm64::regName[src_reg_no], "[" + PlatformArm64::regName[tmp_reg_no] + "]");
+		if(is_float_var) {
+			// 如果是浮点类型，使用str s寄存器
+			emit("str", PlatformArm64::regNameS[src_reg_no], "[" + PlatformArm64::regName[tmp_reg_no] + "]");
+		} else {
+			// 否则使用str
+			emit("str", PlatformArm64::regName[src_reg_no], "[" + PlatformArm64::regName[tmp_reg_no] + "]");
+		}
     } else {
         int32_t dest_baseRegId = -1;
         int64_t dest_offset = -1;
@@ -240,7 +334,12 @@ void ILocArm64::store_var(int src_reg_no, Value * dest_var, int tmp_reg_no)
         if (!result) {
             minic_log(LOG_ERROR, "BUG");
         }
-        store_base(src_reg_no, dest_baseRegId, dest_offset, tmp_reg_no);
+		if(is_float_var) {
+			// 如果是浮点类型，使用store_base_f
+			store_base_f(src_reg_no, dest_baseRegId, dest_offset, tmp_reg_no);
+		}
+		else store_base_i(src_reg_no, dest_baseRegId, dest_offset, tmp_reg_no);
+        
     }
 }
 
