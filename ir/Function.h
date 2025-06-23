@@ -211,6 +211,13 @@ public:
     {
         params.insert(params.end(), paramList.begin(), paramList.end());
     }
+    void clearParams()
+    {
+        params.clear();
+    }
+
+    Value * getDuanluValue();
+    void setDuanluValue(Value * val);
     LabelInstruction * block_entry_Lable = nullptr;
     LabelInstruction * block_exit_Lable = nullptr;
     LabelInstruction * ifelse_Lable1 = nullptr;
@@ -222,12 +229,13 @@ public:
     bool is_use_memset = false;
     bool is_use_memcpy = false;
     void removeLocalVarByName(const std::string & name);
+    bool builtIn = false;
+    Type * returnType;
 
 private:
     ///
     /// @brief 函数的返回值类型，有点冗余，可删除，直接从type中取得即可
     ///
-    Type * returnType;
 
     ///
     /// @brief 形式参数列表
@@ -237,7 +245,6 @@ private:
     ///
     /// @brief 是否是内置函数或者外部库函数
     ///
-    bool builtIn = false;
 
     ///
     /// @brief 线性IR指令块，可包含多条IR指令
@@ -264,6 +271,7 @@ private:
     /// @brief 函数返回值变量，不能是临时变量，必须是局部变量
     ///
     Value * returnValue = nullptr;
+    Value * duanluValue = nullptr;
 
     ///
     /// @brief 由于局部变量、前4个形参需站内空间分配而导致的栈帧大小

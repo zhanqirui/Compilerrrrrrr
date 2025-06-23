@@ -184,6 +184,12 @@ public:
     {
         return is_constant;
     }
+
+	bool isParam()
+	{
+		return is_come_from_formalparm;
+	}
+
     int real_int;
     float real_float;
     bool is_come_from_formalparm = false;

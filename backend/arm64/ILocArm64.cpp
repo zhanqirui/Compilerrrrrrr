@@ -189,17 +189,26 @@ void ILocArm64::load_base_f(int rs_reg_no, int base_reg_no, int disp)
 }
 
 
-void ILocArm64::load_array_base(int rs_reg_no, int base_reg_no, int disp)
+/// @brief 加载数组基址（带偏移）
+/// @param rs_reg_no 结果寄存器编号
+/// @param base_reg_no 基址寄存器编号
+/// @param disp 偏移量
+void ILocArm64::load_array_base(int rs_reg_no, int base_reg_no, int disp, bool is_param)
 {
     std::string rsReg = PlatformArm64::regName[rs_reg_no];
     std::string base = PlatformArm64::regName[base_reg_no];
     if (PlatformArm64::isDisp(disp)) {
-        if (disp) base += "," + toStr(disp);
+        base += "," + toStr(disp);
     } else {
         load_imm(rs_reg_no, disp);
         base += "," + rsReg;
     }
     emit("add", rsReg, base);
+	if(is_param)
+	{
+		// !如果是参数传递，使用ldr提取地址
+		emit("ldr", rsReg, "[" + rsReg + "]");
+	}
 }
 
 
@@ -237,7 +246,7 @@ void ILocArm64::mov_reg(int rs_reg_no, int src_reg_no)
 }
 
 // 将变量的值加载到寄存器
-void ILocArm64::load_var(int rs_reg_no, Value * src_var, bool is_float_var)
+void ILocArm64::load_var(int rs_reg_no, Value * src_var, bool is_float_var, bool is_param)
 {
     if (Instanceof(constIntVal, ConstInt *, src_var)) {
         load_imm(rs_reg_no, constIntVal->getVal());
@@ -280,7 +289,7 @@ void ILocArm64::load_var(int rs_reg_no, Value * src_var, bool is_float_var)
         }
 		if(src_var->isArray()) {
 			// 数组变量的地址加载到寄存器
-			load_array_base(rs_reg_no, var_baseRegId, var_offset);
+			load_array_base(rs_reg_no, var_baseRegId, var_offset, is_param);
 		}
 		else if(src_var->getType()->isFloatType()) {
 			// 如果是浮点类型，使用ldr s寄存器

@@ -317,7 +317,7 @@ void CodeGeneratorArm64::adjustFuncCallInsts(Function * func)
     // 为函数调用参数预留的栈空间从局部变量区域之后开始
     // 这样避免与局部变量区域冲突
     int param_area_base = local_vars_size;
-
+	
     // 函数返回值用x0寄存器
     for (auto pIter = insts.begin(); pIter != insts.end(); pIter++) {
         // 检查是否是函数调用指令
@@ -325,6 +325,7 @@ void CodeGeneratorArm64::adjustFuncCallInsts(Function * func)
             // 处理超过8个的参数，它们需要通过栈传递
             // 参数区域偏移量从局部变量区域之后开始
             int param_offset = param_area_base;
+			int params_num = callInst->getOperandsNum();
             
             for (int32_t k = 8; k < callInst->getOperandsNum(); k++) {
                 auto arg = callInst->getOperand(k);
@@ -417,7 +418,14 @@ void CodeGeneratorArm64::stackAlloc(Function * func)
                 for(auto dim: var->arraydimensionVector) {
                     dims *= dim;
                 }
-                size = dims * 8;  // ARM64指针/数组元素大小为8字节
+				if(dims < 0)
+				{
+                    size = 8;
+                }
+				else
+				{
+					size = dims * 8;  // ARM64指针/数组元素大小为8字节
+				}
             } else {
                 size = var->getType()->getSize();
             }

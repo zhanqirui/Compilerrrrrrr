@@ -67,16 +67,20 @@ void FuncCallInstruction::toString(std::string & str)
                                                          {"@putstr", 11},
                                                          {"@putf", 12}};
     auto it = irMap.find(calledFunction->getIRName());
-    if (it != irMap.end()) {
-        if (type->isVoidType()) {
-            str = "call void  " + calledFunction->getIRName() + "(";
-        } else if (type->isFloatType()) {
-            str = getIRName() + " = call float (...) " + calledFunction->getIRName() + "(";
-        } else {
-            if (calledFunction->getIRName() == "@getfarray") //这里我不知道别的函数要不要改，这里先进行特判
-                str = getIRName() + " = call i32 (float*) " + calledFunction->getIRName() + "(";
-            else
-                str = getIRName() + " = call i32 (...) " + calledFunction->getIRName() + "(";
+    if (calledFunction->isBuiltin()) {
+        if (it != irMap.end()) {
+            if (type->isVoidType()) {
+                str = "call void  " + calledFunction->getIRName() + "(";
+            } else if (type->isFloatType()) {
+                str = getIRName() + " = call float (...) " + calledFunction->getIRName() + "(";
+            } else {
+                if (calledFunction->getIRName() == "@getfarray") //这里我不知道别的函数要不要改，这里先进行特判
+                    str = getIRName() + " = call i32 (float*) " + calledFunction->getIRName() + "(";
+                else if (calledFunction->getIRName() == "@getarray") //这里我不知道别的函数要不要改，这里先进行特判
+                    str = getIRName() + " = call i32 (i32*) " + calledFunction->getIRName() + "(";
+                else
+                    str = getIRName() + " = call i32 (...) " + calledFunction->getIRName() + "(";
+            }
         }
     } else {
 

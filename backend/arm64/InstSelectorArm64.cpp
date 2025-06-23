@@ -309,7 +309,8 @@ void InstSelectorArm64::translate_load(Instruction * inst) {
     int32_t result_regId = result->getRegId();
 
 	bool is_float_var = arg1->getType()->isFloatType();
-	//新增对数组Load的特殊处理
+    bool is_param = arg1->isParam();
+    //新增对数组Load的特殊处理
 	if(Instanceof(GepInst, GetElementPtrInstruction *, arg1)) 
 	{	
 		//储存地址到x0
@@ -339,11 +340,11 @@ void InstSelectorArm64::translate_load(Instruction * inst) {
 		if (arg1_regId != -1) {
 			iloc.store_var(arg1_regId, result, ARM64_TMP_REG_NO, is_float_var);
 		} else if (result_regId != -1) {
-			iloc.load_var(result_regId, arg1, is_float_var);
+			iloc.load_var(result_regId, arg1, is_float_var, is_param);
 		} else {
 			int32_t temp_regno = simpleRegisterAllocator.Allocate(is_float_var);
 			int32_t result_regno = simpleRegisterAllocator.Allocate(false, result);
-			iloc.load_var(temp_regno, arg1, is_float_var);
+			iloc.load_var(temp_regno, arg1, is_float_var, is_param);
 			iloc.store_var(temp_regno, result, ARM64_TMP_REG_NO, is_float_var);
 			simpleRegisterAllocator.free(temp_regno, is_float_var);
 		}
@@ -447,10 +448,11 @@ void InstSelectorArm64::translate_memset(Instruction * inst) {
     Instanceof(castInst, Instruction *, op1);
     Value * addr = castInst->getOperand(0);
     int32_t addr_reg = addr->getRegId();
+	bool is_param = addr->isParam();
 
     if (addr_reg == -1) {
         addr_reg = simpleRegisterAllocator.Allocate();
-        iloc.load_var(addr_reg, addr);
+        iloc.load_var(addr_reg, addr, is_param);
     }
 
     int64_t len = memsetInst->getSize();
