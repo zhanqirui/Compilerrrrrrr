@@ -242,7 +242,6 @@ void InstSelectorArm64::translate_exit(Instruction * inst) {
 
 
 
-
 void InstSelectorArm64::translate_assign(Instruction * inst) {
     Value * result = inst->getOperand(0);
     Value * arg1 = inst->getOperand(1);
@@ -748,6 +747,7 @@ void InstSelectorArm64::translate_func_call(Instruction * inst) {
 	
 	for (int i = 0; i < n; ++i) {
 		Value * arg = inst->getOperand(i);
+		// printf("arg %d: %s\n",i,arg->getName().c_str());
 		int32_t reg = arg->getRegId();
 		if (reg == -1) {
 			reg = simpleRegisterAllocator.Allocate();

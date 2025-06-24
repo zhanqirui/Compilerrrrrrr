@@ -146,6 +146,76 @@
 				"programOutput": true
 			},
 			"preLaunchTask": "build and qemu run"
+		},
+		{
+			// 可采用GCC或者Clang编译器
+			"name": "Debug CFG",
+			"type": "cppdbg",
+			"request": "launch",
+			"program": "${workspaceFolder}/build/minic",
+			"args": ["-S", "-C", "-o", "output/cfg", "tests/test1-1.c"],
+			"stopAtEntry": false,
+			"cwd": "${workspaceFolder}",
+			"environment": [],
+			"externalConsole": false,
+			"linux": {
+				"MIMode": "gdb",
+				"miDebuggerPath": "/usr/bin/gdb"
+			},
+			"osx": {
+				"MIMode": "lldb"
+			},
+			"windows": {
+				"MIMode": "gdb"
+			},
+			"setupCommands": [
+				{
+					"description": "Enable pretty-printing for gdb",
+					"text": "-enable-pretty-printing",
+					"ignoreFailures": true
+				},
+				{
+					"description": "Set Disassembly Flavor to Intel",
+					"text": "-gdb-set disassembly-flavor intel",
+					"ignoreFailures": true
+				}
+			],
+			"preLaunchTask": "CMake: build"
+		},
+		{
+			// 可采用GCC或者Clang编译器
+			"name": "Debug DFG",
+			"type": "cppdbg",
+			"request": "launch",
+			"program": "${workspaceFolder}/build/minic",
+			"args": ["-S", "-F", "-o", "output/dfg", "tests/test1-1.c"],
+			"stopAtEntry": false,
+			"cwd": "${workspaceFolder}",
+			"environment": [],
+			"externalConsole": false,
+			"linux": {
+				"MIMode": "gdb",
+				"miDebuggerPath": "/usr/bin/gdb"
+			},
+			"osx": {
+				"MIMode": "lldb"
+			},
+			"windows": {
+				"MIMode": "gdb"
+			},
+			"setupCommands": [
+				{
+					"description": "Enable pretty-printing for gdb",
+					"text": "-enable-pretty-printing",
+					"ignoreFailures": true
+				},
+				{
+					"description": "Set Disassembly Flavor to Intel",
+					"text": "-gdb-set disassembly-flavor intel",
+					"ignoreFailures": true
+				}
+			],
+			"preLaunchTask": "CMake: build"
 		}
 	]
 }

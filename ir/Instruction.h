@@ -71,8 +71,6 @@ enum class IRInstOperator : std::int8_t {
 
     IRINST_OP_AND_F, //& or &&
     IRINST_OP_OR_F,  //| or ||
-    IRINST_OP_NOT_F, //!
-    IRINST_OP_MOD_F, //%
     IRINST_OP_BRANCH_F,
 
     /// @brief 函数调用，多目运算，个数不限
@@ -152,6 +150,15 @@ public:
     {
         return regId;
     }
+
+	/**
+    	* @brief 获取 label 的“可打印”名字
+    */
+    std::string getLabelName();
+
+    std::vector<std::string> getUseVars();
+
+	std::vector<std::string> getDefVars();
 
     ///
     /// @brief @brief 如是内存变量型Value，则获取基址寄存器和偏移

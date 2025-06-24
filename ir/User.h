@@ -49,7 +49,7 @@ public:
     /// @brief 取得操作数
     /// @return std::vector<Value *>
     ///
-    std::vector<Value *> getOperandsValue();
+    std::vector<Value *> getOperandsValue() const;
 
     ///
     /// @brief 获取操作数的个数

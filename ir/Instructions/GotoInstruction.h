@@ -43,6 +43,20 @@ public:
     ///
     [[nodiscard]] LabelInstruction * getTarget() const;
 
+	/// @brief 获取真出口
+    /// @return TrueLabel
+    Instruction * getTrueLabel()
+    {
+        return this->target;
+    }
+
+    /// @brief 获取假出口
+    /// @return FalseLabel
+    Instruction * getFalseLabel()
+    {
+        return this->target;
+    }
+
 private:
     ///
     /// @brief 跳转到的目标Label指令

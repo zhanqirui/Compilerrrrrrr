@@ -191,6 +191,14 @@ set(IR_SRCS
 	ir/Instructions/ZextInstruction.cpp
 	ir/Instructions/CastInstruction.cpp
 	ir/Instructions/CastInstruction.h
+	ir/Analysis/BasicBlock.cpp
+	ir/Analysis/BasicBlock.h
+	ir/Analysis/CFG.cpp
+	ir/Analysis/CFG.h
+	ir/Analysis/DFG.cpp
+	ir/Analysis/DFG.h
+	ir/Analysis/FGraph.cpp
+	ir/Analysis/FGraph.h
 )
 
 # 符号表等共通化代码集合

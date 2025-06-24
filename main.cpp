@@ -24,6 +24,8 @@
 #include "CodeGeneratorArm64.h"
 #include "FrontEndExecutor.h"
 #include "Graph.h"
+#include "ir/Analysis/FGraph.h"
+#include "ir/Analysis/CFG.h"
 #include "IRGenerator.h"
 #include "Module.h"
 
@@ -84,6 +86,21 @@ static std::string gInputFile;
 /// @brief 输出文件，不同的选项输出的内容不同
 static std::string gOutputFile;
 
+///
+/// @brief 显示控制流图 CFG
+///
+static bool gShowCFG = false;
+
+///
+/// @brief 显示数据流图 DFG
+///
+static bool gShowDFG = false;
+
+///
+/// @brief Debug LivenessAnalysis
+///
+static bool gDebugLiveness = true;
+
 static struct option long_options[] = {{"help", no_argument, 0, 'h'},
                                        {"output", required_argument, 0, 'o'},
                                        {"symbol", no_argument, 0, 'S'},
@@ -94,6 +111,8 @@ static struct option long_options[] = {{"help", no_argument, 0, 'h'},
                                        {"optimize", required_argument, 0, 'O'},
                                        {"target", required_argument, 0, 't'},
                                        {"asmir", no_argument, 0, 'c'},
+                                       {"cfg", no_argument, 0, 'C'},
+                                       {"dfg", no_argument, 0, 'F'},
                                        {0, 0, 0, 0}};
 
 /// @brief 显示帮助
@@ -113,6 +132,8 @@ static void showHelp(const std::string & exeName)
     std::cout << "  -O, --optimize=LEVEL       Set optimization level\n";
     std::cout << "  -t, --target=CPU           Specify target CPU architecture\n";
     std::cout << "  -c, --asmir                Show IR instructions as comments in assembly output\n";
+    std::cout << "  -C, --cfg                  Generate control flow graph\n";
+    std::cout << "  -F, --dfg                  Generate data flow graph\n";
 }
 
 /// @brief 参数解析与有效性检查
@@ -131,7 +152,9 @@ static int ArgsAnalysis(int argc, char * argv[])
     // -O要求必须带有附加整数，指明优化的级别
     // -t要求必须带有目标CPU，指明目标CPU的汇编
     // -c选项在输出汇编时有效，附带输出IR指令内容
-    const char options[] = "ho:STIALDO:t:c";
+    // -C选项用于生成控制流图
+    // -F选项用于生成数据流图
+    const char options[] = "ho:STIADLO:t:cCF";
     int option_index = 0;
 
     opterr = 1;
@@ -180,6 +203,12 @@ lb_check:
                 break;
             case 'c':
                 gAsmAlsoShowIR = true;
+                break;
+            case 'C':
+                gShowCFG = true;
+                break;
+            case 'F':
+                gShowDFG = true;
                 break;
             default:
                 return -1;
@@ -346,6 +375,42 @@ static int compile(std::string inputFile, std::string outputFile)
             // 对IR的名字重命名
             module->renameIR();
         }
+        
+        if (gShowCFG) {
+            F_Graph graph;
+            if (!graph.buildCFG(module)) {
+                minic_log(LOG_ERROR, "构建CFG失败");
+                break;
+            }
+            if (!graph.drawCFG(outputFile)) {
+                minic_log(LOG_ERROR, "绘制CFG失败");
+                break;
+            }
+            // 新增：活性分析与Debug
+            CFG_Generator cfgGen(module);
+            cfgGen.run(true);
+            cfgGen.runLivenessAnalysis();
+            if (gDebugLiveness) {
+                cfgGen.debugLiveness();
+            }
+            result = 0;
+            break;
+        }
+
+        if (gShowDFG) {
+            F_Graph graph;
+            if (!graph.buildDFG(module)) {
+                minic_log(LOG_ERROR, "构建DFG失败");
+                break;
+            }
+            if (!graph.drawDFG(outputFile)) {
+                minic_log(LOG_ERROR, "绘制DFG失败");
+                break;
+            }
+            result = 0;
+        }
+
+
 
         // 这里可追加中间代码优化，体系结果无关的优化等
 
@@ -419,4 +484,3 @@ int main(int argc, char * argv[])
 
     return result;
 }
-        

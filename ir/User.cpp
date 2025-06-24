@@ -141,7 +141,7 @@ std::vector<Use *> & User::getOperands()
 /// @brief 取得操作数
 /// @return std::vector<Value *>
 ///
-std::vector<Value *> User::getOperandsValue()
+std::vector<Value *> User::getOperandsValue() const
 {
     std::vector<Value *> operandsVec;
     for (auto & use: operand) {

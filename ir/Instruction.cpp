@@ -72,3 +72,27 @@ bool Instruction::hasResultValue()
 {
     return !type->isVoidType();
 }
+
+std::string Instruction::getLabelName() {
+    // 本类继承 Value → getIRName() 已存在
+    return this->getIRName();
+}
+
+std::vector<std::string> Instruction::getUseVars(){
+	std::vector<std::string> useVars;
+	for (const auto &use : getOperandsValue()) {
+		if (use && !use->isConst()) {
+			useVars.push_back(use->getIRName());
+		}
+	}
+	return useVars;
+}
+
+std::vector<std::string> Instruction::getDefVars(){
+	std::vector<std::string> defVars;
+	if (this->getIRName().empty() || !hasResultValue()) {
+		return defVars; // 如果没有IRName，则返回空
+	}
+	defVars.push_back(this->getIRName());
+	return defVars;
+}

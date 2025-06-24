@@ -267,6 +267,10 @@
 		"cinttypes": "cpp",
 		"typeinfo": "cpp",
 		"*.def": "cpp",
-		"stdio.h": "c"
+		"stdio.h": "c",
+		"codecvt": "cpp",
+		"iomanip": "cpp",
+		"optional": "cpp",
+		"variant": "cpp"
 	}
 }

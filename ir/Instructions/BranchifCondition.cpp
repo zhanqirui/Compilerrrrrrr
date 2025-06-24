@@ -28,6 +28,9 @@ BranchifCondition::BranchifCondition(Function * _func, Value * cond, Value * lab
     addOperand(label1);
     addOperand(label2);
     // addOperand(_srcVal1);
+	// 保存真假跳转目标
+	trueTarget = static_cast<LabelInstruction *>(label1);
+	falseTarget = static_cast<LabelInstruction *>(label2);
 }
 
 /// @brief 转换成字符串显示
@@ -40,4 +43,22 @@ void BranchifCondition::toString(std::string & str)
     Instruction * l2 = static_cast<Instruction *>(getOperand(2));
     str =
         "br i1 " + condition->getIRName() + ", " + " label %" + l1->getIRName() + ", " + "  label %" + l2->getIRName();
+}
+
+///
+/// @brief 获取条件为真时的目标Label指令
+/// @return LabelInstruction* 真分支label指令
+///
+LabelInstruction * BranchifCondition::getTrueTarget() const
+{
+    return trueTarget;
+}
+
+///
+/// @brief 获取条件为假时的目标Label指令
+/// @return LabelInstruction* 假分支label指令
+///
+LabelInstruction * BranchifCondition::getFalseTarget() const
+{
+    return falseTarget;
 }

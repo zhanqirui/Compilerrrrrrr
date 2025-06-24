@@ -15,7 +15,7 @@
 LinearScanRegisterAllocator::LinearScanRegisterAllocator()
 {}
 
-int LinearScanRegisterAllocator::Allocate(Value *var, int32_t no)
+int LinearScanRegisterAllocator::AllocateInt(Value *var, int32_t no)
 {
     if (var && (var->getLoadRegId() != -1)) {
         return var->getLoadRegId();
@@ -67,15 +67,15 @@ int LinearScanRegisterAllocator::Allocate(Value *var, int32_t no)
     return regno;
 }
 
-void LinearScanRegisterAllocator::Allocate(int32_t no)
+void LinearScanRegisterAllocator::AllocateInt(int32_t no)
 {
     if (regBitmap.test(no)) {
-        free(no);
+        freeInt(no);
     }
     bitmapSet(no);
 }
 
-void LinearScanRegisterAllocator::free(Value *var)
+void LinearScanRegisterAllocator::freeInt(Value *var)
 {
     if (var && var->getLoadRegId() != -1) {
         regBitmap.reset(var->getLoadRegId());
@@ -84,7 +84,7 @@ void LinearScanRegisterAllocator::free(Value *var)
     }
 }
 
-void LinearScanRegisterAllocator::free(int32_t no)
+void LinearScanRegisterAllocator::freeInt(int32_t no)
 {
     if (no == -1) return;
 
@@ -99,8 +99,134 @@ void LinearScanRegisterAllocator::free(int32_t no)
     }
 }
 
+int LinearScanRegisterAllocator::AllocateFloat(Value *var, int32_t no)
+{
+    if (var && (var->getLoadRegId() != -1)) {
+        return var->getLoadRegId();
+    }
+
+    int32_t regno = -1;
+
+    // 尝试分配指定寄存器
+    if ((no != -1) && !floatRegBitmap.test(no)) {
+        regno = no;
+    } else {
+        // 查找空闲寄存器
+        for (int k = 0; k < PlatformArm64::maxUsableRegNum; ++k) {
+            if (!floatRegBitmap.test(k)) {
+                regno = k;
+                break;
+            }
+        }
+    }
+
+    if (regno == -1) {
+        // 需要溢出：选择活跃结束最早的变量
+        Value *spillVar = nullptr;
+        int earliestEnd = INT_MAX;
+
+        for (auto *v : floatRegValues) {
+            if (v->getLiveEnd() < earliestEnd) {
+                earliestEnd = v->getLiveEnd();
+                spillVar = v;
+            }
+        }
+
+        if (spillVar) {
+            regno = spillVar->getLoadRegId();
+            spillVar->setLoadRegId(-1);
+            floatRegValues.erase(std::remove(floatRegValues.begin(), floatRegValues.end(), spillVar), floatRegValues.end());
+            floatRegBitmap.reset(regno);
+        }
+    }
+
+    if (regno != -1) {
+        floatBitmapSet(regno);
+        if (var) {
+            var->setLoadRegId(regno);
+            floatRegValues.push_back(var);
+        }
+    }
+
+    return regno;
+}
+
+void LinearScanRegisterAllocator::AllocateFloat(int32_t no)
+{
+    if (floatRegBitmap.test(no)) {
+        freeFloat(no);
+    }
+    floatBitmapSet(no);
+}
+
+void LinearScanRegisterAllocator::freeFloat(Value *var)
+{
+    if (var && var->getLoadRegId() != -1) {
+        floatRegBitmap.reset(var->getLoadRegId());
+        floatRegValues.erase(std::remove(floatRegValues.begin(), floatRegValues.end(), var), floatRegValues.end());
+        var->setLoadRegId(-1);
+    }
+}
+
+void LinearScanRegisterAllocator::freeFloat(int32_t no)
+{
+    if (no == -1) return;
+
+    floatRegBitmap.reset(no);
+    auto it = std::find_if(floatRegValues.begin(), floatRegValues.end(), [no](Value *v) {
+        return v->getLoadRegId() == no;
+    });
+
+    if (it != floatRegValues.end()) {
+        (*it)->setLoadRegId(-1);
+        floatRegValues.erase(it);
+    }
+}
+
+int LinearScanRegisterAllocator::Allocate(bool is_float, Value *var, int32_t no)
+{
+    if (is_float) {
+        return AllocateFloat(var, no);
+    } else {
+        return AllocateInt(var, no);
+    }
+}
+
+void LinearScanRegisterAllocator::AllocateReg(int32_t no, bool is_float)
+{
+    if (is_float) {
+        AllocateFloat(no);
+    } else {
+        AllocateInt(no);
+    }
+}
+
+void LinearScanRegisterAllocator::free(Value *var, bool is_float)
+{
+    if (is_float) {
+        freeFloat(var);
+    } else {
+        freeInt(var);
+    }
+}
+
+void LinearScanRegisterAllocator::free(int32_t no, bool is_float)
+{
+    if (is_float) {
+        freeFloat(no);
+    } else {
+        freeInt(no);
+    }
+}
+
 void LinearScanRegisterAllocator::bitmapSet(int32_t no)
 {
     regBitmap.set(no);
     usedBitmap.set(no);
+}
+
+void LinearScanRegisterAllocator::floatBitmapSet(int32_t no)
+{
+    floatRegBitmap.set(no);
+    floatUsedBitmap.set(no);
 }
