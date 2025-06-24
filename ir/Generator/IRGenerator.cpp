@@ -1052,12 +1052,12 @@ bool IRGenerator::ir_mul(ast_node * node)
     }
 
     if (left->val && left->val->isConst() && right->val && right->val->isConst()) {
-        if (left->val->type->isFloatType() || left->val->type->isFloatType()) {
-            node->val = module->newConstFloat((op == Op::MUL)   ? (left->val->real_int * right->val->real_int)
-                                              : (op == Op::DIV) ? (left->val->real_int / right->val->real_int)
-                                                                : (left->val->real_int % right->val->real_int));
+        if (left->val->type->isFloatType() || right->val->type->isFloatType()) {
+            node->val = module->newConstFloat((op == Op::MUL)   ? (left->val->real_float * right->val->real_float)
+                                              : (op == Op::DIV) ? (left->val->real_float / right->val->real_float)
+                                                                : (left->val->real_float / right->val->real_float));
             node->val->real_float = (op == Op::MUL)   ? (left->val->real_float * right->val->real_float)
-                                    : (op == Op::DIV) ? (left->val->real_int / right->val->real_int)
+                                    : (op == Op::DIV) ? (left->val->real_float / right->val->real_float)
                                                       : (left->val->real_float / right->val->real_float);
             node->val->setConst(true);
             return true;
