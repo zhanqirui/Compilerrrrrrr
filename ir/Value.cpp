@@ -140,7 +140,7 @@ int32_t Value::getLoadRegId()
 ///
 void Value::setLoadRegId(int32_t regId)
 {
-    (void) regId;
+    loadRegId = regId;
 }
 
 ///
@@ -149,5 +149,20 @@ void Value::setLoadRegId(int32_t regId)
 ///
 int32_t Value::getLiveEnd()
 {
-	return -1;
+	return live_end;
+}
+
+int32_t Value::getLiveBegin()
+{
+	return live_begin;
+}
+
+void Value::setLiveBegin(int32_t begin)
+{
+	live_begin = begin;
+}
+
+void Value::setLiveEnd(int32_t end)
+{
+	live_end = end;
 }

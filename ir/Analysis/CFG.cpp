@@ -3,12 +3,13 @@
 #include <sstream>
 #include <algorithm>
 #include <string>
-#include <gvc.h>
+// #include <gvc.h>
 #include <filesystem>
 #include "CFG.h"
 #include "BranchifCondition.h"
 #include <set>
 #include <iomanip>
+#include <unordered_map>
 
 /// @brief 识别到label语句
 /// @param ir_inst ir语句
@@ -307,6 +308,19 @@ void CFG_function::debugLiveness(std::ostream& os) {
 	os << "========================================\n";
 }
 
+// 新增：CFG_function::debugLiveIntervals
+void CFG_function::debugLiveIntervals(std::ostream& os) {
+	os << "==== LiveIntervals for function: " << name << " ====\n";
+	for (const auto& kv : name2value) {
+		const std::string& var = kv.first;
+		Value* val = kv.second;
+		if (val && val->live_begin != -1 && val->live_end != -1) {
+			os << "  " << var << ": [" << val->live_begin << ", " << val->live_end << "]\n";
+		}
+	}
+	os << "========================================\n";
+}
+
 // CFG_Generator::runLivenessAnalysis
 void CFG_Generator::runLivenessAnalysis() {
 	for (auto func : functions) {
@@ -337,25 +351,52 @@ void CFG_Generator::debugLiveness(std::ostream& os) {
 		 setCurrentFunction(func);
 		 currentFunction->name = ir_func->getName();
 
+		// 新增：收集变量名到Value*的映射
+		func->name2value.clear();
+
+		auto global_vars = symtab->getGlobalVariables();
+		for (auto * var: global_vars) {
+			std::string varName = var->getIRName();
+			func->name2value[varName] = var;
+		}
+
+		auto vars = ir_func->getVarValues();
+		// 把函数内的变量塞到当前function的name2value中
+		for (auto * var: vars) {
+			if (var->getIRName().empty()) continue; // 忽略匿名变量
+			std::string varName = var->getIRName();
+			func->name2value[varName] = var;
+		}
+
+		for (auto* v : ir_func->getInterCode().getInsts()) { // 假设IRFunction有getValueList()，否则请用你自己的变量遍历方式
+		if(v -> hasResultValue())
+		{
+			std::string varName = v->getIRName();
+			if (!varName.empty()) {
+				func->name2value[varName] = v;
+			}
+		}
+		}
+
 		 //遍历ir
-		 for (auto ir: ir_func->getInterCode().getInsts()) {
-			 if (ir->getOp() == IRInstOperator::IRINST_OP_GOTO ) {
-				 //跳转指令
-				 goto_inst(ir);
-			 }
-			 else if(ir->getOp() == IRInstOperator::IRINST_OP_BRANCH_I) {
-				 //分支指令
-				 branch_inst(ir);
-			 }
-			 else if (ir->getOp() == IRInstOperator::IRINST_OP_LABEL || ir->getOp() == IRInstOperator::IRINST_OP_ENTRY) {
-				 // label
-				 label_inst(ir);
-			 } else {
-				 //其他指令均塞进去
-				 default_expr_inst(ir);
-			 }
-		 }
-	 }
+		for (auto ir: ir_func->getInterCode().getInsts()) {
+			if (ir->getOp() == IRInstOperator::IRINST_OP_GOTO ) {
+				//跳转指令
+				goto_inst(ir);
+			}
+			else if(ir->getOp() == IRInstOperator::IRINST_OP_BRANCH_I) {
+				//分支指令
+				branch_inst(ir);
+			}
+			else if (ir->getOp() == IRInstOperator::IRINST_OP_LABEL || ir->getOp() == IRInstOperator::IRINST_OP_ENTRY) {
+				// label
+				label_inst(ir);
+			} else {
+				//其他指令均塞进去
+				default_expr_inst(ir);
+			}
+		}
+	}
 
 	 add_prepose_entries2Block();
 
@@ -365,68 +406,68 @@ void CFG_Generator::debugLiveness(std::ostream& os) {
 	 //遍历函数
 	 for (auto cfg_func: functions) {
 		 // 创建一个Graphviz上下文
-		 GVC_t * gvc = gvContext();
+		 // GVC_t * gvc = gvContext();
 
 		 // 创建一个空的图
 		 // Agraph_t * g = agopen("g", Agdirected, nullptr);
-		 Agraph_t *g = agopen(const_cast<char*>("g"), Agdirected, nullptr);
+		 // Agraph_t *g = agopen(const_cast<char*>("g"), Agdirected, nullptr);
 
 		 //遍历block，创建所有node
-		 for (auto cfg_block: cfg_func->blocks) {
-			 //创建节点
-			 // Agnode_t * n1 = agnode(g, cfg_block->blk_label[0].data(), 1);
-			 Agnode_t *n1 = agnode(g, const_cast<char*>(cfg_block->blk_label[0].c_str()), 1);
-			 std::string all_ir_str;
-			 //把ir添加进去
-			 for (const auto & ir: cfg_block->irInstructions) {
-				 std::string ir_str;
-				 ir->toString(ir_str);
-				 all_ir_str = all_ir_str + ir_str + "\n";
-			 }
-			 // agsafeset(n1, "shape", "box", "");
-			 // agsafeset(n1, "label", all_ir_str.data(), "");
-			 agsafeset(n1, const_cast<char*>("shape"), const_cast<char*>("box"), const_cast<char*>(""));
-			 agsafeset(n1, const_cast<char*>("label"), const_cast<char*>(all_ir_str.c_str()), const_cast<char*>(""));
-			 cfg_func->addCFGnode(cfg_block, n1);
-		 }
+		 // for (auto cfg_block: cfg_func->blocks) {
+		 // 	 //创建节点
+		 // 	 // Agnode_t * n1 = agnode(g, cfg_block->blk_label[0].data(), 1);
+		 // 	 Agnode_t *n1 = agnode(g, const_cast<char*>(cfg_block->blk_label[0].c_str()), 1);
+		 // 	 std::string all_ir_str;
+		 // 	 //把ir添加进去
+		 // 	 for (const auto & ir: cfg_block->irInstructions) {
+		 // 		 std::string ir_str;
+		 // 		 ir->toString(ir_str);
+		 // 		 all_ir_str = all_ir_str + ir_str + "\n";
+		 // 	 }
+		 // 	 // agsafeset(n1, "shape", "box", "");
+		 // 	 // agsafeset(n1, "label", all_ir_str.data(), "");
+		 // 	 agsafeset(n1, const_cast<char*>("shape"), const_cast<char*>("box"), const_cast<char*>(""));
+		 // 	 agsafeset(n1, const_cast<char*>("label"), const_cast<char*>(all_ir_str.c_str()), const_cast<char*>(""));
+		 // 	 cfg_func->addCFGnode(cfg_block, n1);
+		 // }
 
 		 //遍历当前函数的所有block，创建所有edge
-		 for (auto cfg_block1: cfg_func->blocks) {
-			 //创建边
-			 auto from_node = cfg_func->nodeMap[cfg_block1];
-			 for (const auto & exit_label: cfg_block1->exits) {
-				 auto to_block = cfg_func->blockMap[exit_label];
-				 if (to_block != nullptr) {
-					 auto to_node = cfg_func->nodeMap[to_block];
-					 agedge(g, from_node, to_node, nullptr, 1);
-				 }
-			 }
-		 }
+		 // for (auto cfg_block1: cfg_func->blocks) {
+		 // 	 //创建边
+		 // 	 auto from_node = cfg_func->nodeMap[cfg_block1];
+		 // 	 for (const auto & exit_label: cfg_block1->exits) {
+		 // 		 auto to_block = cfg_func->blockMap[exit_label];
+		 // 		 if (to_block != nullptr) {
+		 // 			 auto to_node = cfg_func->nodeMap[to_block];
+		 // 			 agedge(g, from_node, to_node, nullptr, 1);
+		 // 		 }
+		 // 	 }
+		 // }
 		 //输出图片；每一个函数输出一张图
 		 // 设置布局
-		 gvLayout(gvc, g, "dot");
+		 // gvLayout(gvc, g, "dot");
 		 // 设置输出格式
-		 std::string dest_directory = "./CFG/"; //输出文件夹
-		 std::string outputFormat = "png";      //输出格式
-		 std::string outputFile = dest_directory + cfg_func->name + ".png";
+		 // std::string dest_directory = "./CFG/"; //输出文件夹
+		 // std::string outputFormat = "png";      //输出格式
+		 // std::string outputFile = dest_directory + cfg_func->name + ".png";
 
 		 // 检查文件夹是否存在
-		 if (!std::filesystem::exists(dest_directory)) {
-			 // 如果文件夹不存在，则创建文件夹
-			 std::filesystem::create_directories(dest_directory);
-		 }
+		 // if (!std::filesystem::exists(dest_directory)) {
+		 // 	 // 如果文件夹不存在，则创建文件夹
+		 // 	 std::filesystem::create_directories(dest_directory);
+		 // }
 
-		 if (print_flag) {
-			 // 渲染图并输出到文件
-			 FILE * fp = fopen(outputFile.c_str(), "w");
-			 gvRender(gvc, g, outputFormat.c_str(), fp);
-			 fclose(fp);
-		 }
+		 // if (print_flag) {
+		 // 	 // 渲染图并输出到文件
+		 // 	 FILE * fp = fopen(outputFile.c_str(), "w");
+		 // 	 gvRender(gvc, g, outputFormat.c_str(), fp);
+		 // 	 fclose(fp);
+		 // }
 
 		 // 释放资源
-		 gvFreeLayout(gvc, g);
-		 agclose(g);
-		 gvFreeContext(gvc);
+		 // gvFreeLayout(gvc, g);
+		 // agclose(g);
+		 // gvFreeContext(gvc);
 	 }
 
 	 return true;
@@ -436,25 +477,28 @@ void CFG_function::computeLiveIntervals() {
 	liveIntervals.clear();
 	// 指令编号递增
 	int idx = 0;
-	std::unordered_map<std::string, int> first, last;
 	for (auto block : blocks) {
 		for (auto inst : block->irInstructions) {
 			std::set<std::string> use, def;
 			getInstUseDef(inst, use, def);
-			for (const auto& v : use) {
-				if (first.find(v) == first.end()) first[v] = idx;
-				last[v] = idx;
+			for (const auto& vname : use) {
+				auto it = name2value.find(vname);
+				if (it != name2value.end() && it->second) {
+					Value* val = it->second;
+					if (val->live_begin == -1) val->live_begin = idx;
+					val->live_end = idx;
+				}
 			}
-			for (const auto& v : def) {
-				if (first.find(v) == first.end()) first[v] = idx;
-				last[v] = idx;
+			for (const auto& vname : def) {
+				auto it = name2value.find(vname);
+				if (it != name2value.end() && it->second) {
+					Value* val = it->second;
+					if (val->live_begin == -1) val->live_begin = idx;
+					val->live_end = idx;
+				}
 			}
 			++idx;
 		}
-	}
-	for (const auto& kv : first) {
-		const std::string& var = kv.first;
-		liveIntervals[var] = LiveInterval(var, kv.second, last[var]);
 	}
 }
 

@@ -99,7 +99,9 @@ static bool gShowDFG = false;
 ///
 /// @brief Debug LivenessAnalysis
 ///
-static bool gDebugLiveness = true;
+static bool gDebugLiveness = false;
+
+static bool gDebugLiveIntervals = false;
 
 static struct option long_options[] = {{"help", no_argument, 0, 'h'},
                                        {"output", required_argument, 0, 'o'},
@@ -355,6 +357,24 @@ static int compile(std::string inputFile, std::string outputFile)
         // 清理抽象语法树
         free_ast(astRoot);
 
+        // ----------- 新增：IR生成后立即进行活性分析和活性区间计算 -----------
+        {
+			module->renameIR();
+            CFG_Generator cfgGen(module);
+            cfgGen.run(false); // 只生成CFG，不输出图片
+            cfgGen.runLivenessAnalysis();
+            for (auto func : cfgGen.getFunctions()) {
+                func->computeLiveIntervals();
+                // 新增：调试输出活性区间
+				if(gDebugLiveIntervals)
+                	func->debugLiveIntervals();
+            }
+            if (gDebugLiveness) {
+                cfgGen.debugLiveness();
+            }
+        }
+        // ---------------------------------------------------------------
+
         if (gShowLineIR) {
 
             // 对IR的名字重命名
@@ -389,11 +409,6 @@ static int compile(std::string inputFile, std::string outputFile)
             // 新增：活性分析与Debug
             CFG_Generator cfgGen(module);
             cfgGen.run(true);
-            cfgGen.runLivenessAnalysis();
-            if (gDebugLiveness) {
-                cfgGen.debugLiveness();
-            }
-            result = 0;
             break;
         }
 

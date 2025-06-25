@@ -1,98 +1,108 @@
-int quick_read()
+const int MAX_WIDTH = 1024;
+const int MAX_HEIGHT = 1024;
+
+int image[MAX_WIDTH * MAX_HEIGHT], width, height;
+
+const float PI = 3.14159265359, TWO_PI = 6.28318530718, EPSILON = 1e-6;
+
+float my_fabs(float x)
 {
-    int ch = getch();
-    int x = 0, f = 0;
-    while (ch < 48 || ch > 57) {
-        if (ch == 45)
-            f = 1;
-        ch = getch();
-    }
-    while (ch >= 48 && ch <= 57) {
-        x = x * 10 + ch - 48;
-        ch = getch();
-    }
-    if (f)
-        return -x;
-    else
+    if (x > 0)
         return x;
+    return -x;
 }
-const int maxn = 10005;
-int n, m, f[maxn][20], dep[maxn];
-int to[maxn], next[maxn], head[maxn], cnt = 0;
-void add_edge(int from, int To)
+
+float p(float x)
 {
-    to[cnt] = To;
-    next[cnt] = head[from];
-    head[from] = cnt;
-    cnt = cnt + 1;
-    f[To][0] = from;
+    return 3 * x - 4 * x * x * x;
 }
-void init()
+
+float my_sin_impl(float x)
 {
-    dep[0] = 0x3f3f3f3f;
-    int i = 1;
-    while (i <= n) {
-        head[i] = -1;
-        i = i + 1;
-    }
-}
-void tree(int x, int d)
-{
-    dep[x] = d;
-    int i = 0;
-    while (f[x][i]) {
-        f[x][i + 1] = f[f[x][i]][i];
-        i = i + 1;
-    }
-    i = head[x];
-    while (i != -1) {
-        int y = to[i];
-        tree(y, d + 1);
-        i = next[i];
-    }
-}
-int LCA(int x, int y)
-{
-    if (dep[x] < dep[y]) {
-        int t = x;
-        x = y;
-        y = t;
-    }
-    int i = 19;
-    while (dep[x] > dep[y]) {
-        if (f[x][i] && dep[f[x][i]] >= dep[y])
-            x = f[x][i];
-        i = i - 1;
-    }
-    if (x == y)
+    if (my_fabs(x) <= EPSILON)
         return x;
-    i = 19;
-    while (i >= 0) {
-        if (f[x][i] != f[y][i]) {
-            x = f[x][i];
-            y = f[y][i];
+    return p(my_sin_impl(x / 3.0));
+}
+
+float my_sin(float x)
+{
+    if (x > TWO_PI || x < -TWO_PI) {
+        int xx = x / TWO_PI;
+        x = x - xx * TWO_PI;
+    }
+    if (x > PI)
+        x = x - TWO_PI;
+    if (x < -PI)
+        x = x + TWO_PI;
+    return my_sin_impl(x);
+}
+
+float my_cos(float x)
+{
+    return my_sin(x + PI / 2);
+}
+
+int read_image()
+{
+    if (getch() != 80 || getch() != 50)
+        return -1;
+    width = getint();
+    height = getint();
+    if (width > MAX_WIDTH || height > MAX_HEIGHT || getint() != 255)
+        return -1;
+    int y = 0;
+    while (y < height) {
+        int x = 0;
+        while (x < width) {
+            image[y * width + x] = getint();
+            x = x + 1;
         }
-        i = i - 1;
+        y = y + 1;
     }
-    return f[x][0];
+    return 0;
 }
+
+int rotate(int x, int y, float rad)
+{
+    float sinma = my_sin(rad), cosma = my_cos(rad);
+    int hwidth = width / 2, hheight = height / 2;
+    int xt = x - hwidth, yt = y - hheight;
+    int src_x = xt * cosma - yt * sinma + hwidth, src_y = xt * sinma + yt * cosma + hheight;
+    if (src_x < 0 || src_x >= width || src_y < 0 || src_y >= height)
+        return 0;
+    return image[src_y * width + src_x];
+}
+
+void write_pgm(float rad)
+{
+    putch(80);
+    putch(50);
+    putch(10); // P2
+    putint(width);
+    putch(32);
+    putint(height);
+    putch(32); // width height
+    putint(255);
+    putch(10); // 255
+    int y = 0;
+    while (y < height) {
+        int x = 0;
+        while (x < width) {
+            putint(rotate(x, y, rad));
+            putch(32);
+            x = x + 1;
+        }
+        putch(10);
+        y = y + 1;
+    }
+}
+
 int main()
 {
-    n = quick_read();
-    m = quick_read();
-    init();
-    int i = 1;
-    while (i != n) {
-        int x = quick_read(), y = quick_read();
-        add_edge(x, y);
-        i = i + 1;
-    }
-    tree(1, 1);
-    while (m) {
-        int x = quick_read(), y = quick_read();
-        putint(LCA(x, y));
-        putch(10);
-        m = m - 1;
-    }
+    float rad = getfloat();
+    getch();
+    if (read_image() < 0)
+        return -1;
+    write_pgm(rad);
     return 0;
 }

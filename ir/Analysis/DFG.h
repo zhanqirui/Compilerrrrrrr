@@ -16,7 +16,7 @@
 #include <unordered_map>
 #include <unordered_set>
 #include <string>
-#include <gvc.h>
+// #include <gvc.h>
 #include <set>
 #include <optional>
 #include <variant>
@@ -52,8 +52,8 @@ public:
     std::vector<Edge> inputs;  // 输入边 - 该指令依赖的数据源
     std::vector<Edge> outputs; // 输出边 - 依赖该指令输出的其他指令
     
-    // 用于图形化显示
-    Agnode_t* agnode;                    // graphviz节点
+    // // 用于图形化显示
+    // Agnode_t* agnode;                    // graphviz节点
     
     // 内存访问信息
     bool is_load;     // 是否是load指令

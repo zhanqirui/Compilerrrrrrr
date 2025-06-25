@@ -74,6 +74,8 @@ set(CPACK_SOURCE_IGNORE_FILES
 	"/.vs/;" # visual studio
 	"/.vscode/;" # vscode
 	"/.cache/;" # cache
+	"old"
+	"SimpleRegisterAllocator"
 )
 
 # 前端源代码集合
@@ -115,6 +117,8 @@ set(BACKEND_SRCS
 	backend/arm64/CodeGeneratorArm64.h
 	backend/arm64/SimpleRegisterAllocator.cpp
 	backend/arm64/SimpleRegisterAllocator.h
+	backend/arm64/LinearScanRegisterAllocator.cpp
+	backend/arm64/LinearScanRegisterAllocator.h
 )
 
 # 中间IR(ir)源代码集合
@@ -275,6 +279,7 @@ target_include_directories(${PROJECT_NAME} PRIVATE
 	utils
 	symboltable
 	ir
+	ir/Analysis
 	ir/Generator
 	ir/Types
 	ir/Values

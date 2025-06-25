@@ -16,7 +16,7 @@
  * @param _inst 指令
  */
 DFG_Node::DFG_Node(Instruction * _inst)
-    : inst(_inst), agnode(nullptr), is_load(false), is_store(false), mem_addr(nullptr), mem_value(nullptr)
+    : inst(_inst), is_load(false), is_store(false), mem_addr(nullptr), mem_value(nullptr)
 {
     // 检查是否是load/store指令并设置相关标志
     IRInstOperator op = inst->getOp();
@@ -334,90 +334,91 @@ const char* DFG_Generator::getEdgeStyleForDependency(DependencyType type) {
  * @param output_dir 输出目录
  */
 void DFG_Generator::drawDFG(DFG_Function* dfg_func, const std::string& output_dir) {
-    if (!dfg_func) return;
-    
-    // 创建Graphviz上下文
-    GVC_t* gvc = gvContext();
-    
-    // 创建图
-    Agraph_t* g = agopen(const_cast<char*>(dfg_func->name.c_str()), Agdirected, nullptr);
-    
-    // 为每个DFG节点创建Graphviz节点
-    for (auto node : dfg_func->nodes) {
-        // 创建节点
-        std::string node_name = "inst_" + std::to_string(reinterpret_cast<uintptr_t>(node->inst));
-        Agnode_t* agnode_ptr = agnode(g, const_cast<char*>(node_name.c_str()), 1);
-        
-        // 设置节点标签和属性
-        std::string label = node->getLabel();
-        agsafeset(agnode_ptr, const_cast<char*>("label"), const_cast<char*>(label.c_str()), const_cast<char*>(""));
-        agsafeset(agnode_ptr, const_cast<char*>("shape"), const_cast<char*>("box"), const_cast<char*>(""));
-        
-        // 为不同类型的指令设置不同的颜色
-        if (node->is_load) {
-            agsafeset(agnode_ptr, const_cast<char*>("style"), const_cast<char*>("filled"), const_cast<char*>(""));
-            agsafeset(agnode_ptr, const_cast<char*>("fillcolor"), const_cast<char*>("lightblue"), const_cast<char*>(""));
-        } else if (node->is_store) {
-            agsafeset(agnode_ptr, const_cast<char*>("style"), const_cast<char*>("filled"), const_cast<char*>(""));
-            agsafeset(agnode_ptr, const_cast<char*>("fillcolor"), const_cast<char*>("lightpink"), const_cast<char*>(""));
-        }
-        
-        node->agnode = agnode_ptr;
-    }
-    
-    // 为每条数据依赖边创建Graphviz边
-    for (auto node : dfg_func->nodes) {
-        for (const auto& edge : node->outputs) {
-            Agedge_t* e = agedge(g, node->agnode, edge.node->agnode, nullptr, 1);
-            
-            // 设置边的属性(颜色、样式等)
-            agsafeset(e, const_cast<char*>("color"), 
-                     const_cast<char*>(getEdgeColorForDependency(edge.type)), 
-                     const_cast<char*>(""));
-            agsafeset(e, const_cast<char*>("style"), 
-                     const_cast<char*>(getEdgeStyleForDependency(edge.type)), 
-                     const_cast<char*>(""));
-            
-            // 添加边的标签(依赖类型)
-            std::string edge_label;
-            switch (edge.type) {
-                case DependencyType::RAW: edge_label = "RAW"; break;
-                case DependencyType::WAR: edge_label = "WAR"; break;
-                case DependencyType::WAW: edge_label = "WAW"; break;
-                case DependencyType::MEMORY_RAW: edge_label = "M-RAW"; break;
-                case DependencyType::MEMORY_WAR: edge_label = "M-WAR"; break;
-                case DependencyType::MEMORY_WAW: edge_label = "M-WAW"; break;
-                case DependencyType::CONTROL: edge_label = "CTRL"; break;
-            }
-            agsafeset(e, const_cast<char*>("label"), 
-                     const_cast<char*>(edge_label.c_str()), 
-                     const_cast<char*>(""));
-        }
-    }
-    
-    // 确保输出目录存在
-    if (!std::filesystem::exists(output_dir)) {
-        std::filesystem::create_directories(output_dir);
-    }
-    
-    // 设置布局
-    gvLayout(gvc, g, "dot");
-    
-    // 生成输出文件
-    std::string output_file = output_dir + dfg_func->name + ".png";
-    FILE* fp = fopen(output_file.c_str(), "w");
-    if (fp) {
-        gvRender(gvc, g, "png", fp);
-        fclose(fp);
-        std::cout << "Generated DFG for function " << dfg_func->name << " at " << output_file << std::endl;
-    } else {
-        std::cerr << "Failed to create output file " << output_file << std::endl;
-    }
-    
-    // 清理资源
-    gvFreeLayout(gvc, g);
-    agclose(g);
-    gvFreeContext(gvc);
+
+//     if (!dfg_func) return;
+//     
+//     // 创建Graphviz上下文
+//     GVC_t* gvc = gvContext();
+//     
+//     // 创建图
+//     Agraph_t* g = agopen(const_cast<char*>(dfg_func->name.c_str()), Agdirected, nullptr);
+//     
+//     // 为每个DFG节点创建Graphviz节点
+//     for (auto node : dfg_func->nodes) {
+//         // 创建节点
+//         std::string node_name = "inst_" + std::to_string(reinterpret_cast<uintptr_t>(node->inst));
+//         Agnode_t* agnode_ptr = agnode(g, const_cast<char*>(node_name.c_str()), 1);
+//         
+//         // 设置节点标签和属性
+//         std::string label = node->getLabel();
+//         agsafeset(agnode_ptr, const_cast<char*>("label"), const_cast<char*>(label.c_str()), const_cast<char*>(""));
+//         agsafeset(agnode_ptr, const_cast<char*>("shape"), const_cast<char*>("box"), const_cast<char*>(""));
+//         
+//         // 为不同类型的指令设置不同的颜色
+//         if (node->is_load) {
+//             agsafeset(agnode_ptr, const_cast<char*>("style"), const_cast<char*>("filled"), const_cast<char*>(""));
+//             agsafeset(agnode_ptr, const_cast<char*>("fillcolor"), const_cast<char*>("lightblue"), const_cast<char*>(""));
+//         } else if (node->is_store) {
+//             agsafeset(agnode_ptr, const_cast<char*>("style"), const_cast<char*>("filled"), const_cast<char*>(""));
+//             agsafeset(agnode_ptr, const_cast<char*>("fillcolor"), const_cast<char*>("lightpink"), const_cast<char*>(""));
+//         }
+//         
+//         node->agnode = agnode_ptr;
+//     }
+//     
+//     // 为每条数据依赖边创建Graphviz边
+//     for (auto node : dfg_func->nodes) {
+//         for (const auto& edge : node->outputs) {
+//             Agedge_t* e = agedge(g, node->agnode, edge.node->agnode, nullptr, 1);
+//             
+//             // 设置边的属性(颜色、样式等)
+//             agsafeset(e, const_cast<char*>("color"), 
+//                      const_cast<char*>(getEdgeColorForDependency(edge.type)), 
+//                      const_cast<char*>(""));
+//             agsafeset(e, const_cast<char*>("style"), 
+//                      const_cast<char*>(getEdgeStyleForDependency(edge.type)), 
+//                      const_cast<char*>(""));
+//             
+//             // 添加边的标签(依赖类型)
+//             std::string edge_label;
+//             switch (edge.type) {
+//                 case DependencyType::RAW: edge_label = "RAW"; break;
+//                 case DependencyType::WAR: edge_label = "WAR"; break;
+//                 case DependencyType::WAW: edge_label = "WAW"; break;
+//                 case DependencyType::MEMORY_RAW: edge_label = "M-RAW"; break;
+//                 case DependencyType::MEMORY_WAR: edge_label = "M-WAR"; break;
+//                 case DependencyType::MEMORY_WAW: edge_label = "M-WAW"; break;
+//                 case DependencyType::CONTROL: edge_label = "CTRL"; break;
+//             }
+//             agsafeset(e, const_cast<char*>("label"), 
+//                      const_cast<char*>(edge_label.c_str()), 
+//                      const_cast<char*>(""));
+//         }
+//     }
+//     
+//     // 确保输出目录存在
+//     if (!std::filesystem::exists(output_dir)) {
+//         std::filesystem::create_directories(output_dir);
+//     }
+//     
+//     // 设置布局
+//     gvLayout(gvc, g, "dot");
+//     
+//     // 生成输出文件
+//     std::string output_file = output_dir + dfg_func->name + ".png";
+//     FILE* fp = fopen(output_file.c_str(), "w");
+//     if (fp) {
+//         gvRender(gvc, g, "png", fp);
+//         fclose(fp);
+//         std::cout << "Generated DFG for function " << dfg_func->name << " at " << output_file << std::endl;
+//     } else {
+//         std::cerr << "Failed to create output file " << output_file << std::endl;
+//     }
+//     
+//     // 清理资源
+//     gvFreeLayout(gvc, g);
+//     agclose(g);
+//     gvFreeContext(gvc);
 }
 
 /**

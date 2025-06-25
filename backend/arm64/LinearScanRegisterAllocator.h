@@ -12,6 +12,7 @@
 #include <bitset>
 #include <vector>
 #include <cstdint>
+#include "BitMap.h"
 
 #include "PlatformArm64.h"   // 提供 maxUsableRegNum
 
@@ -104,31 +105,32 @@ public:
     void free(int32_t no, bool is_float = false);
 
     /// 查询当前整数寄存器占用情况（调试/分析用）
-    const std::bitset<PlatformArm64::maxUsableRegNum>& currentIntBitmap() const { return regBitmap; }
+    const BitMap<PlatformArm64::maxUsableRegNum>& currentIntBitmap() const { return regBitmap; }
 
     /// 查询整数寄存器历史使用情况（生成保存现场指令时使用）
-    const std::bitset<PlatformArm64::maxUsableRegNum>& everUsedIntBitmap() const { return usedBitmap; }
+    const BitMap<PlatformArm64::maxUsableRegNum>& everUsedIntBitmap() const { return usedBitmap; }
 
     /// 查询当前浮点寄存器占用情况（调试/分析用）
-    const std::bitset<PlatformArm64::maxUsableRegNum>& currentFloatBitmap() const { return floatRegBitmap; }
+    const BitMap<PlatformArm64::maxUsableRegNum>& currentFloatBitmap() const { return floatRegBitmap; }
 
     /// 查询浮点寄存器历史使用情况（生成保存现场指令时使用）
-    const std::bitset<PlatformArm64::maxUsableRegNum>& everUsedFloatBitmap() const { return floatUsedBitmap; }
+    const BitMap<PlatformArm64::maxUsableRegNum>& everUsedFloatBitmap() const { return floatUsedBitmap; }
+
+	/// 内部工具：在整数寄存器位图中置位
+	void bitmapSet(int32_t no);
+
+	/// 内部工具：在浮点寄存器位图中置位
+	void floatBitmapSet(int32_t no);
 
 private:
-    /// 内部工具：在整数寄存器位图中置位
-    void bitmapSet(int32_t no);
-
-    /// 内部工具：在浮点寄存器位图中置位
-    void floatBitmapSet(int32_t no);
 
     // 整数寄存器管理
-    std::bitset<PlatformArm64::maxUsableRegNum> regBitmap;   //!< 当前活跃整数寄存器位图
-    std::bitset<PlatformArm64::maxUsableRegNum> usedBitmap;  //!< 曾经使用过的整数寄存器位图
+    BitMap<PlatformArm64::maxUsableRegNum> regBitmap;   //!< 当前活跃整数寄存器位图
+    BitMap<PlatformArm64::maxUsableRegNum> usedBitmap;  //!< 曾经使用过的整数寄存器位图
     std::vector<Value*> regValues;                           //!< 当前活跃整数变量列表
 
     // 浮点寄存器管理
-    std::bitset<PlatformArm64::maxUsableRegNum> floatRegBitmap;   //!< 当前活跃浮点寄存器位图
-    std::bitset<PlatformArm64::maxUsableRegNum> floatUsedBitmap;  //!< 曾经使用过的浮点寄存器位图
+    BitMap<PlatformArm64::maxUsableRegNum> floatRegBitmap;   //!< 当前活跃浮点寄存器位图
+    BitMap<PlatformArm64::maxUsableRegNum> floatUsedBitmap;  //!< 曾经使用过的浮点寄存器位图
     std::vector<Value*> floatRegValues;                           //!< 当前活跃浮点变量列表
 };

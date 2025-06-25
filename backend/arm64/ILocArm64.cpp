@@ -119,14 +119,25 @@ void ILocArm64::comment(std::string str) { emit("//", str); }
 // 将一个立即数（常量）加载到指定寄存器。
 void ILocArm64::load_imm(int rs_reg_no, int64_t constant)
 {
-	// ARM64: movz/movk 组合加载64位立即数，简化为mov
-	if(constant < 65536 && constant > -65536) {
-		emit("mov", PlatformArm64::regName[rs_reg_no], toStr(constant));
+	if (constant >= 0 && constant < 65536) {
+		emit("movz", PlatformArm64::regName[rs_reg_no], toStr(constant));
+	} else {
+		uint64_t val = static_cast<uint64_t>(constant);
+		bool first = true;
+		for (int shift = 0; shift < 64; shift += 16) {
+			uint16_t part = (val >> shift) & 0xFFFF;
+			if (part == 0 && !first) continue;
+	
+			std::string imm = toStr(part) + ", lsl " + toStr(shift);
+			if (first) {
+				emit("movz", PlatformArm64::regName[rs_reg_no], imm);
+				first = false;
+			} else {
+				emit("movk", PlatformArm64::regName[rs_reg_no], imm);
+			}
+		}
 	}
-	else{
-		emit("ldr", PlatformArm64::regName[rs_reg_no], "=" + toStr(constant, false));
-	}
-    
+	
     
 }
 

@@ -19,7 +19,6 @@
  #include <vector>
  #include <unordered_map>
  #include <string>
- #include <gvc.h>
  #include <set> // 新增
  #include <iostream>
  
@@ -61,14 +60,17 @@
 	 std::unordered_map<std::string, CFG_block *> blockMap; // blk_label到block的映射
  
 	 //用来画图
-	 std::vector<Agnode_t *> nodes; // 存储该函数的所有CFG_block
-	 std::unordered_map<CFG_block *, Agnode_t *> nodeMap;
+	 // std::vector<Agnode_t *> nodes; // 存储该函数的所有CFG_block
+	 // std::unordered_map<CFG_block *, Agnode_t *> nodeMap;
  
 	 /// @brief 当前函数的指令序列
 	 std::vector<Instruction *> code;
 
 	 // 变量名到活性区间的映射
 	 std::unordered_map<std::string, LiveInterval> liveIntervals;
+
+	 // 新增：变量名到Value*的映射
+	 std::unordered_map<std::string, Value*> name2value;
  
  public:
 	 CFG_function() : currentBlock(nullptr)
@@ -95,12 +97,12 @@
 		 return true;
 	 }
  
-	 // 添加一个新的node
-	 void addCFGnode(CFG_block * block, Agnode_t * node)
-	 {
-		 nodes.push_back(node);
-		 nodeMap[block] = node;
-	 }
+	//  // 添加一个新的node
+	//  void addCFGnode(CFG_block * block, Agnode_t * node)
+	//  {
+	// 	 nodes.push_back(node);
+	// 	 nodeMap[block] = node;
+	//  }
  
 	 /// @brief 遍历基本块获取指令序列
 	 /// @return 指令序列
@@ -126,6 +128,7 @@
  
 	 // Debug活性分析
 	 void debugLiveness(std::ostream& os = std::cout);
+	 void debugLiveIntervals(std::ostream& os = std::cout);
  };
  
  // CFG_Generator类，管理多个CFG_function对象

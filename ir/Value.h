@@ -63,6 +63,8 @@ protected:
     ///
     bool is_constant = false;
 
+    int loadRegId = -1; // 新增：用于线性扫描分配的寄存器编号
+
 public:
     std::string name;
     std::string const_func_name = "null";
@@ -142,11 +144,17 @@ public:
     ///
     virtual void setLoadRegId(int32_t regId);
 
+	int32_t getLiveBegin();
+
     ///
     /// @brief 获取活跃结束位置
     /// @return int32_t 结束位置指令编号
     ///
-    virtual int32_t getLiveEnd();
+    int32_t getLiveEnd();
+
+	void setLiveBegin(int32_t begin);
+
+    void setLiveEnd(int32_t end);
 
     /// @brief 作为数组的下标集合
     // std::vector<int32_t> arrayIndexVector;
@@ -194,6 +202,7 @@ public:
     float real_float;
     bool is_come_from_formalparm = false;
     float change_float;
-
+    int live_end = -1;
+    int live_begin = -1;
     Type * type;
 };
