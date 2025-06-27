@@ -152,75 +152,6 @@ std::string Function::processMultiDimArray(Value * Var,
     return result;
 }
 
-/*
-/// @brief 将所有内置函数转化成switch_case型
-/// @param str
-
-void Function::setDeclareString(std::string & str)
-{
-    static std::unordered_map<std::string, int> irMap = {{"@getint", 1},
-                                                         {"@putint", 2},
-                                                         {"@getch", 3},
-                                                         {"@putch", 4},
-                                                         {"@getarray", 5},
-                                                         {"@putarray", 6},
-                                                         {"@getfloat", 7},
-                                                         {"@putfloat", 8},
-                                                         {"@getfarray", 9},
-                                                         {"@putfarray", 10},
-                                                         {"@putstr", 11},
-                                                         {"@putf", 12}};
-
-    auto it = irMap.find(getIRName());
-    if (it == irMap.end()) {
-        str.clear(); // 未知内置函数，不设置任何内容
-        return;
-    }
-    //具体的打印语句可能还需要做修改
-
-    switch (it->second) {
-        case 1:
-            str = "declare i32 @getint(...) #1\n";
-            break;
-        case 2:
-            str = "declare i32 @putint(...) #1\n";
-            break;
-        case 3:
-            str = "declare i32 @getch(...) #1\n";
-            break;
-        case 4:
-            str = "declare i32 @putch(...) #1\n";
-            break;
-        case 5:
-            str = "declare i32 @getarray(...) #1\n";
-            break;
-        case 6:
-            str = "declare i32 @putarray(...) #1\n";
-            break;
-        case 7:
-            str = "declare i32 @getfloat(...) #1\n";
-            break;
-        case 8:
-            str = "declare i32 @putfloat(...) #1\n";
-            break;
-        case 9:
-            str = "declare i32 @getfarray(...) #1\n";
-            break;
-        case 10:
-            str = "declare i32 @putfarray(...) #1\n";
-            break;
-        case 11:
-            str = "declare i32 @putstr(...) #1\n";
-            break;
-        case 12:
-            str = "declare i32 @putf(...) #1\n";
-            break;
-        default:
-            str.clear();
-            break;
-    }
-}
-*/
 
 /// @brief 函数指令信息输出
 /// @param str 函数指令
@@ -288,10 +219,10 @@ void Function::toString(std::string & str)
         std::string extraStr;
         std::string realName = var->getName();
 
-        if (!realName.empty()) {
-            //变量所处块信息在LLVM IR中不需要打印
-            // str += " ; " + std::to_string(var->getScopeLevel()) + ":" + realName;
-        }
+        // if (!realName.empty()) {
+             //变量所处块信息在LLVM IR中不需要打印
+             // str += " ; " + std::to_string(var->getScopeLevel()) + ":" + realName;
+        // }
 
         // ====== 新增：如果是常量变量，输出其值 ======
 
@@ -301,15 +232,15 @@ void Function::toString(std::string & str)
     // 输出临时变量的declare形式
     // 遍历所有的线性IR指令，文本输出
     /*-----这一块还需要更改，临时变量需要更换，通过load指令先存临时变量而不是运算的结果，然后再存运算结果，然后再store------------------*/
-    for (auto & inst: code.getInsts()) {
+    // for (auto & inst: code.getInsts()) {
 
-        if (inst->hasResultValue()) {
+    //     if (inst->hasResultValue()) {
 
-            // 局部变量和临时变量需要输出declare语句
-            // str += "\tdeclare " + inst->getType()->toString() + " " + inst->getIRName() + "\n";
-            // str += "\t" + inst->getIRName() + " = alloca " + inst->getType()->toString() + ", " + "align 4" + "\n";
-        }
-    }
+             // 局部变量和临时变量需要输出declare语句
+             // str += "\tdeclare " + inst->getType()->toString() + " " + inst->getIRName() + "\n";
+             // str += "\t" + inst->getIRName() + " = alloca " + inst->getType()->toString() + ", " + "align 4" + "\n";
+    //     }
+    // }
 
     // 遍历所有的线性IR指令，文本输出
     for (auto & inst: code.getInsts()) {
@@ -441,7 +372,7 @@ Function::newLocalVarValue(Type * type, std::string name, int32_t scope_level, s
 
     // varsVector表中可能存在变量重名的信息
     varsVector.push_back(varValue);
-
+	
     return varValue;
 }
 void Function::removeLocalVarByName(const std::string & name)

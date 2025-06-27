@@ -263,7 +263,7 @@ bool IRGenerator::ir_function_define(ast_node * node)
                 for (auto * local: locals) {
                     if (local && local->getName() == param->getName()) {
                         // %lX = %tX
-                        node->blockInsts.addInst(new MoveInstruction(curFunc, local, param));
+                        node->blockInsts.addInst(new MoveInstruction(curFunc, local, param, true));
                         break;
                     }
                 }
@@ -520,6 +520,7 @@ bool IRGenerator::ir_if_else(ast_node * node)
     parent_ifelse_Lable1 = module->getCurrentFunction()->get_ifelse_Lable1();
     parent_ifelse_Lable2 = module->getCurrentFunction()->get_ifelse_Lable2();
     ConstInt * ZERO = module->newConstInt(0);
+	ConstFloat * ZERO_F = module->newConstFloat(0.0f);
     // 可能不存在else分支，只有单if
     if (node->sons.size() >= 3) {
         branch1 = ir_visit_ast_node(node->sons[1]);
@@ -532,7 +533,7 @@ bool IRGenerator::ir_if_else(ast_node * node)
             NEQ_ZERO_Inst = new BinaryInstruction(module->getCurrentFunction(),
                                                   IRInstOperator::IRINST_OP_NE_F,
                                                   cond->val,
-                                                  ZERO,
+                                                  ZERO_F,
                                                   IntegerType::getTypeBool());
         } else {
             NEQ_ZERO_Inst = new BinaryInstruction(module->getCurrentFunction(),
@@ -570,7 +571,7 @@ bool IRGenerator::ir_if_else(ast_node * node)
             NEQ_ZERO_Inst = new BinaryInstruction(module->getCurrentFunction(),
                                                   IRInstOperator::IRINST_OP_NE_F,
                                                   cond->val,
-                                                  ZERO,
+                                                  ZERO_F,
                                                   IntegerType::getTypeBool());
         } else {
             NEQ_ZERO_Inst = new BinaryInstruction(module->getCurrentFunction(),
@@ -619,13 +620,14 @@ bool IRGenerator::ir_while(ast_node * node)
     currentFunc->set_block_exit_Lable(exitLabelInst);
     node->blockInsts.addInst(entryLabelInst);
     ConstInt * ZERO = module->newConstInt(0);
+	ConstFloat * ZERO_F = module->newConstFloat(0.0f);
     ast_node * cond = ir_visit_ast_node(node->sons[0]);
     BinaryInstruction * NEQ_ZERO_Inst = nullptr;
     if (cond->val->getType()->isFloatType()) {
         NEQ_ZERO_Inst = new BinaryInstruction(module->getCurrentFunction(),
                                               IRInstOperator::IRINST_OP_NE_F,
                                               cond->val,
-                                              ZERO,
+                                              ZERO_F,
                                               IntegerType::getTypeBool());
     } else {
         NEQ_ZERO_Inst = new BinaryInstruction(module->getCurrentFunction(),
@@ -808,7 +810,7 @@ bool IRGenerator::ir_leaf_node_uint(ast_node * node)
         node->val = val;
     } else if (node->type->isFloatType()) {
         // 创建浮点常量
-        ConstFloat * val = module->newConstFloat((float) node->float_val);
+        ConstFloat * val = module->newConstFloat((double) node->float_val);
         node->val = val;
     } else {
         std::cerr << "Error: Unsupported type for leaf node" << std::endl;
@@ -1054,12 +1056,12 @@ bool IRGenerator::ir_mul(ast_node * node)
     }
 
     if (left->val && left->val->isConst() && right->val && right->val->isConst()) {
-        if (left->val->type->isFloatType() || left->val->type->isFloatType()) {
-            node->val = module->newConstFloat((op == Op::MUL)   ? (left->val->real_int * right->val->real_int)
-                                              : (op == Op::DIV) ? (left->val->real_int / right->val->real_int)
-                                                                : (left->val->real_int % right->val->real_int));
+        if (left->val->type->isFloatType() || right->val->type->isFloatType()) {
+            node->val = module->newConstFloat((op == Op::MUL)   ? (left->val->real_float * right->val->real_float)
+                                              : (op == Op::DIV) ? (left->val->real_float / right->val->real_float)
+                                                                : (left->val->real_float / right->val->real_float));
             node->val->real_float = (op == Op::MUL)   ? (left->val->real_float * right->val->real_float)
-                                    : (op == Op::DIV) ? (left->val->real_int / right->val->real_int)
+                                    : (op == Op::DIV) ? (left->val->real_float / right->val->real_float)
                                                       : (left->val->real_float / right->val->real_float);
             node->val->setConst(true);
             return true;
@@ -1200,13 +1202,14 @@ bool IRGenerator::ir_visitLogitExp(ast_node * node)
 
     // 3. 生成判断左、右是否为真
     ConstInt * ZERO = module->newConstInt(0);
+	ConstFloat * ZERO_F = module->newConstFloat(0.0);
     BinaryInstruction * LEQ_ZERO_Inst = nullptr;
     BinaryInstruction * REQ_ZERO_Inst = nullptr;
     if (right->val->getType()->isFloatType()) {
         REQ_ZERO_Inst = new BinaryInstruction(module->getCurrentFunction(),
                                               IRInstOperator::IRINST_OP_NE_F,
                                               right->val,
-                                              ZERO,
+                                              ZERO_F,
                                               IntegerType::getTypeBool());
     } else {
         REQ_ZERO_Inst = new BinaryInstruction(module->getCurrentFunction(),
@@ -1219,7 +1222,7 @@ bool IRGenerator::ir_visitLogitExp(ast_node * node)
         LEQ_ZERO_Inst = new BinaryInstruction(module->getCurrentFunction(),
                                               IRInstOperator::IRINST_OP_NE_F,
                                               left->val,
-                                              ZERO,
+                                              ZERO_F,
                                               IntegerType::getTypeBool());
     } else {
         LEQ_ZERO_Inst = new BinaryInstruction(module->getCurrentFunction(),
@@ -2209,7 +2212,7 @@ bool IRGenerator::ir_func_call(ast_node * node)
                     if (originParam[i]->getType() != tempVal->getType()) {
                         if (temp->val->isConst()) {
                             if (temp->val->getType()->isIntegerType()) {
-                                Constant * initValue = module->newConstFloat((float) (tempVal->real_int));
+                                Constant * initValue = module->newConstFloat((double) (tempVal->real_int));
                                 temp->val = initValue;
                             } else {
                                 Constant * initValue = module->newConstInt((int) (tempVal->real_float));
