@@ -33,6 +33,7 @@ public:
     /// @brief 函数调用时的被调用函数
     ///
     Function * calledFunction = nullptr;
+	int stackSpaceSize = 0; // 需要栈空间大小
 
 public:
     /// @brief 含有参数的函数调用
@@ -45,6 +46,11 @@ public:
     /// @param str IR指令
     ///
     void toString(std::string & str) override;
+
+	void setStackSpaceSize(int size)
+	{
+		stackSpaceSize = size;
+	}
 
     ///
     /// @brief 获取被调用函数的名字

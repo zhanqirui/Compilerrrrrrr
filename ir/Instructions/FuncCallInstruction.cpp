@@ -30,7 +30,7 @@ FuncCallInstruction::FuncCallInstruction(Function * _func,
     IRName = calledFunc->getName();
 
     // 实参拷贝
-    for (auto & val: _srcVal) {
+    for (auto * val: _srcVal) {
         addOperand(val);
     }
 }
@@ -113,7 +113,7 @@ void FuncCallInstruction::toString(std::string & str)
         }
     } else {
         // 如果有arg指令，则输出函数的实参
-        for (int32_t k = 0; k < argCount; ++k) {
+        for (int32_t k = 0; k < std::min(argCount, operandsNum); ++k) {
 
             auto operand = getOperand(k);
             if (operand->isConst()) {

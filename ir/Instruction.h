@@ -95,6 +95,7 @@ enum class IRInstOperator : std::int8_t {
     IRINST_OP_MAX,
     IRINST_OP_MEMCPY,
     IRINST_OP_MEMSET,
+	IRINST_OP_ADJUSTSTACK,
     IRINST_OP_ZEXT
 };
 

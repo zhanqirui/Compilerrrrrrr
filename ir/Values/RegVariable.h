@@ -18,7 +18,7 @@
 
 #include "Value.h"
 
-/// @brief 整型寄存器Value
+/// @brief 寄存器Value
 class RegVariable : public Value {
 
 public:

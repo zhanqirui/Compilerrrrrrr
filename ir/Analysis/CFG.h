@@ -48,6 +48,15 @@
 	 LiveInterval(const std::string& v, int s, int e) : var(v), start(s), end(e) {}
  };
  
+ // 死代码块信息结构体
+ struct DeadBlockInfo {
+	std::string block_label;                // 死代码块标签
+	size_t instruction_count;               // 指令数量
+	std::vector<std::string> instructions;  // 指令列表
+	
+	DeadBlockInfo() : instruction_count(0) {}
+};
+ 
  // CFG_function类
  class CFG_function {
  public:
@@ -71,7 +80,10 @@
 
 	 // 新增：变量名到Value*的映射
 	 std::unordered_map<std::string, Value*> name2value;
- 
+	
+	 // 死代码块删除信息记录
+	 std::vector<DeadBlockInfo> dead_blocks_info;
+
  public:
 	 CFG_function() : currentBlock(nullptr)
 	 {}
@@ -207,7 +219,19 @@
  
 	 // Debug活性分析
 	 void debugLiveness(std::ostream& os = std::cout);
- 
+
+	 /// @brief 死代码块删除 - 删除永远不会被执行的基本块
+	 void deadCodeElimination();
+
+	 /// @brief 调试死代码删除 - 显示被删除的死代码块信息
+	 /// @param os 输出流
+	 void debugDeadCodeElimination(std::ostream& os = std::cout);
+
+	 /// @brief 调试CFG结构 - 显示当前CFG的基本块结构信息
+	 /// @param os 输出流
+	 void debugCFGStructure(std::ostream& os = std::cout);
+	 
+
  protected:
 	 /// @brief 识别到函数定义语句
 	 /// @param ir_inst ir语句

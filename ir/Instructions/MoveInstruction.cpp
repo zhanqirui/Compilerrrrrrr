@@ -28,11 +28,14 @@
 /// @param result 结构操作数
 /// @param srcVal1 源操作数
 ///
-MoveInstruction::MoveInstruction(Function * _func, Value * _result, Value * _srcVal1)
+MoveInstruction::MoveInstruction(Function * _func, Value * _result, Value * _srcVal1, bool _is_paramreg, int _offset, bool _need_reg)
     : Instruction(_func, IRInstOperator::IRINST_OP_STORE, VoidType::getType())
 {
     addOperand(_result);
     addOperand(_srcVal1);
+    is_paramReg = _is_paramreg;
+	offset = _offset;
+    need_reg = _need_reg;
 }
 
 /// @brief 转换成字符串显示

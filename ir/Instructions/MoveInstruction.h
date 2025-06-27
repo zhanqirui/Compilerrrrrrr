@@ -29,13 +29,16 @@ class Function;
 class MoveInstruction : public Instruction {
 
 public:
+	bool is_paramReg; // 是否是参数传递的Move指令
+    int offset;
+    bool need_reg;
     ///
     /// @brief 构造函数
     /// @param _func 所属的函数
     /// @param result 结构操作数
     /// @param srcVal1 源操作数
     ///
-    MoveInstruction(Function * _func, Value * result, Value * srcVal1);
+    MoveInstruction(Function * _func, Value * result, Value * srcVal1, bool _is_paramreg = false, int _offset = 0, bool _need_reg=false);
 
     /// @brief 转换成字符串
     void toString(std::string & str) override;

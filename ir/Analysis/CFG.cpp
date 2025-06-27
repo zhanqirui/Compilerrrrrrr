@@ -335,9 +335,234 @@ void CFG_Generator::debugLiveness(std::ostream& os) {
 	}
  }
 
- /// @brief 运行产生CFG
- /// @param print_flag true:生成并打印;false:只生成CFG
- /// @return 翻译是否成功，true：成功，false：失败
+ /// @brief 死代码块删除 - 删除永远不会被执行的基本块
+/// @details 该函数通过可达性分析识别从函数入口可达的所有基本块，
+///          然后删除那些不可达的死代码块。死代码块通常是由于：
+///          1. 无条件跳转后的代码
+///          2. 条件永远为假的分支
+///          3. 孤立的代码块（没有任何入口）
+void CFG_Generator::deadCodeElimination()
+{
+    // 逐个函数处理
+    for (CFG_function * cfg_func : functions) {
+        std::set<CFG_block*> reachable_blocks;
+        std::vector<CFG_block*> worklist;
+        
+        // 如果函数没有基本块，跳过
+        if (cfg_func->blocks.empty()) {
+            continue;
+        }
+        
+        // 从函数入口开始（第一个块作为入口）
+        CFG_block* entry_block = cfg_func->blocks[0];
+        reachable_blocks.insert(entry_block);
+        worklist.push_back(entry_block);
+        
+        // 使用工作列表算法进行可达性分析
+        while (!worklist.empty()) {
+            CFG_block* current_block = worklist.back();
+            worklist.pop_back();
+            
+            // 遍历当前块的所有出口
+            for (const std::string& exit_label : current_block->exits) {
+                auto it = cfg_func->blockMap.find(exit_label);
+                if (it != cfg_func->blockMap.end()) {
+                    CFG_block* successor = it->second;
+                    // 如果后继块未被访问过，标记为可达并加入工作列表
+                    if (reachable_blocks.find(successor) == reachable_blocks.end()) {
+                        reachable_blocks.insert(successor);
+                        worklist.push_back(successor);
+                    }
+                }
+            }
+        }
+        
+        // 收集不可达的死代码块
+        std::vector<CFG_block*> dead_blocks;
+        for (CFG_block* block : cfg_func->blocks) {
+            if (reachable_blocks.find(block) == reachable_blocks.end()) {
+                dead_blocks.push_back(block);
+            }
+        }
+        
+        // 记录删除的死代码块信息（用于调试）
+        cfg_func->dead_blocks_info.clear();
+        for (CFG_block* dead_block : dead_blocks) {
+            DeadBlockInfo info;
+            info.block_label = dead_block->blk_label.empty() ? "anonymous" : dead_block->blk_label[0];
+            info.instruction_count = dead_block->irInstructions.size();
+            // 收集指令信息
+            for (Instruction* inst : dead_block->irInstructions) {
+                std::string inst_str;
+                inst->toString(inst_str);
+                info.instructions.push_back(inst_str);
+            }
+            cfg_func->dead_blocks_info.push_back(info);
+        }
+        
+        // 删除死代码块
+        for (CFG_block* dead_block : dead_blocks) {
+            // 从blocks向量中移除
+            auto block_it = std::find(cfg_func->blocks.begin(), cfg_func->blocks.end(), dead_block);
+            if (block_it != cfg_func->blocks.end()) {
+                cfg_func->blocks.erase(block_it);
+            }
+            
+            // 从blockMap中移除所有相关标签
+            for (const std::string& label : dead_block->blk_label) {
+                cfg_func->blockMap.erase(label);
+            }
+            
+            // 释放内存
+            delete dead_block;
+        }
+        
+        // 清理其他活跃块中指向已删除块的出口引用
+        for (CFG_block* block : cfg_func->blocks) {
+            auto it = block->exits.begin();
+            while (it != block->exits.end()) {
+                if (cfg_func->blockMap.find(*it) == cfg_func->blockMap.end()) {
+                    // 该出口指向的块已被删除，移除该出口
+                    it = block->exits.erase(it);
+                } else {
+                    ++it;
+                }
+            }
+        }
+    }
+}
+
+/// @brief 调试死代码删除 - 显示被删除的死代码块信息
+/// @param os 输出流
+/// @details 该函数显示在死代码删除过程中被移除的基本块的详细信息，
+///          包括块标签、指令数量和具体的指令内容，帮助开发者了解
+///          哪些代码被识别为死代码并被删除。
+void CFG_Generator::debugDeadCodeElimination(std::ostream& os) {
+    os << "==== Dead Code Elimination Results ====\n";
+    
+    for (CFG_function* cfg_func : functions) {
+        os << "Function: " << cfg_func->name << "\n";
+        
+        // 新增：显示可达性分析的详细信息
+        os << "  Reachability Analysis:\n";
+        if (!cfg_func->blocks.empty()) {
+            os << "    Entry block: " << (cfg_func->blocks[0]->blk_label.empty() ? 
+                                        "anonymous" : cfg_func->blocks[0]->blk_label[0]) << "\n";
+            
+            // 显示所有基本块的可达性
+            std::set<CFG_block*> reachable_blocks;
+            std::vector<CFG_block*> worklist;
+            
+            CFG_block* entry_block = cfg_func->blocks[0];
+            reachable_blocks.insert(entry_block);
+            worklist.push_back(entry_block);
+            
+            while (!worklist.empty()) {
+                CFG_block* current_block = worklist.back();
+                worklist.pop_back();
+                
+                for (const std::string& exit_label : current_block->exits) {
+                    auto it = cfg_func->blockMap.find(exit_label);
+                    if (it != cfg_func->blockMap.end()) {
+                        CFG_block* successor = it->second;
+                        if (reachable_blocks.find(successor) == reachable_blocks.end()) {
+                            reachable_blocks.insert(successor);
+                            worklist.push_back(successor);
+                        }
+                    }
+                }
+            }
+            
+            os << "    Reachable blocks: " << reachable_blocks.size() << "/" << cfg_func->blocks.size() << "\n";
+            for (CFG_block* block : cfg_func->blocks) {
+                std::string block_name = block->blk_label.empty() ? "anonymous" : block->blk_label[0];
+                bool is_reachable = (reachable_blocks.find(block) != reachable_blocks.end());
+                os << "      " << block_name << ": " << (is_reachable ? "REACHABLE" : "UNREACHABLE") << "\n";
+            }
+        }
+        
+        if (cfg_func->dead_blocks_info.empty()) {
+            os << "  No dead code blocks found.\n";
+        } else {
+            os << "  Dead code blocks eliminated: " << cfg_func->dead_blocks_info.size() << "\n";
+            
+            for (size_t i = 0; i < cfg_func->dead_blocks_info.size(); ++i) {
+                const DeadBlockInfo& info = cfg_func->dead_blocks_info[i];
+                os << "  Block " << (i + 1) << " [Label: " << info.block_label 
+                   << ", Instructions: " << info.instruction_count << "]:\n";
+                
+                for (const std::string& inst : info.instructions) {
+                    os << "    " << inst;
+                    if (inst.back() != '\n') os << "\n";
+                }
+                os << "\n";
+            }
+        }
+        
+        os << "  Remaining blocks: " << cfg_func->blocks.size() << "\n";
+        os << "----------------------------------------\n";
+    }
+    
+    os << "========================================\n";
+}
+
+/// @brief 调试CFG结构 - 显示当前CFG的基本块结构信息
+/// @param os 输出流
+/// @details 该函数显示CFG中所有基本块的结构信息，包括：
+///          - 基本块标签和ID
+///          - 前驱和后继关系
+///          - 基本块中的指令数量
+///          这有助于验证CFG构建和优化的正确性。
+void CFG_Generator::debugCFGStructure(std::ostream& os) {
+    os << "==== CFG Structure Information ====\n";
+    
+    for (CFG_function* cfg_func : functions) {
+        os << "Function: " << cfg_func->name << "\n";
+        os << "Total blocks: " << cfg_func->blocks.size() << "\n\n";
+        
+        for (size_t i = 0; i < cfg_func->blocks.size(); ++i) {
+            CFG_block* block = cfg_func->blocks[i];
+            std::string block_id = block->blk_label.empty() ? 
+                                   ("Block_" + std::to_string(i)) : 
+                                   block->blk_label[0];
+            
+            os << "  " << block_id << ":\n";
+            os << "    Instructions: " << block->irInstructions.size() << "\n";
+            
+            // 显示前驱
+            os << "    Predecessors: ";
+            if (block->prepos_entries.empty()) {
+                os << "none";
+            } else {
+                for (size_t j = 0; j < block->prepos_entries.size(); ++j) {
+                    if (j > 0) os << ", ";
+                    os << block->prepos_entries[j];
+                }
+            }
+            os << "\n";
+            
+            // 显示后继
+            os << "    Successors: ";
+            if (block->exits.empty()) {
+                os << "none (exit block)";
+            } else {
+                for (size_t j = 0; j < block->exits.size(); ++j) {
+                    if (j > 0) os << ", ";
+                    os << block->exits[j];
+                }
+            }
+            os << "\n\n";
+        }
+        
+        os << "----------------------------------------\n";
+    }
+    
+    os << "========================================\n";
+}
+
+/// @brief 运行产生CFG
+/// @param print_flag true:生成并打印;false:只生成CFG
+/// @return 翻译是否成功，true：成功，false：失败
  bool CFG_Generator::run(bool print_flag)
  {
 	 //遍历每个function
@@ -401,6 +626,9 @@ void CFG_Generator::debugLiveness(std::ostream& os) {
 	 add_prepose_entries2Block();
 
 	 block_merge();
+
+	 // 新增：执行死代码删除
+	 deadCodeElimination();
 
 	 //下面遍历func和func中的block，生成CFG
 	 //遍历函数

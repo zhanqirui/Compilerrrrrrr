@@ -29,7 +29,8 @@ FloatType * FloatType::oneInstanceDouble = new FloatType(64);
 ///
 FloatType * FloatType::getTypeFloat()
 {
-    return oneInstanceFloat;
+	static FloatType oneInstanceFloat(32);
+    return &oneInstanceFloat;
 }
 
 ///
@@ -38,5 +39,6 @@ FloatType * FloatType::getTypeFloat()
 ///
 FloatType * FloatType::getTypeDouble()
 {
-    return oneInstanceDouble;
+	static FloatType oneInstanceDouble(64);
+    return &oneInstanceDouble;
 }
