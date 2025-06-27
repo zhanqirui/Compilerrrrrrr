@@ -14,13 +14,15 @@
 #include "GetElementPtrInstruction.h"
 #include "BitcastInstruction.h"
 #include "CastInstruction.h"
+#include "AdjsutStack.h"
+
 #define Instanceof(res, type, var) auto res = dynamic_cast<type>(var)
 
 InstSelectorArm64::InstSelectorArm64(vector<Instruction *> & _irCode,
                                      ILocArm64 & _iloc,
                                      Function * _func,
                                      LinearScanRegisterAllocator & allocator)
-    : ir(_irCode), iloc(_iloc), func(_func), LinearRA(allocator)
+    : ir(_irCode), iloc(_iloc), func(_func), LinearRA(allocator), currentInstIdx(0)
 {
     translator_handlers[IRInstOperator::IRINST_OP_ENTRY] = &InstSelectorArm64::translate_entry;
     translator_handlers[IRInstOperator::IRINST_OP_EXIT] = &InstSelectorArm64::translate_exit;
@@ -53,6 +55,7 @@ InstSelectorArm64::InstSelectorArm64(vector<Instruction *> & _irCode,
     translator_handlers[IRInstOperator::IRINST_OP_BRANCH_I] = &InstSelectorArm64::translate_branch;
     translator_handlers[IRInstOperator::IRINST_OP_FUNC_CALL] = &InstSelectorArm64::translate_func_call;
     translator_handlers[IRInstOperator::IRINST_OP_ARG] = &InstSelectorArm64::translate_arg;
+	translator_handlers[IRInstOperator::IRINST_OP_ADJUSTSTACK] = &InstSelectorArm64::translate_adjustStack;
 
     // 新增：注册浮点数相关指令
     translator_handlers[IRInstOperator::IRINST_OP_ADD_F] = &InstSelectorArm64::translate_fadd;
@@ -70,14 +73,26 @@ InstSelectorArm64::InstSelectorArm64(vector<Instruction *> & _irCode,
 InstSelectorArm64::~InstSelectorArm64() {}
 
 void InstSelectorArm64::run() {
+    currentInstIdx = 0;
     for (auto inst: ir) {
         if (!inst->isDead()) {
             translate(inst);
         }
+        currentInstIdx++;
     }
 }
 
 void InstSelectorArm64::translate(Instruction * inst) {
+    // 只在调试模式下获取和设置指令信息
+    if (LinearRA.isDebugEnabled()) {
+        // 获取当前指令的字符串表示
+        std::string instStr;
+        // 移除对FUNC_CALL的特殊处理，让所有指令都能获取字符串
+        inst->toString(instStr);
+        // 设置当前指令信息到寄存器分配器
+        LinearRA.setCurrentInstruction(currentInstIdx, instStr);
+    }
+    
     IRInstOperator op = inst->getOp();
     auto pIter = translator_handlers.find(op);
     if (pIter == translator_handlers.end()) {
@@ -175,19 +190,19 @@ void InstSelectorArm64::translate_entry(Instruction * inst) {
         LinearRA.free(temp);
     }
 
-    // 保存函数参数值（寄存器→局部变量）
-    for (int i = 0; i < inst->getOperandsNum(); ++i) {
-        Value * arg = inst->getOperand(i);
-        int32_t reg_id = arg->getRegId();
-        if (reg_id != -1) {
-            iloc.store_var(reg_id, arg, ARM64_TMP_REG_NO);
-        } else {
-            int tmp = LinearRA.Allocate();
-            iloc.load_var(tmp, arg);
-            iloc.store_var(tmp, arg, ARM64_TMP_REG_NO);
-            LinearRA.free(tmp);
-        }
-    }
+    // // 保存函数参数值（寄存器→局部变量）
+    // for (int i = 0; i < inst->getOperandsNum(); ++i) {
+    //     Value * arg = inst->getOperand(i);
+    //     int32_t reg_id = arg->getRegId();
+    //     if (reg_id != -1) {
+    //         iloc.store_var(reg_id, arg, ARM64_TMP_REG_NO);
+    //     } else {
+    //         int tmp = LinearRA.Allocate();
+    //         iloc.load_var(tmp, arg);
+    //         iloc.store_var(tmp, arg, ARM64_TMP_REG_NO);
+    //         LinearRA.free(tmp);
+    //     }
+    // }
 }
 
 
@@ -243,13 +258,18 @@ void InstSelectorArm64::translate_exit(Instruction * inst) {
 
 
 void InstSelectorArm64::translate_assign(Instruction * inst) {
+	
     Value * result = inst->getOperand(0);
     Value * arg1 = inst->getOperand(1);
     int32_t arg1_regId = arg1->getRegId();
     int32_t result_regId = result->getRegId();
 
-	bool is_float_var = arg1->getType()->isFloatType();
-	bool is_int_var = arg1->getType()->isIntegerType();
+    Instanceof(moveInst, MoveInstruction *, inst);
+
+	int offset = moveInst->offset;
+
+    bool is_float_var = arg1->getType()->isFloatType();
+    bool is_int_var = arg1->getType()->isIntegerType();
 	//新增对数组复制的特殊处理
 	if(Instanceof(GepInst, GetElementPtrInstruction *, result)) 
 	{	
@@ -275,20 +295,32 @@ void InstSelectorArm64::translate_assign(Instruction * inst) {
 			exit(1);
 		}
 		LinearRA.free(temp_regno1, is_float_var);
-		LinearRA.free(temp_regno2, is_float_var);
+		LinearRA.free(temp_regno2);
 
 	}
 	else
 	{
 		if (arg1_regId != -1) {
-			iloc.store_var(arg1_regId, result, ARM64_TMP_REG_NO, is_float_var);
+            iloc.store_var(arg1_regId, result, ARM64_TMP_REG_NO, is_float_var);
+            if(moveInst) {
+				if(moveInst->is_paramReg)
+				{
+                    LinearRA.free(arg1_regId, is_float_var);
+                }
+            }
 		} else if (result_regId != -1) {
-			iloc.load_var(result_regId, arg1, is_float_var);
+			if(moveInst)
+			{
+				if(moveInst->need_reg)
+				{
+                    LinearRA.bitmapSet(result_regId);
+                }
+            }
+			iloc.load_var(result_regId, arg1, is_float_var, false, offset);
 		} else {
-			// 如果是浮点类型，使用AllocateFloat，否则使用Allocate
-			int32_t temp_regno = LinearRA.Allocate(is_float_var);
-			int32_t result_regno = LinearRA.Allocate(false, result);
-			iloc.load_var(temp_regno, arg1, is_float_var);
+            // 如果是浮点类型，使用AllocateFloat，否则使用Allocate
+            int32_t temp_regno = LinearRA.Allocate(is_float_var);
+			iloc.load_var(temp_regno, arg1, is_float_var, false, offset);
 			iloc.store_var(temp_regno, result, ARM64_TMP_REG_NO, is_float_var);
 			LinearRA.free(temp_regno, is_float_var);
 		}
@@ -312,13 +344,14 @@ void InstSelectorArm64::translate_load(Instruction * inst) {
     //新增对数组Load的特殊处理
 	if(Instanceof(GepInst, GetElementPtrInstruction *, arg1)) 
 	{	
+		bool is_result_float = result->getType()->isFloatType();
 		//储存地址到x0
 		int32_t temp_regno = LinearRA.Allocate(); // reg_allocator
 		iloc.load_var(temp_regno, GepInst);
-		if(!is_float_var)
+		if(!is_result_float)
 		{
 			//从[x0]中取出值到x0
-			iloc.inst("ldr", PlatformArm64::regName[temp_regno], "[" + PlatformArm64::regName[temp_regno] + ", #0]");
+			iloc.inst("ldr", PlatformArm64::regNameW[temp_regno], "[" + PlatformArm64::regName[temp_regno] + ", #0]");
 			//把x0保存到result
 			iloc.store_var(temp_regno, result, ARM64_TMP_REG_NO);
 		}
@@ -328,7 +361,7 @@ void InstSelectorArm64::translate_load(Instruction * inst) {
             //从[x0]中取出值到s0
 			iloc.inst("ldr", PlatformArm64::regNameS[temp_regno1], "[" + PlatformArm64::regName[temp_regno] + ", #0]");
 			//把s0保存到result
-			iloc.store_var(temp_regno, result, ARM64_TMP_REG_NO, true);
+			iloc.store_var(temp_regno1, result, ARM64_TMP_REG_NO, true);
 			LinearRA.free(temp_regno1, true);
 		}
 			
@@ -342,7 +375,6 @@ void InstSelectorArm64::translate_load(Instruction * inst) {
 			iloc.load_var(result_regId, arg1, is_float_var, is_param);
 		} else {
 			int32_t temp_regno = LinearRA.Allocate(is_float_var);
-			int32_t result_regno = LinearRA.Allocate(false, result);
 			iloc.load_var(temp_regno, arg1, is_float_var, is_param);
 			iloc.store_var(temp_regno, result, ARM64_TMP_REG_NO, is_float_var);
 			LinearRA.free(temp_regno, is_float_var);
@@ -414,24 +446,28 @@ void InstSelectorArm64::translate_cast(Instruction * inst) {
 		{
 			// 浮点到整数转换
 			iloc.inst("fcvtzs", PlatformArm64::regNameS[temp_regno], PlatformArm64::regNameS[temp_regno]);
+			iloc.store_var(temp_regno, dst, ARM64_TMP_REG_NO, is_float_var);
 		}
 		else if(castKind == CastInstruction::CastKind::UITOFP)
 		{
 			int float_temp_regno = LinearRA.Allocate(true);
 			// 整数到浮点转换
 			iloc.inst("scvtf", PlatformArm64::regNameS[float_temp_regno], PlatformArm64::regNameW[temp_regno]);
-			LinearRA.free(temp_regno, is_float_var);
+			iloc.store_var(float_temp_regno, dst, ARM64_TMP_REG_NO, true);
+			LinearRA.free(float_temp_regno, true);
 		}
 		else if(castKind == CastInstruction::CastKind::SITOFP)
 		{
 			int float_temp_regno = LinearRA.Allocate(true);
 			// 整数到浮点转换
 			iloc.inst("scvtf", PlatformArm64::regNameS[float_temp_regno], PlatformArm64::regNameW[temp_regno]);
-			LinearRA.free(temp_regno, is_float_var);
+			iloc.store_var(float_temp_regno, dst, ARM64_TMP_REG_NO, true);
+			LinearRA.free(float_temp_regno, true);
 		}
 		else if(castKind == CastInstruction::CastKind::FPTOSI)
 		{
 			iloc.inst("fcvtzs", PlatformArm64::regNameS[temp_regno], PlatformArm64::regNameS[temp_regno]);
+			iloc.store_var(temp_regno, dst, ARM64_TMP_REG_NO, is_float_var);
 		}
 		else
 		{
@@ -439,7 +475,7 @@ void InstSelectorArm64::translate_cast(Instruction * inst) {
 			exit(1);
 
 		}
-		iloc.store_var(temp_regno, dst, ARM64_TMP_REG_NO, is_float_var);
+		// iloc.store_var(temp_regno, dst, ARM64_TMP_REG_NO, is_float_var);
 		LinearRA.free(temp_regno, is_float_var);
 	}
 }
@@ -507,7 +543,7 @@ void InstSelectorArm64::translate_add(Instruction * inst) {
     iloc.store_var(dst_reg, dst, ARM64_TMP_REG_NO);
     if (lhs->getRegId() == -1) LinearRA.free(lhs_reg);
     if (rhs->getRegId() == -1) LinearRA.free(rhs_reg);
-    if (dst->getRegId() == -1) LinearRA.free(dst_reg);
+    // if (dst->getRegId() == -1) LinearRA.free(dst_reg);
 }
 
 void InstSelectorArm64::translate_sub(Instruction * inst) {
@@ -530,7 +566,7 @@ void InstSelectorArm64::translate_sub(Instruction * inst) {
     iloc.store_var(dst_reg, dst, ARM64_TMP_REG_NO);
     if (lhs->getRegId() == -1) LinearRA.free(lhs_reg);
     if (rhs->getRegId() == -1) LinearRA.free(rhs_reg);
-    if (dst->getRegId() == -1) LinearRA.free(dst_reg);
+    // if (dst->getRegId() == -1) LinearRA.free(dst_reg);
 }
 
 void InstSelectorArm64::translate_mul(Instruction * inst) {
@@ -553,7 +589,7 @@ void InstSelectorArm64::translate_mul(Instruction * inst) {
     iloc.store_var(dst_reg, dst, ARM64_TMP_REG_NO);
     if (lhs->getRegId() == -1) LinearRA.free(lhs_reg);
     if (rhs->getRegId() == -1) LinearRA.free(rhs_reg);
-    if (dst->getRegId() == -1) LinearRA.free(dst_reg);
+    // if (dst->getRegId() == -1) LinearRA.free(dst_reg);
 }
 
 void InstSelectorArm64::translate_div(Instruction * inst) {
@@ -576,7 +612,7 @@ void InstSelectorArm64::translate_div(Instruction * inst) {
     iloc.store_var(dst_reg, dst, ARM64_TMP_REG_NO);
     if (lhs->getRegId() == -1) LinearRA.free(lhs_reg);
     if (rhs->getRegId() == -1) LinearRA.free(rhs_reg);
-    if (dst->getRegId() == -1) LinearRA.free(dst_reg);
+    // if (dst->getRegId() == -1) LinearRA.free(dst_reg);
 }
 
 void InstSelectorArm64::translate_mod(Instruction * inst) {
@@ -606,7 +642,7 @@ void InstSelectorArm64::translate_mod(Instruction * inst) {
     LinearRA.free(tmp_mul);
     if (lhs->getRegId() == -1) LinearRA.free(lhs_reg);
     if (rhs->getRegId() == -1) LinearRA.free(rhs_reg);
-    if (dst->getRegId() == -1) LinearRA.free(dst_reg);
+    // if (dst->getRegId() == -1) LinearRA.free(dst_reg);
 }
 
 // ARMv8-A A64条件码映射
@@ -635,7 +671,7 @@ void InstSelectorArm64::translate_cmp(Instruction * inst, IRInstOperator op) {
 	if (dst_reg == -1) dst_reg = LinearRA.Allocate(false, dst);
 	// 这里应该是32位寄存器进行比较，而不是64位寄存器，所以修改成Wx
     iloc.inst("cmp", PlatformArm64::toWReg(PlatformArm64::regName[lhs_reg]), PlatformArm64::toWReg(PlatformArm64::regName[rhs_reg]));
-    iloc.inst("cset", PlatformArm64::regName[dst_reg], getA64Cond(op));
+    iloc.inst("cset", PlatformArm64::regNameW[dst_reg], getA64Cond(op));
     iloc.store_var(dst_reg, dst, ARM64_TMP_REG_NO);
     if (lhs->getRegId() == -1) LinearRA.free(lhs_reg);
     if (rhs->getRegId() == -1) LinearRA.free(rhs_reg);
@@ -662,7 +698,7 @@ void InstSelectorArm64::translate_branch(Instruction * inst) {
         iloc.load_var(cond_reg, cond);
     }
     // 先cmp #0
-    iloc.inst("cmp", PlatformArm64::regName[cond_reg], "#0");
+    iloc.inst("cmp", PlatformArm64::regNameW[cond_reg], "#0");
     // b.ne trueLabel
     iloc.inst("b.ne", trueLabel->getName());
     // b falseLabel
@@ -732,43 +768,47 @@ void InstSelectorArm64::translate_not(Instruction * inst) {
     if (src->getRegId() == -1) LinearRA.free(src_reg);
     if (dst->getRegId() == -1) LinearRA.free(dst_reg);
 }
+void InstSelectorArm64::translate_adjustStack(Instruction * inst) {
+	Instanceof(ASInst, AdjustStackInstruction *, inst);
+    int stack_size = ASInst->size;
+    if (stack_size > 0) {
+		if(stack_size <= 504) {
+			iloc.inst("sub", "sp", "sp", iloc.toStr(stack_size, false));
+		} else {
+			iloc.load_imm(ARM64_TMP_REG_NO, stack_size);
+			iloc.inst("sub", "sp", "sp", PlatformArm64::regName[ARM64_TMP_REG_NO]);
+			LinearRA.free(ARM64_TMP_REG_NO);
+		}
+    }
+}
+
 
 // 函数调用
 void InstSelectorArm64::translate_func_call(Instruction * inst) {
 	Value * funcVal = inst;
-	int n = inst->getOperandsNum();
-	int stack_arg_count = std::max(0, n - 8);
-	int stack_arg_size = stack_arg_count * 8;
-	if (stack_arg_size % 16 != 0) stack_arg_size = (stack_arg_size + 15) / 16 * 16;
-	if (stack_arg_size > 0) {
-		if(stack_arg_size <= 504) {
-			iloc.inst("sub", "sp", "sp", iloc.toStr(stack_arg_size, false));
-		} else {
-			iloc.load_imm(ARM64_TMP_REG_NO, stack_arg_size);
-			iloc.inst("sub", "sp", "sp", PlatformArm64::regName[ARM64_TMP_REG_NO]);
-			LinearRA.free(ARM64_TMP_REG_NO);
-		}
-	}
+    int n = inst->getOperandsNum();
+
+    // for (int i = 0; i < n; ++i) {
+	// 	Value * arg = inst->getOperand(i);
+	// 	// printf("arg %d: %s\n",i,arg->getName().c_str());
+	// 	int32_t reg = arg->getRegId();
+	// 	if (reg == -1) {
+	// 		reg = LinearRA.Allocate();
+	// 		iloc.load_var(reg, arg, false, false, stack_arg_size);
+	// 	}
 	
-	for (int i = 0; i < n; ++i) {
-		Value * arg = inst->getOperand(i);
-		// printf("arg %d: %s\n",i,arg->getName().c_str());
-		int32_t reg = arg->getRegId();
-		if (reg == -1) {
-			reg = LinearRA.Allocate();
-			iloc.load_var(reg, arg);
-		}
-	
-		if (i < 8) {
-			iloc.inst("mov", PlatformArm64::regName[i], PlatformArm64::regName[reg]);
-		} else {
-			std::string offset = iloc.toStr((i - 8) * 8, false);
-			iloc.inst("str", PlatformArm64::regName[reg], "[sp, #" + offset + "]");
-		}
-		if (arg->getRegId() == -1) LinearRA.free(reg);
-	}
+	// 	// if (i < 8) {
+	// 	// 	iloc.inst("mov", PlatformArm64::regName[i], PlatformArm64::regName[reg]);
+	// 	// } else {
+	// 	// 	std::string offset = iloc.toStr((i - 8) * 8, false);
+	// 	// 	iloc.inst("str", PlatformArm64::regName[reg], "[sp, #" + offset + "]");
+	// 	// }
+	// 	if (arg->getRegId() == -1) LinearRA.free(reg);
+	// }
 	
 	Instanceof(funcInst, FuncCallInstruction *, funcVal);
+	int stack_arg_size = funcInst->stackSpaceSize;
+
 	iloc.inst("bl", funcInst->calledFunction->getName());
 	
 	if (stack_arg_size > 0) {
@@ -879,7 +919,6 @@ void InstSelectorArm64::translate_fdiv(Instruction * inst) {
     // if (dst->getRegId() == -1) LinearRA.freeFloat(dst_reg);
 }
 
-
 // 浮点比较通用实现
 void InstSelectorArm64::translate_fcmp(Instruction * inst, IRInstOperator op) {
     Value * lhs = inst->getOperand(0);
@@ -890,7 +929,7 @@ void InstSelectorArm64::translate_fcmp(Instruction * inst, IRInstOperator op) {
     int32_t dst_reg = dst->getRegId();
     if (lhs_reg == -1) { lhs_reg = LinearRA.Allocate(true); iloc.load_var(lhs_reg, lhs, true); }
     if (rhs_reg == -1) { rhs_reg = LinearRA.Allocate(true); iloc.load_var(rhs_reg, rhs, true); }
-    if (dst_reg == -1) dst_reg = LinearRA.Allocate(dst); // 结果是int
+    if (dst_reg == -1) dst_reg = LinearRA.Allocate(false, dst); // 结果是int
     iloc.inst("fcmp", PlatformArm64::regNameS[lhs_reg], PlatformArm64::regNameS[rhs_reg]);
     // 浮点条件码映射
     const char* cond = nullptr;
@@ -905,8 +944,8 @@ void InstSelectorArm64::translate_fcmp(Instruction * inst, IRInstOperator op) {
     }
     iloc.inst("cset", PlatformArm64::regName[dst_reg], cond);
     iloc.store_var(dst_reg, dst, ARM64_TMP_REG_NO);
-    if (lhs->getRegId() == -1) LinearRA.freeFloat(lhs_reg);
-    if (rhs->getRegId() == -1) LinearRA.freeFloat(rhs_reg);
+    if (lhs->getRegId() == -1) LinearRA.free(lhs_reg,true);
+    if (rhs->getRegId() == -1) LinearRA.free(rhs_reg,true);
     if (dst->getRegId() == -1) LinearRA.free(dst_reg);
 }
 

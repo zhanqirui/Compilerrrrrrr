@@ -101,12 +101,12 @@ std::any MiniCCSTVisitor::visitDefineDirective(MiniCParser::DefineDirectiveConte
 	else if (ctx->FloatConst()) {
 		// 浮点数常量
 		std::string text = ctx->FloatConst()->getText();
-		float val = 0.0f;
+		double val = 0.0;
 		if (text.size() > 2 && (text[0] == '0') && (text[1] == 'x' || text[1] == 'X')) {
 			// 十六进制浮点常量
 			val = strtof(text.c_str(), nullptr);
 		} else {
-			val = std::stof(text);
+			val = std::stod(text);     // 使用双精度保留更多有效数字
 		}
 		value_node = create_float_node(val);
 	}
@@ -558,12 +558,12 @@ std::any MiniCCSTVisitor::visitNumber(MiniCParser::NumberContext *ctx) {
 	// FloatConst
 	if (ctx->FloatConst()) {
 		std::string text = ctx->FloatConst()->getText();
-		float val = 0.0f;
+		double val = 0.0;
 		if (text.size() > 2 && (text[0] == '0') && (text[1] == 'x' || text[1] == 'X')) {
 			// 十六进制浮点常量
-			val = strtof(text.c_str(), nullptr);
+			val = strtod(text.c_str(), nullptr);
 		} else {
-			val = std::stof(text);
+			val = std::stod(text);     // 使用双精度保留更多有效数字
 		}
 		return create_float_node(val);
 	}
@@ -580,12 +580,37 @@ std::any MiniCCSTVisitor::visitUnaryExpFuncCall(MiniCParser::UnaryExpFuncCallCon
 	id.id = strdup(ctx->Ident()->getText().c_str());
 	id.lineno = ctx->Ident()->getSymbol()->getLine();
 	auto id_node = ast_node::New(id);
-	
+
+	// 检查是否为 starttime()/stoptime()，且无参数
+	std::string func_name = ctx->Ident()->getText();
+	bool is_starttime = (func_name == "starttime");
+	bool is_stoptime = (func_name == "stoptime");
+	bool no_param = (ctx->funcRParams() == nullptr);
+
+	if ((is_starttime || is_stoptime) && no_param) {
+		// 构造 _sysy_starttime(__LINE__) 或 _sysy_stoptime(__LINE__)
+		var_id_attr sysy_func;
+		sysy_func.id = strdup(is_starttime ? "_sysy_starttime" : "_sysy_stoptime");
+		sysy_func.lineno = ctx->Ident()->getSymbol()->getLine();
+		auto sysy_func_node = ast_node::New(sysy_func);
+
+		// 构造 __LINE__ 常量节点
+		int line = ctx->Ident()->getSymbol()->getLine();
+		auto line_node = create_number_node(line);
+
+		// 构造参数节点
+		std::vector<ast_node*> params_vec{line_node};
+		auto params_node = create_func_rparams_node(params_vec);
+
+		// 构造函数调用节点
+		return create_func_call(sysy_func_node, params_node);
+	}
+
 	ast_node *params_node = nullptr;
 	if (ctx->funcRParams()) {
 		params_node = std::any_cast<ast_node *>(visit(ctx->funcRParams()));
 	}
-	
+
 	return create_func_call(id_node, params_node);
 }
 

@@ -41,15 +41,15 @@ public:
 	void load_array_base(int rs_reg_no, int base_reg_no, int disp, bool is_param = false);
 	void load_imm(int rs_reg_no, int64_t num);
     void load_imm_float(int rs_reg_no, float constant);
-    void store_base_i(int src_reg_no, int base_reg_no, int disp, int tmp_reg_no);
+    void store_base_i(int src_reg_no, int base_reg_no, int disp, int tmp_reg_no, bool is_use_w = false);
 	void store_base_f(int src_reg_no, int base_reg_no, int disp, int tmp_reg_no);
     void label(std::string name);
     void inst(std::string op, std::string rs=PlatformArm64::regName[ARM64_LR_REG_NO]);
     void inst(std::string op, std::string rs, std::string arg1);
     void inst(std::string op, std::string rs, std::string arg1, std::string arg2);
-    void load_var(int rs_reg_no, Value * var, bool is_float_var=false, bool is_param = false);
+    void load_var(int rs_reg_no, Value * var, bool is_float_var=false, bool is_param = false, int sp_offset=0);
     void lea_var(int rs_reg_no, Value * var);
-    void store_var(int src_reg_no, Value * var, int addr_reg_no, bool is_float_var = false);
+    void store_var(int src_reg_no, Value * var, int addr_reg_no, bool is_float_var = false, bool is_use_w=false);
     void mov_reg(int rs_reg_no, int src_reg_no);
     void call_fun(std::string name);
     void allocStack(Function * func, int tmp_reg_No);

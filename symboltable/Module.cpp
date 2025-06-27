@@ -71,6 +71,11 @@ Module::Module(std::string _name) : InFunctionList(13, false), name(_name)
     newFunction("putstr", VoidType::getType(), {new FormalParam{IntegerType::getTypeInt(), ""}}, true);
 
     newFunction("putf", VoidType::getType(), {new FormalParam{IntegerType::getTypeInt(), ""}}, true);
+
+    // 加入内置函数 _sysy_starttime 和 _sysy_stoptime
+    newFunction("_sysy_starttime", VoidType::getType(), {new FormalParam{IntegerType::getTypeInt(), ""}}, true);
+    newFunction("_sysy_stoptime", VoidType::getType(), {new FormalParam{IntegerType::getTypeInt(), ""}}, true);
+	
 }
 
 /// @brief 进入作用域，如进入函数体块、语句块等

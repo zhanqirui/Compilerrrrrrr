@@ -61,6 +61,12 @@ public:
         _bits[i] &= ~(1 << j);
     }
 
+	void resetall() {
+		for (auto& byte : _bits) {
+			byte = 0;
+		}
+	}
+
     ///
     /// @brief 访问函数，获取指定的位的值
     /// @param x 指定的位数

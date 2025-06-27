@@ -180,7 +180,7 @@ void ILocArm64::load_base_i(int rs_reg_no, int base_reg_no, int disp)
         base += "," + rsReg;
     }
     base = "[" + base + "]";
-    emit("ldr", rsReg, base);
+	emit("ldr", rsReg, base);
 }
 
 //从基址寄存器加偏移（或加寄存器）地址处加载内存到寄存器。
@@ -224,7 +224,7 @@ void ILocArm64::load_array_base(int rs_reg_no, int base_reg_no, int disp, bool i
 
 
 // 将寄存器内容存储到基址寄存器加偏移（或加寄存器）地址处。
-void ILocArm64::store_base_i(int src_reg_no, int base_reg_no, int disp, int tmp_reg_no)
+void ILocArm64::store_base_i(int src_reg_no, int base_reg_no, int disp, int tmp_reg_no, bool is_use_w)
 {
     std::string base = PlatformArm64::regName[base_reg_no];
     if (PlatformArm64::isDisp(disp)) {
@@ -234,7 +234,13 @@ void ILocArm64::store_base_i(int src_reg_no, int base_reg_no, int disp, int tmp_
         base += "," + PlatformArm64::regName[tmp_reg_no];
     }
     base = "[" + base + "]";
-    emit("str", PlatformArm64::regName[src_reg_no], base);
+	if(is_use_w) {
+    	emit("str", PlatformArm64::regNameW[src_reg_no], base);
+	}
+	else
+	{
+		emit("str", PlatformArm64::regName[src_reg_no], base);
+	}
 }
 
 void ILocArm64::store_base_f(int src_reg_no, int base_reg_no, int disp, int tmp_reg_no)
@@ -257,7 +263,7 @@ void ILocArm64::mov_reg(int rs_reg_no, int src_reg_no)
 }
 
 // 将变量的值加载到寄存器
-void ILocArm64::load_var(int rs_reg_no, Value * src_var, bool is_float_var, bool is_param)
+void ILocArm64::load_var(int rs_reg_no, Value * src_var, bool is_float_var, bool is_param, int sp_offset)
 {
     if (Instanceof(constIntVal, ConstInt *, src_var)) {
         load_imm(rs_reg_no, constIntVal->getVal());
@@ -298,6 +304,8 @@ void ILocArm64::load_var(int rs_reg_no, Value * src_var, bool is_float_var, bool
         if (!result) {
             minic_log(LOG_ERROR, "BUG");
         }
+		if(sp_offset)
+			var_offset += sp_offset;
 		if(src_var->isArray()) {
 			// 数组变量的地址加载到寄存器
 			load_array_base(rs_reg_no, var_baseRegId, var_offset, is_param);
@@ -325,7 +333,7 @@ void ILocArm64::lea_var(int rs_reg_no, Value * var)
 }
 
 // 将寄存器的值存储到变量（内存/全局/局部/寄存器变量）。
-void ILocArm64::store_var(int src_reg_no, Value * dest_var, int tmp_reg_no, bool is_float_var)
+void ILocArm64::store_var(int src_reg_no, Value * dest_var, int tmp_reg_no, bool is_float_var, bool is_use_w)
 {
     if (dest_var->getRegId() != -1) {
         int dest_reg_id = dest_var->getRegId();
@@ -358,7 +366,11 @@ void ILocArm64::store_var(int src_reg_no, Value * dest_var, int tmp_reg_no, bool
 			// 如果是浮点类型，使用store_base_f
 			store_base_f(src_reg_no, dest_baseRegId, dest_offset, tmp_reg_no);
 		}
-		else store_base_i(src_reg_no, dest_baseRegId, dest_offset, tmp_reg_no);
+		else 
+		{
+			// 如果是32位寄存器，使用w寄存器
+			store_base_i(src_reg_no, dest_baseRegId, dest_offset, tmp_reg_no, is_use_w);
+		}
         
     }
 }

@@ -52,7 +52,7 @@
 	"terminal.integrated.enableMultiLinePasteWarning": "auto",
 	"terminal.integrated.defaultProfile.osx": "zsh",
 	"terminal.integrated.fontSize": 14,
-	"diffEditor.ignoreTrimWhitespace": false,
+	"diffEditor.ignoreTrimWhitespace": true,
 	"prettier.vueIndentScriptAndStyle": true,
 	"prettier.semi": true,
 	"prettier.singleQuote": true,

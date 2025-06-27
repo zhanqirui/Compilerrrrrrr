@@ -125,6 +125,8 @@ set(BACKEND_SRCS
 set(IR_SRCS
 	ir/Generator/IRGenerator.cpp
 	ir/Generator/IRGenerator.h
+	ir/Instructions/AdjsutStack.h
+	ir/Instructions/AdjustStack.cpp
 	ir/Instructions/ArgInstruction.cpp
 	ir/Instructions/ArgInstruction.h
 	ir/Instructions/BinaryInstruction.cpp

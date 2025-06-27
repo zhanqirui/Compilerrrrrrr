@@ -29,6 +29,7 @@
 #include "FuncCallInstruction.h"
 #include "ArgInstruction.h"
 #include "MoveInstruction.h"
+#include "AdjsutStack.h"
 
 /// @brief 构造函数
 /// @param tab 符号表
@@ -91,7 +92,12 @@ void CodeGeneratorArm64::genDataSection()
 				
 			}
 			else if(type->isFloatType()) {
-				fprintf(fp, "    .float %f\n", (var->real_float));
+				union {
+					float f;
+					uint32_t u;
+				} conv;
+				conv.f = var->real_float;
+				fprintf(fp, "    .word 0x%08x\n", conv.u);
 			}
 			else if (type->isPointerType()) {
 				const auto& flatted_array = var->flattenedArray;
@@ -189,25 +195,30 @@ void CodeGeneratorArm64::getIRValueStr(Value * val, std::string & str)
 /// @param func 要处理的函数
 void CodeGeneratorArm64::genCodeSection(Function * func)
 {
+
+	// 获取函数的指令列表
+	std::vector<Instruction *> & IrInsts = func->getInterCode().getInsts();
+
+	// 汇编指令输出前要确保Label的名字有效，必须是程序级别的唯一，而不是函数内的唯一。要全局编号。
+	for (auto inst: IrInsts) {
+		if (inst->getOp() == IRInstOperator::IRINST_OP_LABEL) {
+			inst->setName(IR_LABEL_PREFIX + std::to_string(labelIndex++));
+		}
+	}
+
+	// ILOC代码序列
+	ILocArm64 iloc(module);
+
+	// 指令选择生成汇编指令
+	InstSelectorArm64 instSelector(IrInsts, iloc, func, LinearRA);
+	instSelector.resetForNewFunction();  // 重置状态
+	instSelector.setShowLinearIR(this->showLinearIR);
+	instSelector.setRegisterAllocatorDebug(false);
+
+
     // 寄存器分配以及栈内局部变量的站内地址重新分配
     registerAllocation(func);
 
-    // 获取函数的指令列表
-    std::vector<Instruction *> & IrInsts = func->getInterCode().getInsts();
-
-    // 汇编指令输出前要确保Label的名字有效，必须是程序级别的唯一，而不是函数内的唯一。要全局编号。
-    for (auto inst: IrInsts) {
-        if (inst->getOp() == IRInstOperator::IRINST_OP_LABEL) {
-            inst->setName(IR_LABEL_PREFIX + std::to_string(labelIndex++));
-        }
-    }
-
-    // ILOC代码序列
-    ILocArm64 iloc(module);
-
-    // 指令选择生成汇编指令
-    InstSelectorArm64 instSelector(IrInsts, iloc, func, LinearRA);
-    instSelector.setShowLinearIR(this->showLinearIR);
     instSelector.run();
 
     // 删除无用的Label指令
@@ -270,13 +281,10 @@ void CodeGeneratorArm64::registerAllocation(Function * func)
         protectedRegNo.push_back(ARM64_LR_REG_NO);  // x30
     }
 
-    // 先分配局部变量的栈空间
+	adjustFuncCallInsts(func);
+
     stackAlloc(func);
     
-    // 再调整函数调用指令，为调用其他函数准备参数
-    adjustFuncCallInsts(func);
-
-    // 最后处理函数形参
     adjustFormalParamInsts(func);
 }
 
@@ -284,24 +292,52 @@ void CodeGeneratorArm64::registerAllocation(Function * func)
 /// @param func 要处理的函数
 void CodeGeneratorArm64::adjustFormalParamInsts(Function * func)
 {
-    // 函数形参的前八个实参采用寄存器传值 (x0-x7)
+    // ARM64 AAPCS调用约定：
+    // 整数参数：x0-x7 (前8个)
+    // 浮点参数：s0-s7 (前8个)
     auto & params = func->getParams();
+	int intRegCnt = 0, floatRegCnt = 0;
 
-    // 形参的前八个通过寄存器来传值x0-x7
-    for (int k = 0; k < (int) params.size() && k <= 7; k++) {
-        // 前八个设置分配寄存器
-        LinearRA.bitmapSet(k);
-        params[k]->setRegId(k);
-    }
-
-    // 根据ARM64版C语言的调用约定，除前8个外的实参进行值传递
+	// 根据ARM64版C语言的调用约定，除前8个外的实参进行值传递
     // 这些参数位于调用者的栈帧中，通过FP+正偏移量访问
     int64_t param_offset = 16;  // 从FP+16开始访问参数(跳过保存的FP和LR)
-    for (int k = 8; k < (int) params.size(); k++) {
-        // ARM64架构下变量需要8字节对齐
-        params[k]->setMemoryAddr(ARM64_FP_REG_NO, param_offset);  // 使用FP基址寄存器，正偏移量
-        param_offset += 8;  // ARM64平台参数大小为8字节
+
+    // 形参的前八个通过寄存器来传值x0-x7
+    for (int k = 0; k < (int) params.size(); k++) {
+		bool isFloat = params[k]->getType()->isFloatType();
+		if(!isFloat) {
+			if(intRegCnt < 8)
+			{
+				// 前八个设置分配寄存器
+				LinearRA.bitmapSet(intRegCnt);
+				params[k]->setRegId(intRegCnt);
+				intRegCnt++;
+			}
+			else
+			{
+				// 超过8个的参数需要通过栈传递
+				params[k]->setMemoryAddr(ARM64_FP_REG_NO, param_offset);  // 使用FP基址寄存器，正偏移量
+				param_offset += 8;  // ARM64平台参数大小为8字节
+			}
+		}
+		else
+		{
+			if(floatRegCnt < 8)
+			{
+					// 前八个设置分配寄存器
+				LinearRA.floatBitmapSet(floatRegCnt);
+				params[k]->setRegId(floatRegCnt);
+				floatRegCnt++;
+			}
+			else
+			{
+				// 超过8个的参数需要通过栈传递
+				params[k]->setMemoryAddr(ARM64_FP_REG_NO, param_offset);  // 使用FP基址寄存器，正偏移量
+				param_offset += 8;  // ARM64平台参数大小为8字节
+			}
+		}
     }
+
 }
 
 /// @brief 寄存器分配前对函数内的指令进行调整，以便方便寄存器分配
@@ -311,84 +347,163 @@ void CodeGeneratorArm64::adjustFuncCallInsts(Function * func)
     // 当前函数的指令列表
     auto & insts = func->getInterCode().getInsts();
 
-    // 获取已分配的局部变量栈帧大小
-    int32_t local_vars_size = func->getMaxDep();
+    // !获取已分配的局部变量栈帧大小 fix!!!! 应该和function_call配合！！！！function_call中让sp - 需要分配的空间、
+	// !所以这里的偏移应该从0开始！！！！
+    int32_t local_vars_size = 0;
     
     // 为函数调用参数预留的栈空间从局部变量区域之后开始
     // 这样避免与局部变量区域冲突
     int param_area_base = local_vars_size;
 	
-    // 函数返回值用x0寄存器
     for (auto pIter = insts.begin(); pIter != insts.end(); pIter++) {
         // 检查是否是函数调用指令
         if (Instanceof(callInst, FuncCallInstruction *, *pIter)) {
-            // 处理超过8个的参数，它们需要通过栈传递
+
+			// 处理超过8个的参数，它们需要通过栈传递
             // 参数区域偏移量从局部变量区域之后开始
             int param_offset = param_area_base;
 			int params_num = callInst->getOperandsNum();
-            
-            for (int32_t k = 8; k < callInst->getOperandsNum(); k++) {
+			int intRegCnt = 0, floatRegCnt = 0;
+            bool is_float = false;
+			bool shouldUseStack = false;
+			int stackSpaceSize = 0;
+			//计算所需栈空间大小
+			if (params_num > 8) {
+				stackSpaceSize += (params_num - 8) * 8;  // 每个
+				//!!!!!!! 确保栈空间大小是 16 字节对齐的
+				stackSpaceSize = (stackSpaceSize + 15) & ~15;
+
+				callInst->setStackSpaceSize(stackSpaceSize);
+			}
+
+            for (int k = 0; k < callInst->getOperandsNum(); k++) {
                 auto arg = callInst->getOperand(k);
+				is_float = arg->getType()->isFloatType();
+				if(!is_float) {
+					if(intRegCnt < 8)
+					{
+						int need_offset = shouldUseStack ? stackSpaceSize : 0;
+						if (arg->getRegId() == intRegCnt) {
+							// 寄存器已经正确，不需要额外处理
+							continue;
+						}
+						// 创建临时变量，指定寄存器
+						Instruction * assignInst =
+						new MoveInstruction(func, PlatformArm64::intRegVal[intRegCnt], callInst->getOperand(k), false, need_offset, true);
 
-                // 新建一个内存变量，用于栈传值到形参变量中
-                // 注意：这里使用SP作为基址寄存器，偏移量从局部变量区域之后开始
-                LocalVariable * newVal = func->newLocalVarValue(IntegerType::getTypeInt());
-                newVal->setMemoryAddr(ARM64_SP_REG_NO, param_offset);  // 使用SP + 局部变量区域大小 + 参数偏移
-                param_offset += 8;  // ARM64平台参数大小为8字节
+						LinearRA.bitmapSet(intRegCnt);
+						callInst->setOperand(k, PlatformArm64::intRegVal[intRegCnt]);
+						pIter = insts.insert(pIter, assignInst);
+						pIter++;
+						intRegCnt++;
+					}
+					else
+					{
+						if(!shouldUseStack) {
+							// 如果超过8个参数，使用栈传递
+							shouldUseStack = true;
+							Instruction * AdjustStackInst = new AdjustStackInstruction(stackSpaceSize);
+							pIter = insts.insert(pIter, AdjustStackInst);
+							pIter++;
+							
+						}
+						// 新建一个内存变量，用于栈传值到形参变量中
+						// 注意：这里使用SP作为基址寄存器，偏移量从局部变量区域之后开始
+						LocalVariable * newVal = func->newLocalVarValue(IntegerType::getTypeInt());
+						newVal->setMemoryAddr(ARM64_SP_REG_NO, param_offset); 
+						param_offset += 8;  //! ARM64平台参数大小为8字节
 
-                Instruction * assignInst = new MoveInstruction(func, newVal, arg);
-                callInst->setOperand(k, newVal);
-                pIter = insts.insert(pIter, assignInst);
-                pIter++;
+						Instruction * assignInst = new MoveInstruction(func, newVal, arg, false, stackSpaceSize);
+						callInst->setOperand(k, newVal);
+						pIter = insts.insert(pIter, assignInst);
+						pIter++;
+					}
+				}
+
+				else
+				{
+					if(floatRegCnt < 8)
+					{
+						int need_offset = shouldUseStack ? stackSpaceSize : 0;
+						if (arg->getRegId() == floatRegCnt) {
+							// 寄存器已经正确，不需要额外处理
+							continue;
+						}
+						// 创建临时变量，指定寄存器
+						Instruction * assignInst =
+							new MoveInstruction(func, PlatformArm64::floatRegVal[floatRegCnt], callInst->getOperand(k), false, need_offset, true);
+						LinearRA.floatBitmapSet(floatRegCnt);
+						callInst->setOperand(k, PlatformArm64::floatRegVal[floatRegCnt]);
+						pIter = insts.insert(pIter, assignInst);
+						pIter++;
+						floatRegCnt++;
+					}
+					else
+					{
+						if(!shouldUseStack) {
+							// 如果超过8个参数，使用栈传递
+							shouldUseStack = true;
+							Instruction * AdjustStackInst = new AdjustStackInstruction(stackSpaceSize);
+							pIter = insts.insert(pIter, AdjustStackInst);
+							pIter++;
+							
+						}
+						// 新建一个内存变量，用于栈传值到形参变量中
+						// 注意：这里使用SP作为基址寄存器，偏移量从局部变量区域之后开始
+						LocalVariable * newVal = func->newLocalVarValue(FloatType::getTypeFloat());
+						newVal->setMemoryAddr(ARM64_SP_REG_NO, param_offset);  // 使用SP + 局部变量区域大小 + 参数偏移
+						param_offset += 8;  // ARM64平台参数大小为8字节
+
+						Instruction * assignInst = new MoveInstruction(func, newVal, arg, false, stackSpaceSize);
+						callInst->setOperand(k, newVal);
+						pIter = insts.insert(pIter, assignInst);
+						pIter++;
+					}
+				}
             }
-
-            // 处理前8个参数，它们通过寄存器传递
-            for (int k = 0; k < callInst->getOperandsNum() && k < 8; k++) {
-                auto arg = callInst->getOperand(k);
-
-                if (arg->getRegId() == k) {
-                    // 寄存器已经正确，不需要额外处理
-                    continue;
-                } else {
-                    // 创建临时变量，指定寄存器
-                    Instruction * assignInst =
-                        new MoveInstruction(func, PlatformArm64::intRegVal[k], callInst->getOperand(k));
-
-                    LinearRA.bitmapSet(k);
-                    callInst->setOperand(k, PlatformArm64::intRegVal[k]);
-                    pIter = insts.insert(pIter, assignInst);
-                    pIter++;
-                }
-            }
-
             // 处理函数返回值
             if (callInst->hasResultValue()) {
                 if (callInst->getRegId() == 0) {
                     // 结果已在x0中，不需要额外处理
                 } else {
                     // 将x0中的返回值移动到目标位置
-                    Instruction * assignInst = new MoveInstruction(func, callInst, PlatformArm64::intRegVal[0]);
-                    pIter = insts.insert(pIter + 1, assignInst);
+					if(callInst->type->isFloatType()){
+						Instruction * assignInst = new MoveInstruction(func, callInst, PlatformArm64::floatRegVal[0]);
+						pIter = insts.insert(pIter + 1, assignInst);
+					}
+					else
+					{
+						Instruction * assignInst = new MoveInstruction(func, callInst, PlatformArm64::intRegVal[0]);
+						pIter = insts.insert(pIter + 1, assignInst);
+					}
                 }
             }
         }
     }
     
-    // 计算所有函数调用中需要的最大参数空间
-    int max_args_space = 0;
-    for (auto inst: insts) {
-        if (Instanceof(callInst, FuncCallInstruction *, inst)) {
-            int args_cnt = callInst->getOperandsNum();
-            if (args_cnt > 8) {
-                // 只计算超过8个参数后需要栈传递的部分
-                int args_space = (args_cnt - 8) * 8;
-                max_args_space = std::max(max_args_space, args_space);
-            }
-        }
-    }
-    
-    // 记录调用其他函数时需要的最大参数数量
-    func->setMaxFuncCallArgCnt(max_args_space / 8 + 8);
+	int max_int_args = 0, max_float_args = 0;
+
+	for (auto inst: insts) {
+		if (Instanceof(callInst, FuncCallInstruction *, inst)) {
+			int intCnt = 0, floatCnt = 0;
+			for (int k = 0; k < callInst->getOperandsNum(); k++) {
+				if (callInst->getOperand(k)->getType()->isFloatType()) {
+					floatCnt++;
+				} else {
+					intCnt++;
+				}
+			}
+			max_int_args = std::max(max_int_args, intCnt);
+			max_float_args = std::max(max_float_args, floatCnt);
+		}
+	}
+	
+	// 记录最大需要的栈上传参槽数
+	int overflow_int_args = std::max(0, max_int_args - 8);
+	int overflow_float_args = std::max(0, max_float_args - 8);
+	int max_args_space = (overflow_int_args + overflow_float_args) * 8;
+	
+	func->setMaxFuncCallArgCnt(max_args_space / 8 + 8);
 }
 
 /// @brief 栈空间分配

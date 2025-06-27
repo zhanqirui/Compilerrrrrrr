@@ -59,6 +59,7 @@ protected:
     void translate_cmp(Instruction * inst, IRInstOperator op);
     void translate_func_call(Instruction * inst);
     void translate_arg(Instruction * inst);
+	void translate_adjustStack(Instruction * inst);
 
     // 新增：浮点数指令选择接口
     void translate_fadd(Instruction * inst);
@@ -77,6 +78,7 @@ protected:
     map<IRInstOperator, translate_handler> translator_handlers;
     LinearScanRegisterAllocator & LinearRA;
     bool showLinearIR = false;
+    int currentInstIdx; // 当前指令索引
 
 public:
     InstSelectorArm64(std::vector<Instruction *> & _irCode,
@@ -85,5 +87,8 @@ public:
                       LinearScanRegisterAllocator & allocator);
     ~InstSelectorArm64();
     void setShowLinearIR(bool show) { showLinearIR = show; }
+    void setRegisterAllocatorDebug(bool enable) { LinearRA.setDebugMode(enable); }
+    void testDebugFunction() { LinearRA.testDebugFunction(); }
+    void resetForNewFunction() { LinearRA.reset(); }
     void run();
 };

@@ -72,7 +72,7 @@ static bool gFrontEndRecursiveDescentParsing = false;
 ///
 /// @brief 在输出汇编时是否输出中间IR作为注释
 ///
-static bool gAsmAlsoShowIR = true;
+static bool gAsmAlsoShowIR = false;
 
 /// @brief 优化的级别，即-O后面的数字，默认为0
 static int gOptLevel = 0;
@@ -103,6 +103,16 @@ static bool gDebugLiveness = false;
 
 static bool gDebugLiveIntervals = false;
 
+///
+/// @brief Debug Dead Code Elimination
+///
+static bool gDebugDeadCode = true;
+
+///
+/// @brief Debug CFG Structure
+///
+static bool gDebugCFGStructure = true;
+
 static struct option long_options[] = {{"help", no_argument, 0, 'h'},
                                        {"output", required_argument, 0, 'o'},
                                        {"symbol", no_argument, 0, 'S'},
@@ -115,6 +125,8 @@ static struct option long_options[] = {{"help", no_argument, 0, 'h'},
                                        {"asmir", no_argument, 0, 'c'},
                                        {"cfg", no_argument, 0, 'C'},
                                        {"dfg", no_argument, 0, 'F'},
+                                       {"debug-dead", no_argument, 0, 'E'},
+                                       {"debug-cfg", no_argument, 0, 'G'},
                                        {0, 0, 0, 0}};
 
 /// @brief 显示帮助
@@ -136,6 +148,8 @@ static void showHelp(const std::string & exeName)
     std::cout << "  -c, --asmir                Show IR instructions as comments in assembly output\n";
     std::cout << "  -C, --cfg                  Generate control flow graph\n";
     std::cout << "  -F, --dfg                  Generate data flow graph\n";
+    std::cout << "  -E, --debug-dead           Debug dead code elimination\n";
+    std::cout << "  -G, --debug-cfg            Debug CFG structure information\n";
 }
 
 /// @brief 参数解析与有效性检查
@@ -156,7 +170,9 @@ static int ArgsAnalysis(int argc, char * argv[])
     // -c选项在输出汇编时有效，附带输出IR指令内容
     // -C选项用于生成控制流图
     // -F选项用于生成数据流图
-    const char options[] = "ho:STIADLO:t:cCF";
+    // -E选项用于调试死代码删除
+    // -G选项用于调试CFG结构信息
+    const char options[] = "ho:STIADLO:t:cCFEG";
     int option_index = 0;
 
     opterr = 1;
@@ -204,13 +220,19 @@ lb_check:
                 gCPUTarget = optarg;
                 break;
             case 'c':
-                gAsmAlsoShowIR = true;
+                gAsmAlsoShowIR = false;
                 break;
             case 'C':
                 gShowCFG = true;
                 break;
             case 'F':
                 gShowDFG = true;
+                break;
+            case 'E':
+                gDebugDeadCode = true;
+                break;
+            case 'G':
+                gDebugCFGStructure = true;
                 break;
             default:
                 return -1;
@@ -266,7 +288,7 @@ lb_check:
         if (gShowAST) {
             gOutputFile = "output.png";
         } else if (gShowLineIR) {
-            gOutputFile = "output.ir";
+            gOutputFile = "tests/output.ll";
         } else {
             gOutputFile = "output.s";
         }
@@ -372,6 +394,19 @@ static int compile(std::string inputFile, std::string outputFile)
             if (gDebugLiveness) {
                 cfgGen.debugLiveness();
             }
+            
+            // 新增：死代码块分析和调试
+            if (gDebugDeadCode) {
+                std::cout << "\n=== Before Dead Code Elimination ===\n";
+                cfgGen.debugCFGStructure();
+                cfgGen.debugDeadCodeElimination();
+            }
+            
+            // 新增：CFG结构调试
+            if (gDebugCFGStructure) {
+                std::cout << "\n=== CFG Structure Information ===\n";
+                cfgGen.debugCFGStructure();
+            }
         }
         // ---------------------------------------------------------------
 
@@ -409,6 +444,18 @@ static int compile(std::string inputFile, std::string outputFile)
             // 新增：活性分析与Debug
             CFG_Generator cfgGen(module);
             cfgGen.run(true);
+            
+            // 新增：如果启用了死代码调试，显示相关信息
+            if (gDebugDeadCode) {
+                std::cout << "\n=== Dead Code Elimination Analysis ===\n";
+                cfgGen.debugDeadCodeElimination();
+            }
+            
+            if (gDebugCFGStructure) {
+                std::cout << "\n=== Final CFG Structure ===\n";
+                cfgGen.debugCFGStructure();
+            }
+            
             break;
         }
 
